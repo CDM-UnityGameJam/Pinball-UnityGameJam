@@ -13,7 +13,10 @@ public class GameManager : MonoBehaviour
 
     public Transform board;
     public Rigidbody ball;
-    public Vector3 launchLocal = new Vector3(0f, 0.3f, 10.5f);
+    // Between and just below the flipper tips (tips sit near z -8.3, x ±0.6).
+    public Vector3 launchLocal = new Vector3(0f, 0.3f, -9f);
+    public float launchSpeed = 18f;
+    public float launchBiasDegrees = 8f;
     public float gravity = 60f;
     public int maxLives = 3;
 
@@ -67,7 +70,8 @@ public class GameManager : MonoBehaviour
         state = RunState.Playing;
         Time.timeScale = 1f;
         ball.isKinematic = false;
-        ball.linearVelocity = board.TransformDirection(new Vector3(Random.Range(-3f, 3f), 0f, -2f));
+        var dir = Quaternion.Euler(0f, Random.Range(-launchBiasDegrees, launchBiasDegrees), 0f) * Vector3.forward;
+        ball.linearVelocity = board.TransformDirection(dir) * launchSpeed;
     }
 
     void SetPaused(bool value)

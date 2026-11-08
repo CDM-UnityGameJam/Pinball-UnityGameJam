@@ -408,14 +408,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   board: {fileID: 1423220}
   ball: {fileID: 1398522867}
-  launchLocal: {x: 0, y: 0.3, z: 10.5}
+  launchLocal: {x: 0, y: 0.3, z: -9}
+  launchSpeed: 18
+  launchBiasDegrees: 8
   gravity: 60
-  maxHp: 3
-  finalWave: 4
-  spawnMinZ: -0.5
-  spawnMaxZ: 8.5
-  arcCenterZ: 7
-  arcRadius: 5
+  maxLives: 3
 --- !u!4 &172975892
 Transform:
   m_ObjectHideFlags: 0
