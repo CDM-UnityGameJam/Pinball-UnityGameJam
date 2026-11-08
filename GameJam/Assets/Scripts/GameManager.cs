@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -6,7 +7,8 @@ public class GameManager : MonoBehaviour
 {
     enum RunState { Waiting, Playing, GameOver }
 
-    const int LuckyNumber = 37;
+    const int LuckyNumber = Card.Lucky;
+    const int EnergyPerCard = 100;
     const float LaunchWait = 3f;
     const int HandSize = 5, StartCards = 3;
     const int KillPoints = 50, SurvivalPoints = 5;
@@ -116,10 +118,29 @@ public class GameManager : MonoBehaviour
 
     public int CurrentNumber => currentNumber;
 
-    // shortcut: energy only accumulates; system 4 spends 100 per card draw.
+    // Called last in hit resolution, so a kill on this hit already removed that enemy from the coverage check.
     public void AddEnergy(int amount)
     {
-        if (state == RunState.Playing) energy += amount;
+        if (state != RunState.Playing) return;
+        energy += amount;
+        while (energy >= EnergyPerCard)
+        {
+            energy -= EnergyPerCard;
+            DrawCard();
+        }
+    }
+
+    // shortcut: a replaced slot 5 does not cancel a drag yet; system 8 adds that (checklist E3).
+    void DrawCard()
+    {
+        var targets = new List<int>();
+        foreach (var e in FindObjectsByType<Enemy>(FindObjectsSortMode.None))
+            if (e.kind != Enemy.Kind.Bumper && e.hp > 0 && e.Visible) targets.Add(e.target);
+
+        var card = Card.Draw(currentNumber, hand, targets);
+        int slot = HandSize - 1; // full hand: replace slot 5
+        for (int i = 0; i < HandSize; i++) if (hand[i] == null) { slot = i; break; }
+        hand[slot] = card;
     }
 
     // Creates a board circle at a board-local XZ position. The spawner (system 7) decides kind, target and position.
