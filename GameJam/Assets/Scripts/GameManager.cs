@@ -8,6 +8,7 @@ public class GameManager : MonoBehaviour
 
     const int LuckyNumber = 37;
     const float LaunchWait = 3f;
+    const int HandSize = 5, StartCards = 3;
 
     public static GameManager Instance;
 
@@ -25,6 +26,7 @@ public class GameManager : MonoBehaviour
     float countdown, activeTime;
     int lives, energy, currentNumber = LuckyNumber;
     long score; // long: special kills multiply the total repeatedly
+    readonly Card?[] hand = new Card?[HandSize]; // null = empty slot
 
     void Awake()
     {
@@ -36,6 +38,7 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         lives = maxLives;
+        for (int i = 0; i < StartCards; i++) hand[i] = Card.Random();
         BeginWaiting();
     }
 
@@ -44,6 +47,11 @@ public class GameManager : MonoBehaviour
         var kb = Keyboard.current;
         if (state != RunState.GameOver && kb != null && kb.rKey.wasPressedThisFrame) SetPaused(!paused);
         if (paused) return;
+
+        // shortcut: keys 1-5 use a card until system 8 adds drag-to-playfield.
+        if (kb != null && state != RunState.GameOver)
+            for (int i = 0; i < HandSize; i++)
+                if (kb[Key.Digit1 + i].wasPressedThisFrame) UseCard(i);
 
         if (state == RunState.Playing) activeTime += Time.deltaTime;
         else if (state == RunState.Waiting)
@@ -86,6 +94,15 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
+    // Consumes the card; its result replaces the current number until the next card is used.
+    public bool UseCard(int slot)
+    {
+        if (paused || state == RunState.GameOver || hand[slot] == null) return false;
+        currentNumber = hand[slot].Value.Apply(LuckyNumber);
+        hand[slot] = null;
+        return true;
+    }
+
     public void LoseLife()
     {
         if (state != RunState.Playing) return;
@@ -111,6 +128,12 @@ public class GameManager : MonoBehaviour
         GUI.Label(new Rect(20, 75, 400, 30), "Time: " + FormatTime(activeTime), s);
         GUI.Label(new Rect(20, Screen.height - 75, 400, 30), LuckyNumber + " > " + currentNumber, s);
         GUI.Label(new Rect(20, Screen.height - 45, 400, 30), "Energy: " + energy + " / 100", s);
+        for (int i = 0; i < HandSize; i++)
+        {
+            var c = hand[i];
+            var text = (i + 1) + "\n" + (c == null ? "-" : c.Value + "\n= " + c.Value.Apply(LuckyNumber));
+            GUI.Box(new Rect(Screen.width / 2f - 275 + i * 110, Screen.height - 110, 100, 90), text, new GUIStyle(GUI.skin.box) { fontSize = 20 });
+        }
 
         var big = new GUIStyle(s) { fontSize = 48, alignment = TextAnchor.MiddleCenter };
         var center = new Rect(0, Screen.height / 2f - 110, Screen.width, 160);
