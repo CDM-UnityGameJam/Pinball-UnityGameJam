@@ -114,6 +114,31 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    public int CurrentNumber => currentNumber;
+
+    // shortcut: energy only accumulates; system 4 spends 100 per card draw.
+    public void AddEnergy(int amount)
+    {
+        if (state == RunState.Playing) energy += amount;
+    }
+
+    // Creates a board circle at a board-local XZ position. The spawner (system 7) decides kind, target and position.
+    public Enemy SpawnEnemy(Enemy.Kind kind, int target, Vector3 local)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = kind.ToString();
+        Destroy(go.GetComponent<Collider>()); // default capsule would act like a sphere
+        go.AddComponent<MeshCollider>().convex = true;
+        // Runtime primitives get a built-in material that renders magenta in URP player builds; reuse the board's URP material.
+        go.GetComponent<Renderer>().sharedMaterial = board.GetComponentInChildren<Renderer>().sharedMaterial;
+        go.transform.SetParent(board, false);
+        go.transform.localPosition = new Vector3(local.x, 0.5f, local.z);
+        go.transform.localScale = new Vector3(1f, 0.5f, 1f);
+        var e = go.AddComponent<Enemy>();
+        e.Init(kind, target);
+        return e;
+    }
+
     public void OnNormalKill()
     {
         if (state == RunState.Playing) score = AddClamped(score, KillPoints);
