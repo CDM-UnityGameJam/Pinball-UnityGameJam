@@ -1,30 +1,27 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
+    enum RunState { Waiting, Playing, GameOver }
+
+    const int LuckyNumber = 37;
+    const float LaunchWait = 3f;
+
     public static GameManager Instance;
 
     public Transform board;
     public Rigidbody ball;
     public Vector3 launchLocal = new Vector3(0f, 0.3f, 10.5f);
     public float gravity = 60f;
-    public int maxHp = 3;
-    public int finalWave = 4;
+    public int maxLives = 3;
 
-    // Spawn zone in board-local XZ (upper ~60% of the table, clear of flippers and inlanes).
-    public float spawnMinZ = -0.5f, spawnMaxZ = 8.5f, arcCenterZ = 7f, arcRadius = 5f;
-    const float CircleRadius = 0.5f, MinGap = 1.5f;
-
-    int hp, wave;
-    float countdown;
-    bool won, lost;
-    readonly List<MysteryCircle> circles = new List<MysteryCircle>();
-
-    int EnemiesLeft { get { int n = 0; foreach (var c in circles) if (c && c.isEnemy) n++; return n; } }
+    RunState state;
+    bool paused;
+    float countdown, activeTime;
+    int lives, energy, currentNumber = LuckyNumber;
+    long score; // long: special kills multiply the total repeatedly
 
     void Awake()
     {
@@ -35,110 +32,102 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        hp = maxHp;
-        StartWave(1);
-        StartCoroutine(Launch());
+        lives = maxLives;
+        BeginWaiting();
     }
 
     void Update()
     {
         var kb = Keyboard.current;
-        if (kb != null && kb.rKey.wasPressedThisFrame)
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
+        if (state != RunState.GameOver && kb != null && kb.rKey.wasPressedThisFrame) SetPaused(!paused);
+        if (paused) return;
 
-    void StartWave(int n)
-    {
-        wave = n;
-        int count = Mathf.Min(n + 1, 5);
-        for (int i = 0; i < count; i++) Spawn(true);
-        for (int i = 0; i < count; i++) Spawn(false);
-    }
-
-    void Spawn(bool enemy)
-    {
-        for (int tries = 0; tries < 200; tries++)
+        if (state == RunState.Playing) activeTime += Time.deltaTime;
+        else if (state == RunState.Waiting)
         {
-            float z = Random.Range(spawnMinZ, spawnMaxZ);
-            float halfW = Mathf.Sqrt(arcRadius * arcRadius - Mathf.Pow(Mathf.Max(0f, z - arcCenterZ), 2)) - 0.9f;
-            var local = new Vector3(Random.Range(-halfW, halfW), 0f, z);
-            if (!IsFree(local)) continue;
-
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            go.name = "Circle";
-            Destroy(go.GetComponent<Collider>()); // default capsule would act like a sphere
-            go.AddComponent<MeshCollider>().convex = true;
-            // Runtime primitives get a built-in material that renders magenta in URP player builds; reuse the board's URP material.
-            go.GetComponent<Renderer>().sharedMaterial = board.GetComponentInChildren<Renderer>().sharedMaterial;
-            go.transform.SetParent(board, false);
-            go.transform.localPosition = local + Vector3.up * 0.5f;
-            go.transform.localScale = new Vector3(CircleRadius * 2f, 0.5f, CircleRadius * 2f);
-            var mc = go.AddComponent<MysteryCircle>();
-            mc.isEnemy = enemy;
-            circles.Add(mc);
-            return;
+            // Clamped so a load hitch cannot eat the 3 s wait.
+            countdown -= Mathf.Min(Time.unscaledDeltaTime, Time.maximumDeltaTime);
+            if (countdown <= 0f) Launch();
         }
-        Debug.LogWarning("No free spot for circle");
     }
 
-    bool IsFree(Vector3 local)
+    // timeScale 0 freezes physics, movement and every scaled timer; card input must use unscaled time.
+    void BeginWaiting()
     {
-        foreach (var c in circles)
-        {
-            if (!c) continue;
-            var p = c.transform.localPosition; p.y = 0f;
-            if (Vector3.Distance(p, local) < MinGap) return false;
-        }
-        var b = board.InverseTransformPoint(ball.position); b.y = 0f;
-        return Vector3.Distance(b, local) > MinGap;
+        state = RunState.Waiting;
+        countdown = LaunchWait;
+        Time.timeScale = 0f;
+        ball.isKinematic = true;
+        ball.position = board.TransformPoint(launchLocal);
+        ball.transform.position = ball.position;
     }
 
-    public void OnEnemyKilled(MysteryCircle enemy)
+    void Launch()
     {
-        circles.Remove(enemy);
-        if (won || lost || EnemiesLeft > 0) return;
+        state = RunState.Playing;
+        Time.timeScale = 1f;
+        ball.isKinematic = false;
+        ball.linearVelocity = board.TransformDirection(new Vector3(Random.Range(-3f, 3f), 0f, -2f));
+    }
 
-        foreach (var c in circles) if (c) Destroy(c.gameObject);
-        circles.Clear();
-        if (wave >= finalWave) { won = true; ball.isKinematic = true; return; }
-        StartWave(wave + 1);
+    void SetPaused(bool value)
+    {
+        paused = value;
+        Time.timeScale = !paused && state == RunState.Playing ? 1f : 0f;
+    }
+
+    void Restart()
+    {
+        Time.timeScale = 1f; // survives scene load
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    public void LoseLife()
+    {
+        if (state != RunState.Playing) return;
+        lives--;
+        if (lives > 0) return;
+        state = RunState.GameOver;
+        Time.timeScale = 0f;
+        ball.isKinematic = true;
     }
 
     public void OnDrain()
     {
-        if (won || lost || countdown > 0f) return;
-        hp--;
-        if (hp <= 0) { lost = true; ball.isKinematic = true; return; }
-        StartCoroutine(Launch());
-    }
-
-    IEnumerator Launch()
-    {
-        ball.isKinematic = true;
-        ball.position = board.TransformPoint(launchLocal);
-        ball.transform.position = ball.position;
-        countdown = 1f;
-        while (countdown > 0f) { countdown -= Time.deltaTime; yield return null; }
-        countdown = 0f;
-        if (won || lost) yield break;
-        ball.isKinematic = false;
-        ball.linearVelocity = board.TransformDirection(new Vector3(Random.Range(-3f, 3f), 0f, -2f));
+        if (state != RunState.Playing) return;
+        LoseLife();
+        if (state == RunState.Playing) BeginWaiting();
     }
 
     void OnGUI()
     {
         var s = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold };
-        GUI.Label(new Rect(20, 15, 400, 30), "HP: " + hp + " / " + maxHp, s);
-        GUI.Label(new Rect(20, 45, 400, 30), "Wave: " + wave + " / " + finalWave, s);
-        GUI.Label(new Rect(20, 75, 400, 30), "Enemies left: " + EnemiesLeft, s);
+        GUI.Label(new Rect(20, 15, 400, 30), "Score: " + score, s);
+        GUI.Label(new Rect(20, 45, 400, 30), "Lives: " + lives + " / " + maxLives, s);
+        GUI.Label(new Rect(20, 75, 400, 30), "Time: " + FormatTime(activeTime), s);
+        GUI.Label(new Rect(20, Screen.height - 75, 400, 30), LuckyNumber + " > " + currentNumber, s);
+        GUI.Label(new Rect(20, Screen.height - 45, 400, 30), "Energy: " + energy + " / 100", s);
 
         var big = new GUIStyle(s) { fontSize = 48, alignment = TextAnchor.MiddleCenter };
-        var center = new Rect(0, Screen.height / 2f - 80, Screen.width, 160);
-        if (countdown > 0f && !won && !lost) GUI.Label(center, Mathf.CeilToInt(countdown).ToString(), big);
-        if (won || lost)
+        var center = new Rect(0, Screen.height / 2f - 110, Screen.width, 160);
+        var button = new GUIStyle(GUI.skin.button) { fontSize = 24 };
+        float midX = Screen.width / 2f, buttonY = Screen.height / 2f + 60;
+
+        if (state == RunState.GameOver)
         {
             GUI.Box(center, "");
-            GUI.Label(center, (won ? "YOU WIN!" : "YOU LOSE") + "\n<size=24>Press R to restart</size>", new GUIStyle(big) { richText = true });
+            GUI.Label(center, "GAME OVER\n<size=24>Score " + score + "   Time " + FormatTime(activeTime) + "</size>", new GUIStyle(big) { richText = true });
+            if (GUI.Button(new Rect(midX - 80, buttonY, 160, 50), "Restart", button)) Restart();
         }
+        else if (paused)
+        {
+            GUI.Box(center, "");
+            GUI.Label(center, "Restart?", big);
+            if (GUI.Button(new Rect(midX - 170, buttonY, 160, 50), "Yes", button)) Restart();
+            if (GUI.Button(new Rect(midX + 10, buttonY, 160, 50), "No", button)) SetPaused(false);
+        }
+        else if (state == RunState.Waiting) GUI.Label(center, Mathf.CeilToInt(countdown).ToString(), big);
     }
+
+    static string FormatTime(float t) => Mathf.FloorToInt(t / 60f) + ":" + Mathf.FloorToInt(t % 60f).ToString("00");
 }

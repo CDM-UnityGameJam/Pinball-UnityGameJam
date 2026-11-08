@@ -35,11 +35,7 @@ public class MysteryCircle : MonoBehaviour
             hp--;
             if (!label) label = MakeLabel();
             label.text = hp.ToString();
-            if (hp <= 0)
-            {
-                GameManager.Instance.OnEnemyKilled(this);
-                Destroy(gameObject);
-            }
+            if (hp <= 0) Destroy(gameObject);
         }
         else
         {
