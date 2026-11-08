@@ -19,6 +19,7 @@ public class Enemy : MonoBehaviour
     float visibleLeft, lifeLeft;
     float lastHit = -1f;
     TextMesh label;
+    Rigidbody body;
 
     public bool Visible => kind == Kind.Special || visibleLeft > 0f;
     public int Multiplier => target == 111 ? 10 : target == 222 ? 2 : 3;
@@ -33,7 +34,28 @@ public class Enemy : MonoBehaviour
             k == Kind.Normal ? new Color(0.55f, 0.15f, 0.2f) :
             k == Kind.Special ? new Color(0.6f, 0.45f, 0.1f) : new Color(0.6f, 0.6f, 0.65f);
         if (k != Kind.Bumper) label = MakeLabel();
+        if (k != Kind.Special)
+        {
+            body = gameObject.AddComponent<Rigidbody>(); // kinematic body so a moving collider is not re-baked as static
+            body.isKinematic = true;
+        }
         Refresh();
+    }
+
+    // Normal enemies and bumpers descend; FixedUpdate stops on its own while timeScale is 0.
+    void FixedUpdate()
+    {
+        if (!body) return;
+        var board = transform.parent;
+        var p = board.InverseTransformPoint(body.position);
+        p.z -= Spawner.DescendSpeed * Time.fixedDeltaTime;
+        if (p.z <= Spawner.LineZ)
+        {
+            if (kind == Kind.Normal && hp > 0) GameManager.Instance.LoseLife(); // no kill credit, no relaunch
+            Destroy(gameObject);
+            return;
+        }
+        body.MovePosition(board.TransformPoint(p));
     }
 
     // Scaled time: visibility and special lifetime freeze during the launch wait and pause.

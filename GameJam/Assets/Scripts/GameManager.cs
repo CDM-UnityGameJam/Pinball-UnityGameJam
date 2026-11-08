@@ -43,6 +43,7 @@ public class GameManager : MonoBehaviour
     {
         lives = maxLives;
         for (int i = 0; i < StartCards; i++) hand[i] = Card.Random();
+        gameObject.AddComponent<Spawner>();
         BeginWaiting();
     }
 
@@ -117,6 +118,8 @@ public class GameManager : MonoBehaviour
     }
 
     public int CurrentNumber => currentNumber;
+    public bool IsPlaying => state == RunState.Playing && !paused;
+    public float ActiveTime => activeTime;
 
     // Called last in hit resolution, so a kill on this hit already removed that enemy from the coverage check.
     public void AddEnergy(int amount)
