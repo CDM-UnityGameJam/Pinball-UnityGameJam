@@ -9,6 +9,8 @@ public class GameManager : MonoBehaviour
     const int LuckyNumber = 37;
     const float LaunchWait = 3f;
     const int HandSize = 5, StartCards = 3;
+    const int KillPoints = 50, SurvivalPoints = 5;
+    const float SurvivalInterval = 5f;
 
     public static GameManager Instance;
 
@@ -23,7 +25,7 @@ public class GameManager : MonoBehaviour
 
     RunState state;
     bool paused;
-    float countdown, activeTime;
+    float countdown, activeTime, survivalTimer;
     int lives, energy, currentNumber = LuckyNumber;
     long score; // long: special kills multiply the total repeatedly
     readonly Card?[] hand = new Card?[HandSize]; // null = empty slot
@@ -53,7 +55,16 @@ public class GameManager : MonoBehaviour
             for (int i = 0; i < HandSize; i++)
                 if (kb[Key.Digit1 + i].wasPressedThisFrame) UseCard(i);
 
-        if (state == RunState.Playing) activeTime += Time.deltaTime;
+        if (state == RunState.Playing)
+        {
+            activeTime += Time.deltaTime;
+            survivalTimer += Time.deltaTime;
+            while (survivalTimer >= SurvivalInterval)
+            {
+                survivalTimer -= SurvivalInterval;
+                score = AddClamped(score, SurvivalPoints);
+            }
+        }
         else if (state == RunState.Waiting)
         {
             // Clamped so a load hitch cannot eat the 3 s wait.
@@ -102,6 +113,21 @@ public class GameManager : MonoBehaviour
         hand[slot] = null;
         return true;
     }
+
+    public void OnNormalKill()
+    {
+        if (state == RunState.Playing) score = AddClamped(score, KillPoints);
+    }
+
+    // 111 / 222 / 333 multiply the total by 10 / 2 / 3; no flat points.
+    public void OnSpecialKill(int multiplier)
+    {
+        if (state == RunState.Playing) score = MultiplyClamped(score, multiplier);
+    }
+
+    // Repeated x10 kills could pass long.MaxValue, so scores saturate instead of wrapping negative.
+    public static long AddClamped(long a, long b) => a > long.MaxValue - b ? long.MaxValue : a + b;
+    public static long MultiplyClamped(long a, int m) => a > long.MaxValue / m ? long.MaxValue : a * m;
 
     public void LoseLife()
     {
