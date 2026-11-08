@@ -1,45 +1,80 @@
 using UnityEngine;
 
 // Board circle: normal enemy (hidden target, 3 HP), special enemy (111/222/333, 5 HP, 30 s life) or bumper.
+// Drawn as a ring (the cylinder) around a darker cap; its on-screen label is drawn by Hud.
 public class Enemy : MonoBehaviour
 {
     public enum Kind { Normal, Special, Bumper }
+
+    public const float Radius = 0.75f;
 
     // 28-46 inclusive plus 74, 148, 185, 259, 296: 24 targets. 111/222/333 are special-only.
     public static readonly int[] NormalTargets = BuildNormalTargets();
     public static readonly int[] SpecialTargets = { 111, 222, 333 };
 
-    const float HitCooldown = 0.2f, VisibleTime = 20f, SpecialLifetime = 30f;
+    const float HitCooldown = 0.2f, VisibleTime = 20f, SpecialLifetime = 30f, FlashTime = 0.12f;
     const int EnergyPerHit = 25;
 
     public float kickSpeed = 20f;
     public Kind kind;
     public int target, hp, maxHp;
 
-    float visibleLeft, lifeLeft;
+    float visibleLeft, lifeLeft, flashLeft;
     float lastHit = -1f;
-    TextMesh label;
     Rigidbody body;
+    Material ring, cap;
+    Color ringColor, capColor;
 
     public bool Visible => kind == Kind.Special || visibleLeft > 0f;
+    public float VisibleLeft => visibleLeft;
+    public float LifeLeft => lifeLeft;
     public int Multiplier => target == 111 ? 10 : target == 222 ? 2 : 3;
 
-    public void Init(Kind k, int targetNumber)
+    // Creates the circle under the board at a board-local XZ position.
+    public static Enemy Create(Transform board, Kind kind, int target, Vector3 local)
+    {
+        // Runtime primitives get a built-in material that renders magenta in URP player builds; reuse the board's URP material.
+        var urp = board.GetComponentInChildren<Renderer>().sharedMaterial;
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = kind.ToString();
+        Destroy(go.GetComponent<Collider>()); // default capsule would act like a sphere
+        go.AddComponent<MeshCollider>().convex = true;
+        go.GetComponent<Renderer>().sharedMaterial = urp;
+        go.transform.SetParent(board, false);
+        // Flat disc 0.5 tall, centred at the ball's centre height so hits land on its side.
+        go.transform.localPosition = new Vector3(local.x, 0.25f, local.z);
+        go.transform.localScale = new Vector3(Radius * 2f, 0.25f, Radius * 2f);
+
+        var capGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        capGo.name = "Cap";
+        Destroy(capGo.GetComponent<Collider>());
+        capGo.GetComponent<Renderer>().sharedMaterial = urp;
+        capGo.transform.SetParent(go.transform, false);
+        capGo.transform.localPosition = new Vector3(0f, 1.01f, 0f); // primitive cylinder top is at local y = 1
+        capGo.transform.localScale = new Vector3(0.8f, 0.02f, 0.8f);
+
+        var e = go.AddComponent<Enemy>();
+        e.Init(kind, target, capGo.GetComponent<Renderer>().material);
+        return e;
+    }
+
+    void Init(Kind k, int targetNumber, Material capMaterial)
     {
         kind = k;
         target = targetNumber;
         maxHp = hp = k == Kind.Special ? 5 : 3;
         lifeLeft = SpecialLifetime;
-        GetComponent<Renderer>().material.color =
-            k == Kind.Normal ? new Color(0.55f, 0.15f, 0.2f) :
-            k == Kind.Special ? new Color(0.6f, 0.45f, 0.1f) : new Color(0.6f, 0.6f, 0.65f);
-        if (k != Kind.Bumper) label = MakeLabel();
+        ring = GetComponent<Renderer>().material;
+        cap = capMaterial;
+        ringColor = k == Kind.Normal ? Hud.EnemyRing : k == Kind.Special ? Hud.Gold : Hud.BumperRing;
+        capColor = k == Kind.Normal ? Hud.EnemyFill : k == Kind.Special ? Hud.SpecialFill : Hud.BumperFill;
+        ring.color = ringColor;
+        cap.color = capColor;
         if (k != Kind.Special)
         {
             body = gameObject.AddComponent<Rigidbody>(); // kinematic body so a moving collider is not re-baked as static
             body.isKinematic = true;
         }
-        Refresh();
     }
 
     // Normal enemies and bumpers descend; FixedUpdate stops on its own while timeScale is 0.
@@ -67,7 +102,18 @@ public class Enemy : MonoBehaviour
             lifeLeft -= Time.deltaTime;
             if (lifeLeft <= 0f) { Destroy(gameObject); return; } // timeout: no reward
         }
-        Refresh();
+
+        // Ring turns green when the current number hits it, blue when the dragged card's preview would.
+        // Hidden targets never light up.
+        var r = ringColor;
+        if (kind != Kind.Bumper && Visible)
+        {
+            if (target == GameManager.Instance.CurrentNumber) r = Hud.Green;
+            else if (Hud.Instance && Hud.Instance.PreviewNumber == target) r = Hud.Blue;
+        }
+        ring.color = r;
+        if (flashLeft > 0f) flashLeft -= Time.unscaledDeltaTime;
+        cap.color = flashLeft > 0f ? Color.white : capColor;
     }
 
     void OnCollisionEnter(Collision c)
@@ -84,43 +130,34 @@ public class Enemy : MonoBehaviour
 
         // Spec order: damage uses visibility from before this hit, then reveal, then kill and energy.
         var gm = GameManager.Instance;
-        bool damage = Visible && target == gm.CurrentNumber;
+        var hud = Hud.Instance;
+        bool wasVisible = Visible;
+        bool damage = wasVisible && target == gm.CurrentNumber;
         if (kind == Kind.Normal) visibleLeft = VisibleTime;
-        if (damage) hp--;
+        if (damage)
+        {
+            hp--;
+            flashLeft = FlashTime;
+            if (hud) hud.Popup(transform.position, "-1", Color.white);
+        }
+        else if (wasVisible && hud) hud.Popup(transform.position, "No match", Hud.Dim);
+
         if (hp <= 0)
         {
-            if (kind == Kind.Normal) gm.OnNormalKill(); else gm.OnSpecialKill(Multiplier);
+            if (kind == Kind.Normal)
+            {
+                gm.OnNormalKill();
+                if (hud) hud.Popup(transform.position, "+50", Hud.Green);
+            }
+            else
+            {
+                long before = gm.Score;
+                gm.OnSpecialKill(Multiplier);
+                if (hud) hud.Popup(transform.position, "x" + Multiplier + "   " + before.ToString("N0") + " > " + gm.Score.ToString("N0"), Hud.Gold);
+            }
             Destroy(gameObject);
         }
         gm.AddEnergy(EnergyPerHit);
-        Refresh();
-    }
-
-    void Refresh()
-    {
-        if (!label) return;
-        label.text = kind == Kind.Special
-            ? target + "\nHP " + hp + "/" + maxHp + "\nx" + Multiplier + " " + Mathf.CeilToInt(lifeLeft) + "s"
-            : (Visible ? target.ToString() : "?") + "\nHP " + hp + "/" + maxHp + (Visible ? "\n" + Mathf.CeilToInt(visibleLeft) + "s" : "");
-    }
-
-    // White text lying flat on the top face, reading up the table.
-    TextMesh MakeLabel()
-    {
-        var go = new GameObject("Label");
-        go.transform.SetParent(transform, false);
-        go.transform.localPosition = new Vector3(0f, 1.01f, 0f); // primitive cylinder top is at local y = 1
-        go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-        var t = go.AddComponent<TextMesh>();
-        t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        go.GetComponent<MeshRenderer>().sharedMaterial = t.font.material;
-        t.fontSize = 64;
-        t.characterSize = 0.06f;
-        t.anchor = TextAnchor.MiddleCenter;
-        t.alignment = TextAlignment.Center;
-        t.fontStyle = FontStyle.Bold;
-        t.color = Color.white;
-        return t;
     }
 
     static int[] BuildNormalTargets()

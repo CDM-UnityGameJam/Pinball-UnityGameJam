@@ -15,11 +15,16 @@ public static class PinballSceneBuilder
         var board = new GameObject("Board").transform;
         board.rotation = Quaternion.Euler(-6.5f, 0f, 0f); // +Z end is higher
 
-        Box("Floor", board, new Vector3(0f, -0.1f, 0.5f), new Vector3(10.6f, 0.2f, 24f), 0f, new Color(0.15f, 0.15f, 0.2f));
-        var ceiling = Box("Glass", board, new Vector3(0f, 1.2f, 0.5f), new Vector3(10.6f, 0.1f, 24f), 0f, Color.clear);
+        Box("Floor", board, new Vector3(0f, -0.1f, 0.5f), new Vector3(10.6f, 0.2f, 24f), 0f, Hud.BoardFloor);
+        // Invisible ceiling so bumper kicks cannot throw the ball off the table.
+        var ceiling = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ceiling.name = "Glass";
+        ceiling.transform.SetParent(board, false);
+        ceiling.transform.localPosition = new Vector3(0f, 1.2f, 0.5f);
+        ceiling.transform.localScale = new Vector3(10.6f, 0.1f, 24f);
         Object.DestroyImmediate(ceiling.GetComponent<Renderer>());
 
-        var wallColor = new Color(0.7f, 0.7f, 0.75f);
+        var wallColor = Hud.BumperRing; // mockup wall grey
         Box("WallL", board, new Vector3(-5.15f, 0.5f, -2f), new Vector3(0.3f, 1f, 18f), 0f, wallColor);
         Box("WallR", board, new Vector3(5.15f, 0.5f, -2f), new Vector3(0.3f, 1f, 18f), 0f, wallColor);
 
@@ -69,9 +74,12 @@ public static class PinballSceneBuilder
         gm.ball = rb;
 
         var cam = Camera.main.transform;
-        cam.position = new Vector3(0f, 21f, -15f);
-        cam.LookAt(new Vector3(0f, 0f, 0.5f));
-        Camera.main.backgroundColor = Color.black;
+        // Narrow FOV frames the board as large as it can be between the HUD's top bar and bottom bar,
+        // with room for the side panels (found by searching camera placements against the HUD layout).
+        cam.position = new Vector3(0f, 48f, -48f);
+        cam.LookAt(new Vector3(0f, 0f, -0.5f));
+        Camera.main.fieldOfView = 25f;
+        Camera.main.backgroundColor = Hud.Background;
         Camera.main.clearFlags = CameraClearFlags.SolidColor;
 
         EditorSceneManager.SaveScene(scene, ScenePath);
@@ -91,7 +99,7 @@ public static class PinballSceneBuilder
         pivot.transform.localRotation = Quaternion.Euler(0f, f.restAngle, 0f);
 
         const float len = 1.9f;
-        Box("Bat", pivot.transform, new Vector3(left ? len / 2f : -len / 2f, 0f, 0f), new Vector3(len, 0.5f, 0.35f), 0f, Color.yellow);
+        Box("Bat", pivot.transform, new Vector3(left ? len / 2f : -len / 2f, 0f, 0f), new Vector3(len, 0.5f, 0.35f), 0f, Hud.Yellow);
 
         var rb = pivot.GetComponent<Rigidbody>(); // added by Flipper's RequireComponent
         rb.isKinematic = true;

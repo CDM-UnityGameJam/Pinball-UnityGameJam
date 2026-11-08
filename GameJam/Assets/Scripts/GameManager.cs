@@ -8,9 +8,10 @@ public class GameManager : MonoBehaviour
     enum RunState { Waiting, Playing, GameOver }
 
     const int LuckyNumber = Card.Lucky;
-    const int EnergyPerCard = 100;
+    public const int EnergyPerCard = 100;
     const float LaunchWait = 3f;
-    const int HandSize = 5, StartCards = 3;
+    public const int HandSize = 5;
+    const int StartCards = 3;
     const int KillPoints = 50, SurvivalPoints = 5;
     const float SurvivalInterval = 5f;
 
@@ -44,6 +45,7 @@ public class GameManager : MonoBehaviour
         lives = maxLives;
         for (int i = 0; i < StartCards; i++) hand[i] = Card.Random();
         gameObject.AddComponent<Spawner>();
+        new GameObject("Hud").AddComponent<Hud>();
         BeginWaiting();
     }
 
@@ -52,11 +54,6 @@ public class GameManager : MonoBehaviour
         var kb = Keyboard.current;
         if (state != RunState.GameOver && kb != null && kb.rKey.wasPressedThisFrame) SetPaused(!paused);
         if (paused) return;
-
-        // shortcut: keys 1-5 use a card until system 8 adds drag-to-playfield.
-        if (kb != null && state != RunState.GameOver)
-            for (int i = 0; i < HandSize; i++)
-                if (kb[Key.Digit1 + i].wasPressedThisFrame) UseCard(i);
 
         if (state == RunState.Playing)
         {
@@ -96,13 +93,13 @@ public class GameManager : MonoBehaviour
         ball.linearVelocity = board.TransformDirection(dir) * launchSpeed;
     }
 
-    void SetPaused(bool value)
+    public void SetPaused(bool value)
     {
         paused = value;
         Time.timeScale = !paused && state == RunState.Playing ? 1f : 0f;
     }
 
-    void Restart()
+    public void Restart()
     {
         Time.timeScale = 1f; // survives scene load
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
@@ -117,9 +114,30 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Insertion move: the card lands in slot `to` and the slots between shift by one, empties included.
+    public void MoveCard(int from, int to)
+    {
+        if (from == to || paused || state == RunState.GameOver) return;
+        var c = hand[from];
+        if (from < to) for (int i = from; i < to; i++) hand[i] = hand[i + 1];
+        else for (int i = from; i > to; i--) hand[i] = hand[i - 1];
+        hand[to] = c;
+    }
+
+    // Raised before a draw overwrites an occupied slot, so a drag on that card can be cancelled.
+    public event System.Action<int> SlotReplaced;
+
+    public Card? GetCard(int slot) => hand[slot];
     public int CurrentNumber => currentNumber;
     public bool IsPlaying => state == RunState.Playing && !paused;
+    public bool IsWaiting => state == RunState.Waiting;
+    public bool IsGameOver => state == RunState.GameOver;
+    public bool Paused => paused;
+    public float Countdown => countdown;
     public float ActiveTime => activeTime;
+    public long Score => score;
+    public int Lives => lives;
+    public int Energy => energy;
 
     // Called last in hit resolution, so a kill on this hit already removed that enemy from the coverage check.
     public void AddEnergy(int amount)
@@ -133,35 +151,21 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // shortcut: a replaced slot 5 does not cancel a drag yet; system 8 adds that (checklist E3).
     void DrawCard()
     {
         var targets = new List<int>();
-        foreach (var e in FindObjectsByType<Enemy>(FindObjectsSortMode.None))
+        foreach (var e in FindObjectsByType<Enemy>())
             if (e.kind != Enemy.Kind.Bumper && e.hp > 0 && e.Visible) targets.Add(e.target);
 
         var card = Card.Draw(currentNumber, hand, targets);
         int slot = HandSize - 1; // full hand: replace slot 5
         for (int i = 0; i < HandSize; i++) if (hand[i] == null) { slot = i; break; }
+        if (hand[slot] != null) SlotReplaced?.Invoke(slot);
         hand[slot] = card;
     }
 
-    // Creates a board circle at a board-local XZ position. The spawner (system 7) decides kind, target and position.
-    public Enemy SpawnEnemy(Enemy.Kind kind, int target, Vector3 local)
-    {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        go.name = kind.ToString();
-        Destroy(go.GetComponent<Collider>()); // default capsule would act like a sphere
-        go.AddComponent<MeshCollider>().convex = true;
-        // Runtime primitives get a built-in material that renders magenta in URP player builds; reuse the board's URP material.
-        go.GetComponent<Renderer>().sharedMaterial = board.GetComponentInChildren<Renderer>().sharedMaterial;
-        go.transform.SetParent(board, false);
-        go.transform.localPosition = new Vector3(local.x, 0.5f, local.z);
-        go.transform.localScale = new Vector3(1f, 0.5f, 1f);
-        var e = go.AddComponent<Enemy>();
-        e.Init(kind, target);
-        return e;
-    }
+    // The spawner decides kind, target and board-local position.
+    public Enemy SpawnEnemy(Enemy.Kind kind, int target, Vector3 local) => Enemy.Create(board, kind, target, local);
 
     public void OnNormalKill()
     {
@@ -194,42 +198,4 @@ public class GameManager : MonoBehaviour
         LoseLife();
         if (state == RunState.Playing) BeginWaiting();
     }
-
-    void OnGUI()
-    {
-        var s = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold };
-        GUI.Label(new Rect(20, 15, 400, 30), "Score: " + score, s);
-        GUI.Label(new Rect(20, 45, 400, 30), "Lives: " + lives + " / " + maxLives, s);
-        GUI.Label(new Rect(20, 75, 400, 30), "Time: " + FormatTime(activeTime), s);
-        GUI.Label(new Rect(20, Screen.height - 75, 400, 30), LuckyNumber + " > " + currentNumber, s);
-        GUI.Label(new Rect(20, Screen.height - 45, 400, 30), "Energy: " + energy + " / 100", s);
-        for (int i = 0; i < HandSize; i++)
-        {
-            var c = hand[i];
-            var text = (i + 1) + "\n" + (c == null ? "-" : c.Value + "\n= " + c.Value.Apply(LuckyNumber));
-            GUI.Box(new Rect(Screen.width / 2f - 275 + i * 110, Screen.height - 110, 100, 90), text, new GUIStyle(GUI.skin.box) { fontSize = 20 });
-        }
-
-        var big = new GUIStyle(s) { fontSize = 48, alignment = TextAnchor.MiddleCenter };
-        var center = new Rect(0, Screen.height / 2f - 110, Screen.width, 160);
-        var button = new GUIStyle(GUI.skin.button) { fontSize = 24 };
-        float midX = Screen.width / 2f, buttonY = Screen.height / 2f + 60;
-
-        if (state == RunState.GameOver)
-        {
-            GUI.Box(center, "");
-            GUI.Label(center, "GAME OVER\n<size=24>Score " + score + "   Time " + FormatTime(activeTime) + "</size>", new GUIStyle(big) { richText = true });
-            if (GUI.Button(new Rect(midX - 80, buttonY, 160, 50), "Restart", button)) Restart();
-        }
-        else if (paused)
-        {
-            GUI.Box(center, "");
-            GUI.Label(center, "Restart?", big);
-            if (GUI.Button(new Rect(midX - 170, buttonY, 160, 50), "Yes", button)) Restart();
-            if (GUI.Button(new Rect(midX + 10, buttonY, 160, 50), "No", button)) SetPaused(false);
-        }
-        else if (state == RunState.Waiting) GUI.Label(center, Mathf.CeilToInt(countdown).ToString(), big);
-    }
-
-    static string FormatTime(float t) => Mathf.FloorToInt(t / 60f) + ":" + Mathf.FloorToInt(t % 60f).ToString("00");
 }
