@@ -38,6 +38,8 @@ public static class PinballSceneBuilder
             Box("Arc" + i, board, pos, new Vector3(len, 1f, 0.3f), -(t * Mathf.Rad2Deg + 90f), wallColor);
         }
 
+        SpringBumperSetup.AddToBoard(board);
+
         // Inlane guides from side walls to flipper pivots.
         Seg("GuideL", board, new Vector2(-5f, -4.5f), new Vector2(-2.4f, -7.4f), wallColor);
         Seg("GuideR", board, new Vector2(5f, -4.5f), new Vector2(2.4f, -7.4f), wallColor);

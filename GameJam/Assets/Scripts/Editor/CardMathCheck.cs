@@ -25,8 +25,8 @@ public static class CardMathCheck
         Expect(seen.Count, 27, "distinct cards drawn");
 
         // Every normal and special target has exactly the card that reaches it (B3).
-        foreach (var t in Enemy.NormalTargets) Expect(Card.For(t).Apply(37), t, "card for " + t);
-        foreach (var t in Enemy.SpecialTargets) Expect(Card.For(t).Apply(37), t, "card for " + t);
+        foreach (var t in new SpawnTuning().normalTargets) Expect(Card.For(t).Apply(37), t, "card for " + t);
+        foreach (var entry in new SpawnTuning().specialTargets) Expect(Card.For(entry.target).Apply(37), entry.target, "card for " + entry.target);
 
         // Only 74 is uncovered: 41 is the current number, 30 is covered by -7 in slot 5.
         var hand = new Card?[] { new Card('+', 1), null, null, null, new Card('-', 7) };

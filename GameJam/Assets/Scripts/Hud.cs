@@ -10,15 +10,22 @@ public class Hud : MonoBehaviour
 {
     public static Hud Instance;
 
-    // Mockup palette.
-    public static readonly Color
-        Background = Hex(0x090C12), PanelFill = Hex(0x111725), PanelEdge = Hex(0x2B3448), TextColor = Hex(0xE8ECF2), Dim = Hex(0x97A1B2),
-        Green = Hex(0x47D6A3), Blue = Hex(0x5B8DF0), Gold = Hex(0xE9B949), Orange = Hex(0xF0A23A), Yellow = Hex(0xF2D33A),
-        Danger = Hex(0xE0505E), EnemyRing = Hex(0xC9475A), EnemyFill = Hex(0x5A2632), SpecialFill = Hex(0x6E4E1C),
-        BumperRing = Hex(0xA9ADB8), BumperFill = Hex(0x3A3F4C), BoardFloor = Hex(0x2D303C), ButtonColor = Hex(0x23304A), ButtonHoverColor = Hex(0x33466B);
-
-    const float SlotWidth = 170f, SlotHeight = 115f, SlotSpacing = 18f, SlotBottom = 40f;
-    const float PopupTime = 1f, PopupRise = 40f;
+    HudTuning H => gm.hud;
+    public static Color Background => GameManager.Instance ? GameManager.Instance.hud.background : new HudTuning().background;
+    public static Color PanelFill => GameManager.Instance ? GameManager.Instance.hud.panelFill : new HudTuning().panelFill;
+    public static Color PanelEdge => GameManager.Instance ? GameManager.Instance.hud.panelEdge : new HudTuning().panelEdge;
+    public static Color TextColor => GameManager.Instance ? GameManager.Instance.hud.textColor : new HudTuning().textColor;
+    public static Color Dim => GameManager.Instance ? GameManager.Instance.hud.dim : new HudTuning().dim;
+    public static Color Green => GameManager.Instance ? GameManager.Instance.hud.green : new HudTuning().green;
+    public static Color Blue => GameManager.Instance ? GameManager.Instance.hud.blue : new HudTuning().blue;
+    public static Color Gold => GameManager.Instance ? GameManager.Instance.hud.gold : new HudTuning().gold;
+    public static Color Orange => GameManager.Instance ? GameManager.Instance.hud.orange : new HudTuning().orange;
+    public static Color Yellow => GameManager.Instance ? GameManager.Instance.hud.yellow : new HudTuning().yellow;
+    public static Color Danger => GameManager.Instance ? GameManager.Instance.hud.danger : new HudTuning().danger;
+    public static Color BumperRing => GameManager.Instance ? GameManager.Instance.hud.bumperRing : new HudTuning().bumperRing;
+    public static Color BoardFloor => GameManager.Instance ? GameManager.Instance.hud.boardFloor : new HudTuning().boardFloor;
+    public static Color ButtonColor => GameManager.Instance ? GameManager.Instance.hud.buttonColor : new HudTuning().buttonColor;
+    public static Color ButtonHoverColor => GameManager.Instance ? GameManager.Instance.hud.buttonHoverColor : new HudTuning().buttonHoverColor;
 
     class SlotView { public RectTransform rect; public Image edge; public Text card, result; }
     class EnemyLabel { public Text number, below, above; }
@@ -32,7 +39,7 @@ public class Hud : MonoBehaviour
     Text scoreText, livesText, timeText, currentText, previewText, energyText, countdownText, ghostCard, ghostResult, dialogText, spawnLabel, dangerLabel;
     readonly RectTransform[] buttons = new RectTransform[2];
     readonly Text[] buttonTexts = new Text[2];
-    readonly SlotView[] slots = new SlotView[GameManager.HandSize];
+    SlotView[] slots;
     readonly Dictionary<Enemy, EnemyLabel> labels = new Dictionary<Enemy, EnemyLabel>();
     readonly HashSet<Enemy> alive = new HashSet<Enemy>();
     readonly List<Enemy> gone = new List<Enemy>();
@@ -48,7 +55,7 @@ public class Hud : MonoBehaviour
         {
             if (dragSlot < 0) return null;
             var c = gm.GetCard(dragSlot);
-            return c == null || !c.Value.IsNumber ? (int?)null : c.Value.Apply(Card.Lucky);
+            return c == null || !c.Value.IsNumber ? (int?)null : c.Value.Apply(gm.cards.baseNumber);
         }
     }
 
@@ -56,6 +63,7 @@ public class Hud : MonoBehaviour
     {
         Instance = this;
         gm = GameManager.Instance;
+        slots = new SlotView[gm.HandSize];
         cam = Camera.main;
         font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         gm.SlotReplaced += OnSlotReplaced;
@@ -132,7 +140,7 @@ public class Hud : MonoBehaviour
         var ray = cam.ScreenPointToRay(pointer);
         if (!new Plane(board.up, board.position).Raycast(ray, out float dist)) return false;
         var local = board.InverseTransformPoint(ray.GetPoint(dist));
-        return Mathf.Abs(local.x) <= 5f && local.z >= -11f && local.z <= 12f;
+        return Mathf.Abs(local.x) <= H.overPlayfield.halfWidth && local.z >= H.overPlayfield.minZ && local.z <= H.overPlayfield.maxZ;
     }
 
     void HandleDialog(bool pressed, Vector2 pointer)
@@ -144,12 +152,12 @@ public class Hud : MonoBehaviour
         if (!over && !pause) return;
 
         dialogText.text = over
-            ? "GAME OVER\n<size=28><color=#" + ColorUtility.ToHtmlStringRGB(Dim) + ">Score </color>" + gm.Score.ToString("N0")
+            ? "GAME OVER\n<size=" + H.gameOverDetailsFontSize + "><color=#" + ColorUtility.ToHtmlStringRGB(Dim) + ">Score </color>" + gm.Score.ToString("N0")
               + "<color=#" + ColorUtility.ToHtmlStringRGB(Dim) + ">     Active time </color>" + FormatTime(gm.ActiveTime) + "</size>"
             : "Restart run?";
         buttons[1].gameObject.SetActive(pause);
         buttonTexts[0].text = over ? "Restart" : "Yes";
-        buttons[0].anchoredPosition = new Vector2(over ? 0f : -110f, -75f);
+        buttons[0].anchoredPosition = new Vector2(over ? 0f : H.handleDialog.confirmButtonX, H.handleDialog.confirmButtonY);
         for (int i = 0; i < buttons.Length; i++)
             buttons[i].GetComponent<Image>().color = Contains(buttons[i], pointer) ? ButtonHoverColor : ButtonColor;
 
@@ -169,8 +177,8 @@ public class Hud : MonoBehaviour
         previewText.text = dragSlot < 0 ? "" : "PREVIEW: " + Expression(gm.GetCard(dragSlot).Value, true);
         effectText.text = "BALLS " + gm.BallCount + (gm.QueuedBalls > 0 ? "  (QUEUED " + gm.QueuedBalls + ")" : "") +
             (gm.HasMatchBoost ? "  |  MATCH " + gm.MatchBoostLeft.ToString("0.0") + "s" : "");
-        energyText.text = "ENERGY " + gm.Energy + " / " + GameManager.EnergyPerCard;
-        energyFill.anchorMax = new Vector2(Mathf.Clamp01(gm.Energy / (float)GameManager.EnergyPerCard), 1f);
+        energyText.text = "ENERGY " + gm.Energy + " / " + gm.EnergyPerCard;
+        energyFill.anchorMax = new Vector2(Mathf.Clamp01(gm.Energy / (float)gm.EnergyPerCard), 1f);
     }
 
     void RefreshSlots(Vector2 pointer)
@@ -182,8 +190,8 @@ public class Hud : MonoBehaviour
             bool reserved = i == dragSlot;
             s.edge.color = reserved ? Blue : i == slots.Length - 1 ? Orange : PanelEdge;
             s.card.color = reserved ? Blue : TextColor;
-            s.card.fontSize = reserved ? 26 : c != null && !c.Value.IsNumber ? 28 : 44;
-            s.card.text = reserved ? "RESERVED" : c == null ? "-" : c.Value.ToString();
+            s.card.fontSize = reserved ? H.refreshSlots.reservedFontSize : c != null && !c.Value.IsNumber ? H.refreshSlots.functionalFontSize : H.refreshSlots.numberFontSize;
+            s.card.text = reserved ? "RESERVED" : c == null ? "-" : CardText(c.Value);
             s.result.text = reserved || c == null ? "" : Expression(c.Value, false);
         }
 
@@ -191,17 +199,17 @@ public class Hud : MonoBehaviour
         if (dragSlot < 0) return;
         var card = gm.GetCard(dragSlot).Value;
         ghost.anchoredPosition = pointer / canvas.scaleFactor;
-        ghostCard.text = card.ToString();
-        ghostCard.fontSize = card.IsNumber ? 38 : 22;
-        ghostResult.text = card.IsNumber ? "= " + card.Apply(Card.Lucky) : card.kind == Card.Kind.MatchBoost ? "+10 seconds" : "+1 ball";
+        ghostCard.text = CardText(card);
+        ghostCard.fontSize = card.IsNumber ? H.refreshSlots.ghostNumberFontSize : H.refreshSlots.ghostFunctionalFontSize;
+        ghostResult.text = card.IsNumber ? "= " + card.Apply(gm.cards.baseNumber) : card.kind == Card.Kind.MatchBoost ? "+" + gm.matchBoostDuration + " seconds" : "+" + gm.extraBallsPerCard + " ball";
     }
 
     // Board callouts from the mockup, pinned to board positions.
     void RefreshBoardLabels()
     {
-        spawnLabel.rectTransform.anchoredPosition = ToCanvas(gm.board.TransformPoint(new Vector3(0f, 0f, 11.2f)));
+        spawnLabel.rectTransform.anchoredPosition = ToCanvas(gm.board.TransformPoint(H.refreshBoardLabels.spawnLabelPosition));
         // Outside the left wall: inside the board, enemies about to cross would cover it.
-        dangerLabel.rectTransform.anchoredPosition = ToCanvas(gm.board.TransformPoint(new Vector3(-5.6f, 0f, Spawner.LineZ)));
+        dangerLabel.rectTransform.anchoredPosition = ToCanvas(gm.board.TransformPoint(new Vector3(H.refreshBoardLabels.dangerLabelX, 0f, gm.spawning.dangerZ)));
     }
 
     void RefreshEnemyLabels()
@@ -217,17 +225,17 @@ public class Hud : MonoBehaviour
             // Hug the disc's projected outline at any resolution: the number on its top face, the info line
             // under its near (bottom) edge including the visible side band, the special line over its far edge.
             var up = e.transform.up * e.transform.lossyScale.y; // cylinder half-height = scale.y
-            var forward = e.transform.parent.forward * Enemy.Radius;
+            var forward = e.transform.parent.forward * e.Radius;
             var top = e.transform.position + up;
             l.number.rectTransform.anchoredPosition = ToCanvas(top);
-            l.below.rectTransform.anchoredPosition = ToCanvas(e.transform.position - up - forward) + new Vector2(0f, -6f);
-            l.above.rectTransform.anchoredPosition = ToCanvas(top + forward) + new Vector2(0f, 4f);
+            l.below.rectTransform.anchoredPosition = ToCanvas(e.transform.position - up - forward) + H.refreshEnemyLabels.belowOffset;
+            l.above.rectTransform.anchoredPosition = ToCanvas(top + forward) + H.refreshEnemyLabels.aboveOffset;
 
             bool visible = e.Visible;
             l.number.gameObject.SetActive(e.kind != Enemy.Kind.Bumper);
             l.above.gameObject.SetActive(e.kind == Enemy.Kind.Special);
             l.number.text = visible ? e.target.ToString() : "?";
-            l.number.fontSize = e.target >= 100 && visible ? 24 : 30; // 3 digits stay inside the disc
+            l.number.fontSize = e.target >= H.refreshEnemyLabels.compactNumberThreshold && visible ? H.refreshEnemyLabels.compactFontSize : H.refreshEnemyLabels.regularFontSize; // 3 digits stay inside the disc
             l.number.color = !visible ? TextColor : gm.Matches(e) ? Green : preview == e.target ? Blue : TextColor;
 
             switch (e.kind)
@@ -261,9 +269,9 @@ public class Hud : MonoBehaviour
     {
         var l = new EnemyLabel
         {
-            number = Free(MakeText(labelLayer, "", 30, TextColor, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(120f, 40f))),
-            below = Free(MakeText(labelLayer, "", 15, Dim, TextAnchor.UpperCenter, Vector2.zero, new Vector2(200f, 20f))),
-            above = Free(MakeText(labelLayer, "", 15, Gold, TextAnchor.LowerCenter, Vector2.zero, new Vector2(200f, 20f))),
+            number = Free(MakeText(labelLayer, "", H.refreshEnemyLabels.regularFontSize, TextColor, TextAnchor.MiddleCenter, Vector2.zero, H.makeEnemyLabel.numberSize)),
+            below = Free(MakeText(labelLayer, "", H.makeEnemyLabel.belowFontSize, Dim, TextAnchor.UpperCenter, Vector2.zero, H.makeEnemyLabel.belowSize)),
+            above = Free(MakeText(labelLayer, "", H.makeEnemyLabel.aboveFontSize, Gold, TextAnchor.LowerCenter, Vector2.zero, H.makeEnemyLabel.aboveSize)),
         };
         l.number.fontStyle = FontStyle.Bold;
         l.above.fontStyle = FontStyle.Bold;
@@ -272,7 +280,7 @@ public class Hud : MonoBehaviour
 
     public void Popup(Vector3 world, string text, Color color)
     {
-        var t = Free(MakeText(popupLayer, text, 24, color, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(500f, 40f)));
+        var t = Free(MakeText(popupLayer, text, H.makeEnemyLabel.popupFontSize, color, TextAnchor.MiddleCenter, Vector2.zero, H.makeEnemyLabel.popupSize));
         t.fontStyle = FontStyle.Bold;
         popups.Add(new FloatingText { text = t, world = world });
     }
@@ -284,11 +292,11 @@ public class Hud : MonoBehaviour
         {
             var p = popups[i];
             p.age += Time.unscaledDeltaTime;
-            if (p.age >= PopupTime) { Destroy(p.text.gameObject); popups.RemoveAt(i); continue; }
+            if (p.age >= Mathf.Max(0.01f, H.popupTime)) { Destroy(p.text.gameObject); popups.RemoveAt(i); continue; }
             // Starts just above the disc's far edge so it never covers the number it is about.
-            var start = ToCanvas(p.world + gm.board.up * 0.5f + gm.board.forward * Enemy.Radius);
-            p.text.rectTransform.anchoredPosition = start + new Vector2(0f, 14f + PopupRise * p.age / PopupTime);
-            var col = p.text.color; col.a = 1f - p.age / PopupTime; p.text.color = col;
+            var start = ToCanvas(p.world + gm.board.up * H.refreshPopups.worldHeight + gm.board.forward * H.popupWorldForwardOffset);
+            p.text.rectTransform.anchoredPosition = start + new Vector2(0f, H.refreshPopups.initialRise + H.popupRise * p.age / Mathf.Max(0.01f, H.popupTime));
+            var col = p.text.color; col.a = 1f - p.age / Mathf.Max(0.01f, H.popupTime); p.text.color = col;
         }
     }
 
@@ -302,113 +310,126 @@ public class Hud : MonoBehaviour
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         var scaler = go.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 1f; // the camera frames the board by height, so the HUD follows height too
+        scaler.referenceResolution = H.build.referenceResolution;
+        scaler.matchWidthOrHeight = H.canvasHeightMatch; // the camera frames the board by height, so the HUD follows height too
         root = (RectTransform)go.transform;
         // Draw order: board labels, then feedback popups over them, then every panel (created after these).
         labelLayer = Layer("BoardLabels");
         popupLayer = Layer("Popups");
 
         // Title row above the stats bar, as in the mockup.
-        Bold(Anchored(MakeText(root, "LUCKY 37", 40, TextColor, TextAnchor.UpperLeft, Vector2.zero, new Vector2(400f, 50f)), new Vector2(0f, 1f), new Vector2(60f, -26f)));
-        effectText = Anchored(MakeText(root, "", 22, Orange, TextAnchor.UpperRight, Vector2.zero, new Vector2(600f, 30f)), new Vector2(1f, 1f), new Vector2(-60f, -34f));
+        Bold(Anchored(MakeText(root, "LUCKY " + gm.cards.baseNumber, H.build.titleFontSize, TextColor, TextAnchor.UpperLeft, Vector2.zero, H.build.titleSize), H.build.titleAnchor, H.build.titlePosition));
+        effectText = Anchored(MakeText(root, "", H.build.effectsFontSize, Orange, TextAnchor.UpperRight, Vector2.zero, H.build.effectsSize), H.build.effectsAnchor, H.build.effectsPosition);
 
         // Top: score, lives, active time.
-        topBar = Panel(root, "TopBar", new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(1060f, 90f), PanelEdge);
-        scoreText = Stat(topBar, "SCORE", -490f);
-        livesText = Stat(topBar, "LIVES", -40f);
-        timeText = Stat(topBar, "ACTIVE TIME", 280f);
+        topBar = Panel(root, "TopBar", H.build.topBarAnchor, H.build.topBarPosition, H.build.topBarSize, PanelEdge);
+        scoreText = Stat(topBar, "SCORE", H.build.scoreX, H.scoreStat);
+        livesText = Stat(topBar, "LIVES", H.build.livesX, H.livesStat);
+        timeText = Stat(topBar, "ACTIVE TIME", H.build.timeX, H.timeStat);
 
         // Side panels.
-        SidePanel(new Vector2(0f, 1f), new Vector2(70f, -230f), TextAnchor.UpperLeft, new[]
+        SidePanel(H.build.leftHelpAnchor, H.build.leftHelpPosition, H.leftHelp, TextAnchor.UpperLeft, new[]
         {
-            ("MATCH TO INSTANT KILL", TextColor, new[] { ("Green: matches / kill reward x" + gm.MatchKillMultiplier + ".", Green), ("Match: all other enemies take 1 damage.", Dim), ("Also reveals hidden targets for 20s.", Dim), ("Blue: matches the dragged card preview.", Blue) }),
-            ("5 HP / HIT TO REVEAL", TextColor, new[] { ("Every normal hit deals 1 damage.", Dim), ("A hit reveals a target for 20s.", Dim), ("Every enemy hit gives +25 energy.", Dim), ("4 hits = 1 new card.", Dim) }),
+            ("MATCH TO INSTANT KILL", TextColor, new[] { ("Green: matches / kill reward x" + gm.MatchKillMultiplier + ".", Green), ("Match pulse: " + gm.normalEnemy.pulseDamage + " damage.", Dim), ("Reveals hidden targets for " + gm.normalEnemy.revealDuration + "s.", Dim), ("Blue: matches the dragged card preview.", Blue) }),
+            (gm.normalEnemy.health + " HP / HIT TO REVEAL", TextColor, new[] { ("Normal hit: " + gm.normalEnemy.hitDamage + " damage.", Dim), ("Reveal duration: " + gm.normalEnemy.revealDuration + "s.", Dim), ("Normal hit energy: +" + gm.normalEnemy.hitEnergy + ".", Dim), (gm.EnergyPerCard + " energy = 1 new card.", Dim) }),
             ("A / LEFT ARROW", Yellow, new[] { ("Left flipper", Dim) }),
             ("R", Yellow, new[] { ("Pause / restart", Dim) }),
         });
-        SidePanel(new Vector2(1f, 1f), new Vector2(-70f, -230f), TextAnchor.UpperLeft, new[]
+        SidePanel(H.build.rightHelpAnchor, H.build.rightHelpPosition, H.rightHelp, TextAnchor.UpperLeft, new[]
         {
-            ("SPECIAL ENEMY", TextColor, new[] { ("Exact number match only / ignores pulse", Gold), ("Unmatched: balls pass through.", Gold), ("30s lifetime / stationary", Gold), ("111: score x10", Gold), ("222: score x2", Gold), ("333: score x3", Gold) }),
-            ("HAND MANAGEMENT", TextColor, new[] { ("Start empty / cards shift left after use.", Dim), ("Drag cards to reorder.", Dim), ("Drop on the table to use.", Dim), ("Drop elsewhere to cancel.", Dim), ("Full hand: replace slot 5.", Dim), ("D / Right arrow: right flipper.", Yellow) }),
-            ("FUNCTION CARDS", Orange, new[] { ("MATCH: +10s auto-match normal enemies.", Dim), ("BALL +1: add a ball / no ball limit.", Dim), ("Only losing the last ball costs a life.", Dim) }),
+            ("SPECIAL ENEMY", TextColor, SpecialHelp()),
+            ("HAND MANAGEMENT", TextColor, new[] { ("Start empty / cards shift left after use.", Dim), ("Drag cards to reorder.", Dim), ("Drop on the table to use.", Dim), ("Drop elsewhere to cancel.", Dim), ("Full hand: replace slot " + gm.HandSize + ".", Dim), ("D / Right arrow: right flipper.", Yellow) }),
+            ("FUNCTION CARDS", Orange, new[] { ("MATCH: +" + gm.matchBoostDuration + "s auto-match.", Dim), ("BALL +" + gm.extraBallsPerCard + ": no ball limit.", Dim), ("Only losing the last ball costs a life.", Dim) }),
         });
 
         // Board callouts.
-        spawnLabel = Free(MakeText(labelLayer, "ENEMY SPAWN AREA", 14, Dim, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(300f, 24f)));
-        dangerLabel = Free(MakeText(labelLayer, "DANGER LINE", 16, Danger, TextAnchor.MiddleRight, Vector2.zero, new Vector2(200f, 24f)));
-        dangerLabel.rectTransform.pivot = new Vector2(1f, 0.5f);
+        spawnLabel = Free(MakeText(labelLayer, "ENEMY SPAWN AREA", H.build.spawnLabelFontSize, Dim, TextAnchor.MiddleCenter, Vector2.zero, H.build.spawnLabelSize));
+        dangerLabel = Free(MakeText(labelLayer, "DANGER LINE", H.build.dangerLabelFontSize, Danger, TextAnchor.MiddleRight, Vector2.zero, H.build.dangerLabelSize));
+        dangerLabel.rectTransform.pivot = H.build.dangerLabelPivot;
 
         // Bottom: lucky number, current number, preview, energy bar.
-        float handWidth = 5 * SlotWidth + 4 * SlotSpacing;
-        bottomBar = Panel(root, "BottomBar", new Vector2(0.5f, 0f), new Vector2(0f, 210f), new Vector2(handWidth + 60f, 80f), PanelEdge);
-        float left = -(handWidth + 60f) / 2f + 25f;
-        LeftText(MakeText(bottomBar, "LUCKY 37", 20, Dim, TextAnchor.MiddleLeft, new Vector2(left, 17f), new Vector2(160f, 30f)));
-        currentText = Bold(LeftText(MakeText(bottomBar, "", 34, Green, TextAnchor.MiddleLeft, new Vector2(left + 170f, 17f), new Vector2(300f, 40f))));
-        previewText = LeftText(MakeText(bottomBar, "", 26, Blue, TextAnchor.MiddleLeft, new Vector2(left + 500f, 17f), new Vector2(400f, 36f)));
-        energyText = LeftText(MakeText(bottomBar, "", 18, Dim, TextAnchor.MiddleLeft, new Vector2(left, -20f), new Vector2(200f, 26f)));
-        var barBack = Box(bottomBar, "EnergyBar", new Vector2(0.5f, 0.5f), new Vector2(left + 170f + 360f, -20f), new Vector2(720f, 14f), Hex(0x1C2536));
+        float handWidth = slots.Length * H.slotWidth + (slots.Length - 1) * H.slotSpacing;
+        bottomBar = Panel(root, "BottomBar", H.build.bottomBarAnchor, H.build.bottomBarPosition, new Vector2(handWidth + H.build.bottomBarWidthPadding, H.build.bottomBarHeight), PanelEdge);
+        float left = -(handWidth + H.build.bottomContentWidthPadding) / 2f + H.build.bottomContentInset;
+        LeftText(MakeText(bottomBar, "LUCKY " + gm.cards.baseNumber, H.build.luckyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.luckyY), H.build.luckyLabelSize));
+        currentText = Bold(LeftText(MakeText(bottomBar, "", H.build.currentFontSize, Green, TextAnchor.MiddleLeft, new Vector2(left + H.build.currentX, H.build.currentY), H.build.currentLabelSize)));
+        previewText = LeftText(MakeText(bottomBar, "", H.build.previewFontSize, Blue, TextAnchor.MiddleLeft, new Vector2(left + H.build.previewX, H.build.previewY), H.build.previewLabelSize));
+        energyText = LeftText(MakeText(bottomBar, "", H.build.energyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.energyY), H.build.energyLabelSize));
+        var barBack = Box(bottomBar, "EnergyBar", H.build.energyBarAnchor, new Vector2(left + H.build.energyBarX + H.build.energyBarExtraX, H.build.energyBarY), H.build.energyBarSize, H.energyBackground);
         energyFill = Box(barBack, "Fill", Vector2.zero, Vector2.zero, Vector2.zero, Green);
-        energyFill.anchorMin = Vector2.zero; energyFill.anchorMax = new Vector2(0f, 1f);
+        energyFill.anchorMin = Vector2.zero; energyFill.anchorMax = H.build.energyFillAnchor;
         energyFill.offsetMin = energyFill.offsetMax = Vector2.zero;
 
         // Hand: 5 slots; slot 5 is the one a full-hand draw replaces.
-        handArea = Box(root, "Hand", new Vector2(0.5f, 0f), new Vector2(0f, SlotBottom + SlotHeight / 2f), new Vector2(handWidth + 60f, SlotHeight + 16f), Color.clear);
+        handArea = Box(root, "Hand", H.build.handAnchor, new Vector2(0f, H.slotBottom + H.slotHeight / 2f), new Vector2(handWidth + H.build.handWidthPadding, H.slotHeight + H.build.handHeightPadding), Color.clear);
         for (int i = 0; i < slots.Length; i++)
         {
-            float x = -handWidth / 2f + SlotWidth / 2f + i * (SlotWidth + SlotSpacing);
+            float x = -handWidth / 2f + H.slotWidth / 2f + i * (H.slotWidth + H.slotSpacing);
             var s = new SlotView();
-            s.rect = Panel(handArea, "Slot" + (i + 1), new Vector2(0.5f, 0.5f), new Vector2(x, 0f), new Vector2(SlotWidth, SlotHeight), PanelEdge);
+            s.rect = Panel(handArea, "Slot" + (i + 1), H.build.slotAnchor, new Vector2(x, 0f), new Vector2(H.slotWidth, H.slotHeight), PanelEdge);
             s.edge = s.rect.GetComponent<Image>();
-            MakeText(s.rect, "SLOT " + (i + 1), 16, Dim, TextAnchor.MiddleCenter, new Vector2(0f, 38f), new Vector2(SlotWidth, 22f));
-            s.card = Bold(MakeText(s.rect, "", 44, TextColor, TextAnchor.MiddleCenter, new Vector2(0f, 2f), new Vector2(SlotWidth, 52f)));
-            s.result = MakeText(s.rect, "", 17, Dim, TextAnchor.MiddleCenter, new Vector2(0f, -36f), new Vector2(SlotWidth, 22f));
+            MakeText(s.rect, "SLOT " + (i + 1), H.build.slotCaptionFontSize, Dim, TextAnchor.MiddleCenter, H.build.slotCaptionPosition, new Vector2(H.slotWidth, H.build.slotCaptionHeight));
+            s.card = Bold(MakeText(s.rect, "", H.refreshSlots.numberFontSize, TextColor, TextAnchor.MiddleCenter, H.build.slotCardPosition, new Vector2(H.slotWidth, H.build.slotCardHeight)));
+            s.result = MakeText(s.rect, "", H.build.slotResultFontSize, Dim, TextAnchor.MiddleCenter, H.build.slotResultPosition, new Vector2(H.slotWidth, H.build.slotResultHeight));
             slots[i] = s;
         }
-        MakeText(slots[slots.Length - 1].rect, "REPLACED WHEN FULL", 14, Orange, TextAnchor.MiddleCenter, new Vector2(0f, -SlotHeight / 2f - 13f), new Vector2(SlotWidth + 40f, 20f));
+        MakeText(slots[slots.Length - 1].rect, "REPLACED WHEN FULL", H.build.replacementFontSize, Orange, TextAnchor.MiddleCenter, new Vector2(0f, -H.slotHeight / 2f - H.build.replacementY), new Vector2(H.slotWidth + H.build.replacementWidthPadding, H.build.replacementHeight));
 
         // Dragged card ghost.
-        ghost = Panel(root, "Ghost", Vector2.zero, Vector2.zero, new Vector2(120f, 92f), Blue);
-        ghostCard = Bold(MakeText(ghost, "", 38, Blue, TextAnchor.MiddleCenter, new Vector2(0f, 12f), new Vector2(120f, 46f)));
-        ghostResult = MakeText(ghost, "", 20, Blue, TextAnchor.MiddleCenter, new Vector2(0f, -24f), new Vector2(120f, 26f));
+        ghost = Panel(root, "Ghost", Vector2.zero, Vector2.zero, H.build.ghostSize, Blue);
+        ghostCard = Bold(MakeText(ghost, "", H.refreshSlots.ghostNumberFontSize, Blue, TextAnchor.MiddleCenter, H.build.ghostCardPosition, H.build.ghostCardSize));
+        ghostResult = MakeText(ghost, "", H.build.ghostResultFontSize, Blue, TextAnchor.MiddleCenter, H.build.ghostResultPosition, H.build.ghostResultSize);
         ghost.gameObject.SetActive(false);
 
-        countdownText = Bold(MakeText(root, "", 120, TextColor, TextAnchor.MiddleCenter, new Vector2(0f, 40f), new Vector2(300f, 160f)));
+        countdownText = Bold(MakeText(root, "", H.build.countdownFontSize, TextColor, TextAnchor.MiddleCenter, H.build.countdownPosition, H.build.countdownSize));
 
         // Pause / game over dialog.
-        dialog = Panel(root, "Dialog", new Vector2(0.5f, 0.5f), new Vector2(0f, 40f), new Vector2(640f, 270f), PanelEdge);
-        dialogText = Bold(MakeText(dialog, "", 52, TextColor, TextAnchor.MiddleCenter, new Vector2(0f, 45f), new Vector2(620f, 140f)));
+        dialog = Panel(root, "Dialog", H.build.dialogAnchor, H.build.dialogPosition, H.build.dialogSize, PanelEdge);
+        dialogText = Bold(MakeText(dialog, "", H.build.dialogFontSize, TextColor, TextAnchor.MiddleCenter, H.build.dialogTextPosition, H.build.dialogTextSize));
         for (int i = 0; i < 2; i++)
         {
-            buttons[i] = Box(dialog, "Button" + i, new Vector2(0.5f, 0.5f), new Vector2(i == 0 ? -110f : 110f, -75f), new Vector2(190f, 60f), ButtonColor);
-            buttonTexts[i] = MakeText(buttons[i], i == 0 ? "Yes" : "No", 28, TextColor, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(190f, 60f));
+            buttons[i] = Box(dialog, "Button" + i, H.build.buttonAnchor, new Vector2(i == 0 ? H.build.firstButtonX : H.build.secondButtonX, H.build.buttonY), H.build.buttonSize, ButtonColor);
+            buttonTexts[i] = MakeText(buttons[i], i == 0 ? "Yes" : "No", H.build.buttonFontSize, TextColor, TextAnchor.MiddleCenter, Vector2.zero, H.build.buttonTextSize);
         }
         dialog.gameObject.SetActive(false);
     }
 
-    Text Stat(RectTransform bar, string caption, float x)
+    Text Stat(RectTransform bar, string caption, float x, HudStatTuning style)
     {
-        LeftText(MakeText(bar, caption, 17, Dim, TextAnchor.MiddleLeft, new Vector2(x, 20f), new Vector2(260f, 24f)));
-        return Bold(LeftText(MakeText(bar, "", 36, TextColor, TextAnchor.MiddleLeft, new Vector2(x, -16f), new Vector2(260f, 44f))));
+        LeftText(MakeText(bar, caption, style.captionFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(x, style.captionY), style.captionSize));
+        return Bold(LeftText(MakeText(bar, "", style.valueFontSize, TextColor, TextAnchor.MiddleLeft, new Vector2(x, style.valueY), style.valueSize)));
     }
 
-    void SidePanel(Vector2 anchor, Vector2 pos, TextAnchor align, (string title, Color color, (string text, Color color)[] lines)[] sections)
+    void SidePanel(Vector2 anchor, Vector2 pos, HudSidePanelTuning style, TextAnchor align, (string title, Color color, (string text, Color color)[] lines)[] sections)
     {
         float y = 0f;
-        var rt = Box(root, "Side", anchor, pos, new Vector2(420f, 10f), Color.clear);
+        var rt = Box(root, "Side", anchor, pos, style.size, Color.clear);
         rt.pivot = new Vector2(anchor.x, 1f);
         rt.anchoredPosition = pos;
         foreach (var (title, color, lines) in sections)
         {
-            Bold(TopLeft(MakeText(rt, title, 24, color, align, Vector2.zero, new Vector2(420f, 30f)), y));
-            y -= 40f;
+            Bold(TopLeft(MakeText(rt, title, style.titleFontSize, color, align, Vector2.zero, style.titleSize), y));
+            y -= style.titleSpacing;
             foreach (var (text, c) in lines)
             {
-                TopLeft(MakeText(rt, text, 20, c, align, Vector2.zero, new Vector2(420f, 26f)), y);
-                y -= 31f;
+                TopLeft(MakeText(rt, text, style.lineFontSize, c, align, Vector2.zero, style.lineSize), y);
+                y -= style.lineSpacing;
             }
-            y -= 32f;
+            y -= style.sectionSpacing;
         }
+    }
+
+    (string text, Color color)[] SpecialHelp()
+    {
+        var lines = new List<(string text, Color color)> {
+            ("Exact number match only / ignores pulse", Gold),
+            ("Unmatched: balls pass through.", Gold),
+            (gm.specialEnemy.lifetime + "s lifetime / stationary", Gold),
+            ("Match kill reward x" + gm.specialMatchKillMultiplier, Gold)
+        };
+        foreach (var entry in gm.spawning.specialTargets)
+            if (entry != null) lines.Add((entry.target + ": score x" + entry.scoreMultiplier, Gold));
+        return lines.ToArray();
     }
 
     // ---- UI helpers ----
@@ -416,7 +437,7 @@ public class Hud : MonoBehaviour
     RectTransform Panel(RectTransform parent, string name, Vector2 anchor, Vector2 pos, Vector2 size, Color edge)
     {
         var outer = Box(parent, name, anchor, pos, size, edge);
-        Box(outer, "Fill", new Vector2(0.5f, 0.5f), Vector2.zero, size - new Vector2(4f, 4f), PanelFill);
+        Box(outer, "Fill", H.panel.fillAnchor, Vector2.zero, size - H.panel.borderInset, PanelFill);
         return outer;
     }
 
@@ -441,7 +462,7 @@ public class Hud : MonoBehaviour
         var go = new GameObject("Text", typeof(RectTransform), typeof(Text));
         var rt = (RectTransform)go.transform;
         rt.SetParent(parent, false);
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchorMin = rt.anchorMax = rt.pivot = H.makeText.defaultAnchor;
         rt.anchoredPosition = pos;
         rt.sizeDelta = box;
         var t = go.GetComponent<Text>();
@@ -500,12 +521,13 @@ public class Hud : MonoBehaviour
     static bool Contains(RectTransform rt, Vector2 screen) =>
         rt.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(rt, screen, null);
 
+    string CardText(Card c) => c.kind == Card.Kind.ExtraBall ? "BALL +" + gm.extraBallsPerCard : c.ToString();
+
     // Slot form "37 +3 = 40"; preview form "37 + 3 = 40" as in the mockup.
-    static string Expression(Card c, bool spaced) => !c.IsNumber
-        ? c.kind == Card.Kind.MatchBoost ? "+10s auto-match" : "+1 ball"
-        : Card.Lucky + " " + (spaced ? c.op + " " + c.n : c.ToString()) + " = " + c.Apply(Card.Lucky);
+    string Expression(Card c, bool spaced) => !c.IsNumber
+        ? c.kind == Card.Kind.MatchBoost ? "+" + gm.matchBoostDuration + "s auto-match" : "+" + gm.extraBallsPerCard + " ball"
+        : gm.cards.baseNumber + " " + (spaced ? c.op + " " + c.n : c.ToString()) + " = " + c.Apply(gm.cards.baseNumber);
 
     static string FormatTime(float t) => Mathf.FloorToInt(t / 60f).ToString("00") + ":" + Mathf.FloorToInt(t % 60f).ToString("00");
 
-    static Color Hex(int rgb) => new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f);
 }

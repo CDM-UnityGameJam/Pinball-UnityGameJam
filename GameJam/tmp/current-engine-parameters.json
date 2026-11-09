@@ -1,0 +1,843 @@
+{
+    "handSize": 5,
+    "energyPerCard": 100,
+    "launchWait": 3.0,
+    "normalKillPoints": 50,
+    "survivalPoints": 5,
+    "survivalInterval": 5.0,
+    "matchBoostDuration": 10.0,
+    "extraBallsPerCard": 1,
+    "queuedBallInterval": 1.0,
+    "breachLifeCost": 1,
+    "drainLifeCost": 1,
+    "physicsStep": 0.009999999776482582,
+    "cards": {
+        "baseNumber": 37,
+        "initialNumber": 37,
+        "operandMin": 1,
+        "operandMax": 9,
+        "matchWinsTieChance": 0.5
+    },
+    "spawning": {
+        "normalChancePercent": 96.0,
+        "bumperChancePercent": 4.0,
+        "normalSpawnZ": 9.5,
+        "bumperSpawnZ": 9.5,
+        "dangerZ": -5.0,
+        "openingNormalCount": 3,
+        "openingColumnSpacing": 2.0,
+        "normalAttempts": 30,
+        "bumperAttempts": 30,
+        "specialAttempts": 30,
+        "specialStartDelay": 0.0,
+        "specialInitialChancePercent": 5.0,
+        "specialChanceStepPercent": 2.0,
+        "specialChanceStepSeconds": 60.0,
+        "specialMaxChancePercent": 15.0,
+        "specialMinZ": -3.5,
+        "specialMaxZ": 8.5,
+        "specialPairExtraGap": 0.6000000238418579,
+        "specialPairVerticalExtraGap": 0.6000000238418579,
+        "boardHalfWidth": 5.0,
+        "arcCenterZ": 7.0,
+        "arcRadius": 5.0,
+        "ballRadius": 0.25,
+        "dangerLineScale": {
+            "x": 10.0,
+            "y": 0.019999999552965164,
+            "z": 0.07999999821186066
+        },
+        "dangerLineOffset": {
+            "x": 0.0,
+            "y": 0.009999999776482582
+        },
+        "dangerLineColor": {
+            "r": 0.8784313797950745,
+            "g": 0.3137255012989044,
+            "b": 0.3686274588108063,
+            "a": 1.0
+        },
+        "normalTargets": [
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            74,
+            148,
+            185,
+            259,
+            296
+        ],
+        "specialTargets": [
+            {
+                "target": 111,
+                "weight": 10.0,
+                "scoreMultiplier": 10
+            },
+            {
+                "target": 222,
+                "weight": 45.0,
+                "scoreMultiplier": 2
+            },
+            {
+                "target": 333,
+                "weight": 45.0,
+                "scoreMultiplier": 3
+            }
+        ]
+    },
+    "normalEnemy": {
+        "health": 5,
+        "radius": 0.75,
+        "halfHeight": 0.25,
+        "centerHeight": 0.25,
+        "capPosition": {
+            "x": 0.0,
+            "y": 1.0099999904632568,
+            "z": 0.0
+        },
+        "capScale": {
+            "x": 0.800000011920929,
+            "y": 0.019999999552965164,
+            "z": 0.800000011920929
+        },
+        "hitCooldown": 0.20000000298023224,
+        "revealDuration": 20.0,
+        "lifetime": 30.0,
+        "flashDuration": 0.11999999731779099,
+        "hitEnergy": 25,
+        "hitDamage": 1,
+        "pulseDamage": 1,
+        "kickSpeed": 20.0,
+        "unstickSpeed": 2.0,
+        "unstickAcceleration": 10.0,
+        "unstickForwardBias": 0.3499999940395355,
+        "unstickSideBias": 0.15000000596046448,
+        "horizontalGap": 0.44999998807907104,
+        "verticalGap": 0.3499999940395355,
+        "ballClearance": 0.44999998807907104,
+        "wallClearance": 0.30000001192092896,
+        "ringColor": {
+            "r": 0.7882353067398071,
+            "g": 0.27843138575553894,
+            "b": 0.3529411852359772,
+            "a": 1.0
+        },
+        "fillColor": {
+            "r": 0.3529411852359772,
+            "g": 0.14901961386203766,
+            "b": 0.19607843458652496,
+            "a": 1.0
+        },
+        "matchColor": {
+            "r": 0.27843138575553894,
+            "g": 0.8392156958580017,
+            "b": 0.6392157077789307,
+            "a": 1.0
+        },
+        "previewColor": {
+            "r": 0.35686275362968445,
+            "g": 0.5529412031173706,
+            "b": 0.9411764740943909,
+            "a": 1.0
+        },
+        "flashColor": {
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0,
+            "a": 1.0
+        },
+        "hitPopupColor": {
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0,
+            "a": 1.0
+        },
+        "killPopupColor": {
+            "r": 0.27843138575553894,
+            "g": 0.8392156958580017,
+            "b": 0.6392157077789307,
+            "a": 1.0
+        }
+    },
+    "specialEnemy": {
+        "health": 5,
+        "radius": 0.75,
+        "halfHeight": 0.25,
+        "centerHeight": 0.25,
+        "capPosition": {
+            "x": 0.0,
+            "y": 1.0099999904632568,
+            "z": 0.0
+        },
+        "capScale": {
+            "x": 0.800000011920929,
+            "y": 0.019999999552965164,
+            "z": 0.800000011920929
+        },
+        "hitCooldown": 0.20000000298023224,
+        "revealDuration": 20.0,
+        "lifetime": 30.0,
+        "flashDuration": 0.11999999731779099,
+        "hitEnergy": 25,
+        "hitDamage": 1,
+        "pulseDamage": 1,
+        "kickSpeed": 20.0,
+        "unstickSpeed": 2.0,
+        "unstickAcceleration": 3.0,
+        "unstickForwardBias": 0.3499999940395355,
+        "unstickSideBias": 0.15000000596046448,
+        "horizontalGap": 0.44999998807907104,
+        "verticalGap": 0.3499999940395355,
+        "ballClearance": 0.44999998807907104,
+        "wallClearance": 0.30000001192092896,
+        "ringColor": {
+            "r": 0.9137254953384399,
+            "g": 0.7254902124404907,
+            "b": 0.2862745225429535,
+            "a": 1.0
+        },
+        "fillColor": {
+            "r": 0.4313725531101227,
+            "g": 0.30588236451148987,
+            "b": 0.10980392247438431,
+            "a": 1.0
+        },
+        "matchColor": {
+            "r": 0.27843138575553894,
+            "g": 0.8392156958580017,
+            "b": 0.6392157077789307,
+            "a": 1.0
+        },
+        "previewColor": {
+            "r": 0.35686275362968445,
+            "g": 0.5529412031173706,
+            "b": 0.9411764740943909,
+            "a": 1.0
+        },
+        "flashColor": {
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0,
+            "a": 1.0
+        },
+        "hitPopupColor": {
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0,
+            "a": 1.0
+        },
+        "killPopupColor": {
+            "r": 0.9137254953384399,
+            "g": 0.7254902124404907,
+            "b": 0.2862745225429535,
+            "a": 1.0
+        }
+    },
+    "bumperEnemy": {
+        "health": 5,
+        "radius": 0.75,
+        "halfHeight": 0.25,
+        "centerHeight": 0.25,
+        "capPosition": {
+            "x": 0.0,
+            "y": 1.0099999904632568,
+            "z": 0.0
+        },
+        "capScale": {
+            "x": 0.800000011920929,
+            "y": 0.019999999552965164,
+            "z": 0.800000011920929
+        },
+        "hitCooldown": 0.20000000298023224,
+        "revealDuration": 20.0,
+        "lifetime": 30.0,
+        "flashDuration": 0.11999999731779099,
+        "hitEnergy": 25,
+        "hitDamage": 1,
+        "pulseDamage": 1,
+        "kickSpeed": 20.0,
+        "unstickSpeed": 2.0,
+        "unstickAcceleration": 3.0,
+        "unstickForwardBias": 0.3499999940395355,
+        "unstickSideBias": 0.15000000596046448,
+        "horizontalGap": 0.44999998807907104,
+        "verticalGap": 0.3499999940395355,
+        "ballClearance": 0.44999998807907104,
+        "wallClearance": 0.30000001192092896,
+        "ringColor": {
+            "r": 0.6627451181411743,
+            "g": 0.6784313917160034,
+            "b": 0.7215686440467834,
+            "a": 1.0
+        },
+        "fillColor": {
+            "r": 0.22745098173618317,
+            "g": 0.24705882370471954,
+            "b": 0.2980392277240753,
+            "a": 1.0
+        },
+        "matchColor": {
+            "r": 0.27843138575553894,
+            "g": 0.8392156958580017,
+            "b": 0.6392157077789307,
+            "a": 1.0
+        },
+        "previewColor": {
+            "r": 0.35686275362968445,
+            "g": 0.5529412031173706,
+            "b": 0.9411764740943909,
+            "a": 1.0
+        },
+        "flashColor": {
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0,
+            "a": 1.0
+        },
+        "hitPopupColor": {
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0,
+            "a": 1.0
+        },
+        "killPopupColor": {
+            "r": 0.27843138575553894,
+            "g": 0.8392156958580017,
+            "b": 0.6392157077789307,
+            "a": 1.0
+        }
+    },
+    "hud": {
+        "background": {
+            "r": 0.03529411926865578,
+            "g": 0.0470588244497776,
+            "b": 0.07058823853731155,
+            "a": 1.0
+        },
+        "panelFill": {
+            "r": 0.06666667014360428,
+            "g": 0.09019608050584793,
+            "b": 0.14509804546833038,
+            "a": 1.0
+        },
+        "panelEdge": {
+            "r": 0.16862745583057404,
+            "g": 0.20392157137393951,
+            "b": 0.2823529541492462,
+            "a": 1.0
+        },
+        "textColor": {
+            "r": 0.9098039269447327,
+            "g": 0.9254902005195618,
+            "b": 0.9490196108818054,
+            "a": 1.0
+        },
+        "dim": {
+            "r": 0.5921568870544434,
+            "g": 0.6313725709915161,
+            "b": 0.6980392336845398,
+            "a": 1.0
+        },
+        "green": {
+            "r": 0.27843138575553894,
+            "g": 0.8392156958580017,
+            "b": 0.6392157077789307,
+            "a": 1.0
+        },
+        "blue": {
+            "r": 0.35686275362968445,
+            "g": 0.5529412031173706,
+            "b": 0.9411764740943909,
+            "a": 1.0
+        },
+        "gold": {
+            "r": 0.9137254953384399,
+            "g": 0.7254902124404907,
+            "b": 0.2862745225429535,
+            "a": 1.0
+        },
+        "orange": {
+            "r": 0.9411764740943909,
+            "g": 0.6352941393852234,
+            "b": 0.22745098173618317,
+            "a": 1.0
+        },
+        "yellow": {
+            "r": 0.9490196108818054,
+            "g": 0.8274509906768799,
+            "b": 0.22745098173618317,
+            "a": 1.0
+        },
+        "danger": {
+            "r": 0.8784313797950745,
+            "g": 0.3137255012989044,
+            "b": 0.3686274588108063,
+            "a": 1.0
+        },
+        "bumperRing": {
+            "r": 0.6627451181411743,
+            "g": 0.6784313917160034,
+            "b": 0.7215686440467834,
+            "a": 1.0
+        },
+        "boardFloor": {
+            "r": 0.1764705926179886,
+            "g": 0.1882352977991104,
+            "b": 0.23529411852359772,
+            "a": 1.0
+        },
+        "buttonColor": {
+            "r": 0.13725490868091583,
+            "g": 0.1882352977991104,
+            "b": 0.29019609093666077,
+            "a": 1.0
+        },
+        "buttonHoverColor": {
+            "r": 0.20000000298023224,
+            "g": 0.27450981736183167,
+            "b": 0.41960784792900085,
+            "a": 1.0
+        },
+        "slotWidth": 170.0,
+        "slotHeight": 115.0,
+        "slotSpacing": 18.0,
+        "slotBottom": 40.0,
+        "popupTime": 1.0,
+        "popupRise": 40.0,
+        "energyBackground": {
+            "r": 0.10980392247438431,
+            "g": 0.14509804546833038,
+            "b": 0.21176470816135406,
+            "a": 1.0
+        },
+        "canvasHeightMatch": 1.0,
+        "gameOverDetailsFontSize": 28,
+        "popupWorldForwardOffset": 0.75,
+        "overPlayfield": {
+            "halfWidth": 5.0,
+            "minZ": -11.0,
+            "maxZ": 12.0
+        },
+        "handleDialog": {
+            "confirmButtonX": -110.0,
+            "confirmButtonY": -75.0
+        },
+        "refreshSlots": {
+            "reservedFontSize": 26,
+            "functionalFontSize": 28,
+            "numberFontSize": 44,
+            "ghostNumberFontSize": 38,
+            "ghostFunctionalFontSize": 22
+        },
+        "refreshBoardLabels": {
+            "spawnLabelPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 11.199999809265137
+            },
+            "dangerLabelX": -5.599999904632568
+        },
+        "refreshEnemyLabels": {
+            "belowOffset": {
+                "x": 0.0,
+                "y": -6.0
+            },
+            "aboveOffset": {
+                "x": 0.0,
+                "y": 4.0
+            },
+            "compactNumberThreshold": 100,
+            "compactFontSize": 24,
+            "regularFontSize": 30
+        },
+        "makeEnemyLabel": {
+            "numberSize": {
+                "x": 120.0,
+                "y": 40.0
+            },
+            "belowSize": {
+                "x": 200.0,
+                "y": 20.0
+            },
+            "belowFontSize": 15,
+            "aboveSize": {
+                "x": 200.0,
+                "y": 20.0
+            },
+            "aboveFontSize": 15,
+            "popupSize": {
+                "x": 500.0,
+                "y": 40.0
+            },
+            "popupFontSize": 24
+        },
+        "refreshPopups": {
+            "worldHeight": 0.5,
+            "initialRise": 14.0
+        },
+        "build": {
+            "referenceResolution": {
+                "x": 1920.0,
+                "y": 1080.0
+            },
+            "titleSize": {
+                "x": 400.0,
+                "y": 50.0
+            },
+            "titleAnchor": {
+                "x": 0.0,
+                "y": 1.0
+            },
+            "titlePosition": {
+                "x": 60.0,
+                "y": -26.0
+            },
+            "titleFontSize": 40,
+            "effectsSize": {
+                "x": 600.0,
+                "y": 30.0
+            },
+            "effectsAnchor": {
+                "x": 1.0,
+                "y": 1.0
+            },
+            "effectsPosition": {
+                "x": -60.0,
+                "y": -34.0
+            },
+            "effectsFontSize": 22,
+            "topBarAnchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "topBarPosition": {
+                "x": 0.0,
+                "y": -140.0
+            },
+            "topBarSize": {
+                "x": 1060.0,
+                "y": 90.0
+            },
+            "scoreX": -490.0,
+            "livesX": -40.0,
+            "timeX": 280.0,
+            "leftHelpAnchor": {
+                "x": 0.0,
+                "y": 1.0
+            },
+            "leftHelpPosition": {
+                "x": 70.0,
+                "y": -230.0
+            },
+            "rightHelpAnchor": {
+                "x": 1.0,
+                "y": 1.0
+            },
+            "rightHelpPosition": {
+                "x": -70.0,
+                "y": -230.0
+            },
+            "spawnLabelSize": {
+                "x": 300.0,
+                "y": 24.0
+            },
+            "spawnLabelFontSize": 14,
+            "dangerLabelSize": {
+                "x": 200.0,
+                "y": 24.0
+            },
+            "dangerLabelFontSize": 16,
+            "dangerLabelPivot": {
+                "x": 1.0,
+                "y": 0.5
+            },
+            "bottomBarAnchor": {
+                "x": 0.5,
+                "y": 0.0
+            },
+            "bottomBarPosition": {
+                "x": 0.0,
+                "y": 210.0
+            },
+            "bottomBarWidthPadding": 60.0,
+            "bottomBarHeight": 80.0,
+            "bottomContentWidthPadding": 60.0,
+            "bottomContentInset": 25.0,
+            "luckyLabelSize": {
+                "x": 160.0,
+                "y": 30.0
+            },
+            "luckyFontSize": 20,
+            "luckyY": 17.0,
+            "currentLabelSize": {
+                "x": 300.0,
+                "y": 40.0
+            },
+            "currentFontSize": 34,
+            "currentX": 170.0,
+            "currentY": 17.0,
+            "previewLabelSize": {
+                "x": 400.0,
+                "y": 36.0
+            },
+            "previewFontSize": 26,
+            "previewX": 500.0,
+            "previewY": 17.0,
+            "energyLabelSize": {
+                "x": 200.0,
+                "y": 26.0
+            },
+            "energyFontSize": 18,
+            "energyY": -20.0,
+            "energyBarAnchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "energyBarSize": {
+                "x": 720.0,
+                "y": 14.0
+            },
+            "energyBarX": 170.0,
+            "energyBarExtraX": 360.0,
+            "energyBarY": -20.0,
+            "energyFillAnchor": {
+                "x": 0.0,
+                "y": 1.0
+            },
+            "handAnchor": {
+                "x": 0.5,
+                "y": 0.0
+            },
+            "handWidthPadding": 60.0,
+            "handHeightPadding": 16.0,
+            "slotAnchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "slotCaptionPosition": {
+                "x": 0.0,
+                "y": 38.0
+            },
+            "slotCaptionFontSize": 16,
+            "slotCaptionHeight": 22.0,
+            "slotCardPosition": {
+                "x": 0.0,
+                "y": 2.0
+            },
+            "slotCardHeight": 52.0,
+            "slotResultPosition": {
+                "x": 0.0,
+                "y": -36.0
+            },
+            "slotResultFontSize": 17,
+            "slotResultHeight": 22.0,
+            "replacementFontSize": 14,
+            "replacementY": 13.0,
+            "replacementWidthPadding": 40.0,
+            "replacementHeight": 20.0,
+            "ghostSize": {
+                "x": 120.0,
+                "y": 92.0
+            },
+            "ghostCardPosition": {
+                "x": 0.0,
+                "y": 12.0
+            },
+            "ghostCardSize": {
+                "x": 120.0,
+                "y": 46.0
+            },
+            "ghostResultPosition": {
+                "x": 0.0,
+                "y": -24.0
+            },
+            "ghostResultSize": {
+                "x": 120.0,
+                "y": 26.0
+            },
+            "ghostResultFontSize": 20,
+            "countdownPosition": {
+                "x": 0.0,
+                "y": 40.0
+            },
+            "countdownSize": {
+                "x": 300.0,
+                "y": 160.0
+            },
+            "countdownFontSize": 120,
+            "dialogAnchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "dialogPosition": {
+                "x": 0.0,
+                "y": 40.0
+            },
+            "dialogSize": {
+                "x": 640.0,
+                "y": 270.0
+            },
+            "dialogTextPosition": {
+                "x": 0.0,
+                "y": 45.0
+            },
+            "dialogTextSize": {
+                "x": 620.0,
+                "y": 140.0
+            },
+            "dialogFontSize": 52,
+            "buttonAnchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "buttonSize": {
+                "x": 190.0,
+                "y": 60.0
+            },
+            "firstButtonX": -110.0,
+            "secondButtonX": 110.0,
+            "buttonY": -75.0,
+            "buttonTextSize": {
+                "x": 190.0,
+                "y": 60.0
+            },
+            "buttonFontSize": 28
+        },
+        "scoreStat": {
+            "captionSize": {
+                "x": 260.0,
+                "y": 24.0
+            },
+            "captionFontSize": 17,
+            "captionY": 20.0,
+            "valueSize": {
+                "x": 260.0,
+                "y": 44.0
+            },
+            "valueFontSize": 36,
+            "valueY": -16.0
+        },
+        "livesStat": {
+            "captionSize": {
+                "x": 260.0,
+                "y": 24.0
+            },
+            "captionFontSize": 17,
+            "captionY": 20.0,
+            "valueSize": {
+                "x": 260.0,
+                "y": 44.0
+            },
+            "valueFontSize": 36,
+            "valueY": -16.0
+        },
+        "timeStat": {
+            "captionSize": {
+                "x": 260.0,
+                "y": 24.0
+            },
+            "captionFontSize": 17,
+            "captionY": 20.0,
+            "valueSize": {
+                "x": 260.0,
+                "y": 44.0
+            },
+            "valueFontSize": 36,
+            "valueY": -16.0
+        },
+        "leftHelp": {
+            "size": {
+                "x": 420.0,
+                "y": 10.0
+            },
+            "titleSize": {
+                "x": 420.0,
+                "y": 30.0
+            },
+            "titleFontSize": 24,
+            "titleSpacing": 40.0,
+            "lineSize": {
+                "x": 420.0,
+                "y": 26.0
+            },
+            "lineFontSize": 20,
+            "lineSpacing": 31.0,
+            "sectionSpacing": 32.0
+        },
+        "rightHelp": {
+            "size": {
+                "x": 420.0,
+                "y": 10.0
+            },
+            "titleSize": {
+                "x": 420.0,
+                "y": 30.0
+            },
+            "titleFontSize": 24,
+            "titleSpacing": 40.0,
+            "lineSize": {
+                "x": 420.0,
+                "y": 26.0
+            },
+            "lineFontSize": 20,
+            "lineSpacing": 31.0,
+            "sectionSpacing": 32.0
+        },
+        "panel": {
+            "fillAnchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "borderInset": {
+                "x": 4.0,
+                "y": 4.0
+            }
+        },
+        "makeText": {
+            "defaultAnchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        }
+    },
+    "board": {
+        "instanceID": 27487790732112
+    },
+    "ball": {
+        "instanceID": 27487790732221
+    },
+    "launchLocal": {
+        "x": 0.0,
+        "y": 0.30000001192092896,
+        "z": -9.0
+    },
+    "launchSpeed": 18.0,
+    "launchBiasDegrees": 8.0,
+    "gravity": 180.0,
+    "maxLives": 3,
+    "spawnInterval": 2.0,
+    "enemyDescendTime": 40.0,
+    "matchKillMultiplier": 10,
+    "specialMatchKillMultiplier": 10,
+    "specialSpawnInterval": 10.0,
+    "bumperSpawnInterval": 1.0,
+    "bumperDescendTime": 40.0,
+    "matchCardChancePercent": 5.0,
+    "extraBallCardChancePercent": 15.0
+}

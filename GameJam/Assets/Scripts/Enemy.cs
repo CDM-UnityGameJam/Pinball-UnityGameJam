@@ -1,26 +1,19 @@
 using UnityEngine;
 
-// Board circle: normal enemy (hidden target, 5 HP), special enemy (111/222/333, 5 HP, 30 s life) or bumper.
+// Board circle: normal enemy, stationary special enemy or bumper; each kind has independent tuning.
 // Drawn as a ring (the cylinder) around a darker cap; its on-screen label is drawn by Hud.
 public class Enemy : MonoBehaviour
 {
     public enum Kind { Normal, Special, Bumper }
 
-    public const float Radius = 0.75f;
-
-    // 28-46 inclusive plus 74, 148, 185, 259, 296: 24 targets. 111/222/333 are special-only.
-    public static readonly int[] NormalTargets = BuildNormalTargets();
-    public static readonly int[] SpecialTargets = { 111, 222, 333 };
-
-    const float HitCooldown = 0.2f, VisibleTime = 20f, SpecialLifetime = 30f, FlashTime = 0.12f;
-    const int EnergyPerHit = 25;
-
-    public float kickSpeed = 20f;
+    EnemyTuning settings;
+    public EnemyTuning Settings => settings;
+    public float Radius => settings.radius;
     public Kind kind;
     public int target, hp, maxHp;
 
     float visibleLeft, lifeLeft, flashLeft;
-    float lastHit = -1f;
+    float lastHit = float.NegativeInfinity;
     Rigidbody body;
     Collider hitCollider;
     Material ring, cap;
@@ -29,12 +22,21 @@ public class Enemy : MonoBehaviour
     public bool Visible => kind == Kind.Special || visibleLeft > 0f;
     public float VisibleLeft => visibleLeft;
     public float LifeLeft => lifeLeft;
-    public int Multiplier => target == 111 ? 10 : target == 222 ? 2 : 3;
+    public int Multiplier
+    {
+        get
+        {
+            foreach (var entry in GameManager.Instance.spawning.specialTargets)
+                if (entry != null && entry.target == target) return Mathf.Max(1, entry.scoreMultiplier);
+            return 1;
+        }
+    }
 
     // Creates the circle under the board at a board-local XZ position.
     public static Enemy Create(Transform board, Kind kind, int target, Vector3 local)
     {
         // Runtime primitives get a built-in material that renders magenta in URP player builds; reuse the board's URP material.
+        var settings = GameManager.Instance.EnemySettings(kind);
         var urp = board.GetComponentInChildren<Renderer>().sharedMaterial;
         var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         go.name = kind.ToString();
@@ -44,16 +46,16 @@ public class Enemy : MonoBehaviour
         go.GetComponent<Renderer>().sharedMaterial = urp;
         go.transform.SetParent(board, false);
         // Flat disc 0.5 tall, centred at the ball's centre height so hits land on its side.
-        go.transform.localPosition = new Vector3(local.x, 0.25f, local.z);
-        go.transform.localScale = new Vector3(Radius * 2f, 0.25f, Radius * 2f);
+        go.transform.localPosition = new Vector3(local.x, settings.centerHeight, local.z);
+        go.transform.localScale = new Vector3(settings.radius * 2f, settings.halfHeight, settings.radius * 2f);
 
         var capGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         capGo.name = "Cap";
         Destroy(capGo.GetComponent<Collider>());
         capGo.GetComponent<Renderer>().sharedMaterial = urp;
         capGo.transform.SetParent(go.transform, false);
-        capGo.transform.localPosition = new Vector3(0f, 1.01f, 0f); // primitive cylinder top is at local y = 1
-        capGo.transform.localScale = new Vector3(0.8f, 0.02f, 0.8f);
+        capGo.transform.localPosition = settings.capPosition; // primitive cylinder top is at local y = 1
+        capGo.transform.localScale = settings.capScale;
 
         var e = go.AddComponent<Enemy>();
         e.Init(kind, target, capGo.GetComponent<Renderer>().material);
@@ -63,14 +65,15 @@ public class Enemy : MonoBehaviour
     void Init(Kind k, int targetNumber, Material capMaterial)
     {
         kind = k;
+        settings = GameManager.Instance.EnemySettings(k);
         target = targetNumber;
         hitCollider = GetComponent<MeshCollider>();
-        maxHp = hp = 5;
-        lifeLeft = SpecialLifetime;
+        maxHp = hp = Mathf.Max(1, settings.health);
+        lifeLeft = settings.lifetime;
         ring = GetComponent<Renderer>().material;
         cap = capMaterial;
-        ringColor = k == Kind.Normal ? Hud.EnemyRing : k == Kind.Special ? Hud.Gold : Hud.BumperRing;
-        capColor = k == Kind.Normal ? Hud.EnemyFill : k == Kind.Special ? Hud.SpecialFill : Hud.BumperFill;
+        ringColor = settings.ringColor;
+        capColor = settings.fillColor;
         ring.color = ringColor;
         cap.color = capColor;
         if (k != Kind.Special)
@@ -102,8 +105,11 @@ public class Enemy : MonoBehaviour
         if (!body) return;
         var board = transform.parent;
         var p = board.InverseTransformPoint(body.position);
-        p.z -= Spawner.DescendSpeed * Time.fixedDeltaTime;
-        if (p.z <= Spawner.LineZ)
+        var gm = GameManager.Instance;
+        float origin = kind == Kind.Bumper ? gm.spawning.bumperSpawnZ : gm.spawning.normalSpawnZ;
+        float duration = kind == Kind.Bumper ? gm.bumperDescendTime : gm.enemyDescendTime;
+        p.z -= (origin - gm.spawning.dangerZ) / Mathf.Max(0.01f, duration) * Time.fixedDeltaTime;
+        if (p.z <= GameManager.Instance.spawning.dangerZ)
         {
             if (kind == Kind.Normal && hp > 0) GameManager.Instance.LoseLife(); // no kill credit, no relaunch
             Destroy(gameObject);
@@ -127,24 +133,25 @@ public class Enemy : MonoBehaviour
         var r = ringColor;
         if (kind != Kind.Bumper && Visible)
         {
-            if (GameManager.Instance.Matches(this)) r = Hud.Green;
-            else if (Hud.Instance && Hud.Instance.PreviewNumber == target) r = Hud.Blue;
+            if (GameManager.Instance.Matches(this)) r = settings.matchColor;
+            else if (Hud.Instance && Hud.Instance.PreviewNumber == target) r = settings.previewColor;
         }
         ring.color = r;
         if (flashLeft > 0f) flashLeft -= Time.unscaledDeltaTime;
-        cap.color = flashLeft > 0f ? Color.white : capColor;
+        cap.color = flashLeft > 0f ? settings.flashColor : capColor;
     }
 
     void OnCollisionEnter(Collision c)
     {
+        NudgeSlowBall(c);
         if (kind == Kind.Special && !GameManager.Instance.Matches(this)) return;
-        if (!GameManager.Instance.IsPlaying || hp <= 0 || !c.collider.CompareTag("Player") || Time.time - lastHit < HitCooldown) return;
+        if (!GameManager.Instance.IsPlaying || hp <= 0 || !c.collider.CompareTag("Player") || Time.time - lastHit < settings.hitCooldown) return;
         lastHit = Time.time;
 
         if (kind == Kind.Bumper)
         {
             var dir = Vector3.ProjectOnPlane(c.rigidbody.position - transform.position, transform.up).normalized;
-            c.rigidbody.linearVelocity = dir * kickSpeed;
+            c.rigidbody.linearVelocity = dir * settings.kickSpeed;
             return;
         }
 
@@ -155,46 +162,62 @@ public class Enemy : MonoBehaviour
         {
             // A pulse is ordinary damage: it cannot trigger another match or pulse.
             foreach (var enemy in FindObjectsByType<Enemy>())
-                if (enemy != this) enemy.ApplyHit(false);
+                if (enemy != this) enemy.ApplyDamage(false, settings.pulseDamage);
         }
         // Only the physical ball hit grants energy, after all kills and reveals resolve.
-        gm.AddEnergy(EnergyPerHit);
+        gm.AddEnergy(settings.hitEnergy);
     }
 
-    void ApplyHit(bool matched)
+    // Persistent contacts need their own push: OnCollisionEnter only runs once.
+    // This never counts as another hit or grants energy.
+    void OnCollisionStay(Collision c) => NudgeSlowBall(c);
+
+    void NudgeSlowBall(Collision c)
+    {
+        var gm = GameManager.Instance;
+        var ball = c.rigidbody;
+        if (!gm || !gm.IsPlaying || hp <= 0 || !ball || ball.isKinematic || !c.collider.CompareTag("Player")) return;
+        if (kind == Kind.Special && !gm.Matches(this)) return;
+
+        var board = gm.board;
+        var velocity = Vector3.ProjectOnPlane(ball.linearVelocity, board.up);
+        if (velocity.sqrMagnitude >= settings.unstickSpeed * settings.unstickSpeed) return;
+
+        var away = Vector3.ProjectOnPlane(ball.position - transform.position, board.up).normalized;
+        // A shared small diagonal bias keeps opposing enemies from cancelling perfectly.
+        var direction = (away + board.forward * settings.unstickForwardBias + board.right * settings.unstickSideBias).normalized;
+        ball.AddForce(direction * settings.unstickAcceleration, ForceMode.Acceleration);
+    }
+
+    void ApplyHit(bool matched) => ApplyDamage(matched, settings.hitDamage);
+
+    void ApplyDamage(bool matched, int damage)
     {
         // Destroy is deferred until frame end, so dead enemies must reject further hits.
         if (kind == Kind.Bumper || hp <= 0) return;
         var gm = GameManager.Instance;
         var hud = Hud.Instance;
         if (kind == Kind.Special && !matched) return;
-        if (kind == Kind.Normal) visibleLeft = VisibleTime;
-        hp = matched ? 0 : hp - 1;
-        flashLeft = FlashTime;
-        if (hud) hud.Popup(transform.position, matched ? "MATCH!" : "-1", matched ? Hud.Green : Color.white);
+        if (kind == Kind.Normal) visibleLeft = settings.revealDuration;
+        hp = matched ? 0 : Mathf.Max(0, hp - Mathf.Max(0, damage));
+        flashLeft = settings.flashDuration;
+        if (hud) hud.Popup(transform.position, matched ? "MATCH!" : "-" + Mathf.Max(0, damage), matched ? settings.matchColor : settings.hitPopupColor);
 
         if (hp <= 0)
         {
             if (kind == Kind.Normal)
             {
                 long reward = gm.OnNormalKill(matched);
-                if (hud) hud.Popup(transform.position, "+" + reward.ToString("N0"), Hud.Green);
+                if (hud) hud.Popup(transform.position, "+" + reward.ToString("N0"), settings.killPopupColor);
             }
             else
             {
                 long before = gm.Score;
                 gm.OnSpecialKill(Multiplier, matched);
-                if (hud) hud.Popup(transform.position, (matched ? "MATCH! " : "") + "+" + (gm.Score - before).ToString("N0"), Hud.Gold);
+                if (hud) hud.Popup(transform.position, (matched ? "MATCH! " : "") + "+" + (gm.Score - before).ToString("N0"), settings.killPopupColor);
             }
             Destroy(gameObject);
         }
     }
 
-    static int[] BuildNormalTargets()
-    {
-        var list = new System.Collections.Generic.List<int>();
-        for (int n = 28; n <= 46; n++) list.Add(n);
-        list.AddRange(new[] { 74, 148, 185, 259, 296 });
-        return list.ToArray();
-    }
 }

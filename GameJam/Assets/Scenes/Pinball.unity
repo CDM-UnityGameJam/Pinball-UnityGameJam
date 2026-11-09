@@ -880,8 +880,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1.4867053, z: 10.398543}
-  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 0.85, y: 0.85, z: 0.85}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -3064,16 +3064,360 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cee21f8852e74424d8af2ac0e671e7e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  handSize: 5
+  energyPerCard: 100
+  launchWait: 3
+  normalKillPoints: 50
+  survivalPoints: 5
+  survivalInterval: 5
+  matchBoostDuration: 10
+  extraBallsPerCard: 1
+  queuedBallInterval: 1
+  breachLifeCost: 1
+  drainLifeCost: 1
+  physicsStep: 0.01
+  cards:
+    baseNumber: 37
+    initialNumber: 37
+    operandMin: 1
+    operandMax: 9
+    matchWinsTieChance: 0.5
+  spawning:
+    normalChancePercent: 96
+    bumperChancePercent: 4
+    normalSpawnZ: 9.5
+    bumperSpawnZ: 9.5
+    dangerZ: -5
+    openingNormalCount: 3
+    openingColumnSpacing: 2
+    normalAttempts: 30
+    bumperAttempts: 30
+    specialAttempts: 30
+    specialStartDelay: 0
+    specialInitialChancePercent: 5
+    specialChanceStepPercent: 2
+    specialChanceStepSeconds: 60
+    specialMaxChancePercent: 15
+    specialMinZ: -3.5
+    specialMaxZ: 8.5
+    specialPairExtraGap: 0.6
+    specialPairVerticalExtraGap: 0.6
+    boardHalfWidth: 5
+    arcCenterZ: 7
+    arcRadius: 5
+    ballRadius: 0.25
+    dangerLineScale: {x: 10, y: 0.02, z: 0.08}
+    dangerLineOffset: {x: 0, y: 0.01}
+    dangerLineColor: {r: 0.8784314, g: 0.3137255, b: 0.36862746, a: 1}
+    normalTargets: 1c0000001d0000001e0000001f000000200000002100000022000000230000002400000025000000260000002700000028000000290000002a0000002b0000002c0000002d0000002e0000004a00000094000000b90000000301000028010000i
+    specialTargets:
+    - target: 111
+      weight: 10
+      scoreMultiplier: 10
+    - target: 222
+      weight: 45
+      scoreMultiplier: 2
+    - target: 333
+      weight: 45
+      scoreMultiplier: 3
+  normalEnemy:
+    health: 5
+    radius: 0.75
+    halfHeight: 0.25
+    centerHeight: 0.25
+    capPosition: {x: 0, y: 1.01, z: 0}
+    capScale: {x: 0.8, y: 0.02, z: 0.8}
+    hitCooldown: 0.2
+    revealDuration: 20
+    lifetime: 30
+    flashDuration: 0.12
+    hitEnergy: 25
+    hitDamage: 1
+    pulseDamage: 1
+    kickSpeed: 20
+    unstickSpeed: 5
+    unstickAcceleration: 20
+    unstickForwardBias: 0.35
+    unstickSideBias: 0.15
+    horizontalGap: 0.45
+    verticalGap: 0.35
+    ballClearance: 0.45
+    wallClearance: 0.3
+    ringColor: {r: 0.7882353, g: 0.2784314, b: 0.3529412, a: 1}
+    fillColor: {r: 0.3529412, g: 0.14901961, b: 0.19607843, a: 1}
+    matchColor: {r: 0.2784314, g: 0.8392157, b: 0.6392157, a: 1}
+    previewColor: {r: 0.35686275, g: 0.5529412, b: 0.9411765, a: 1}
+    flashColor: {r: 1, g: 1, b: 1, a: 1}
+    hitPopupColor: {r: 1, g: 1, b: 1, a: 1}
+    killPopupColor: {r: 0.2784314, g: 0.8392157, b: 0.6392157, a: 1}
+  specialEnemy:
+    health: 5
+    radius: 0.75
+    halfHeight: 0.25
+    centerHeight: 0.25
+    capPosition: {x: 0, y: 1.01, z: 0}
+    capScale: {x: 0.8, y: 0.02, z: 0.8}
+    hitCooldown: 0.2
+    revealDuration: 20
+    lifetime: 30
+    flashDuration: 0.12
+    hitEnergy: 25
+    hitDamage: 1
+    pulseDamage: 1
+    kickSpeed: 20
+    unstickSpeed: 2
+    unstickAcceleration: 3
+    unstickForwardBias: 0.35
+    unstickSideBias: 0.15
+    horizontalGap: 0.45
+    verticalGap: 0.35
+    ballClearance: 0.45
+    wallClearance: 0.3
+    ringColor: {r: 0.9137255, g: 0.7254902, b: 0.28627452, a: 1}
+    fillColor: {r: 0.43137255, g: 0.30588236, b: 0.10980392, a: 1}
+    matchColor: {r: 0.2784314, g: 0.8392157, b: 0.6392157, a: 1}
+    previewColor: {r: 0.35686275, g: 0.5529412, b: 0.9411765, a: 1}
+    flashColor: {r: 1, g: 1, b: 1, a: 1}
+    hitPopupColor: {r: 1, g: 1, b: 1, a: 1}
+    killPopupColor: {r: 0.9137255, g: 0.7254902, b: 0.28627452, a: 1}
+  bumperEnemy:
+    health: 5
+    radius: 0.75
+    halfHeight: 0.25
+    centerHeight: 0.25
+    capPosition: {x: 0, y: 1.01, z: 0}
+    capScale: {x: 0.8, y: 0.02, z: 0.8}
+    hitCooldown: 0.2
+    revealDuration: 20
+    lifetime: 30
+    flashDuration: 0.12
+    hitEnergy: 25
+    hitDamage: 1
+    pulseDamage: 1
+    kickSpeed: 20
+    unstickSpeed: 2
+    unstickAcceleration: 3
+    unstickForwardBias: 0.35
+    unstickSideBias: 0.15
+    horizontalGap: 0.45
+    verticalGap: 0.35
+    ballClearance: 0.45
+    wallClearance: 0.3
+    ringColor: {r: 0.6627451, g: 0.6784314, b: 0.72156864, a: 1}
+    fillColor: {r: 0.22745098, g: 0.24705882, b: 0.29803923, a: 1}
+    matchColor: {r: 0.2784314, g: 0.8392157, b: 0.6392157, a: 1}
+    previewColor: {r: 0.35686275, g: 0.5529412, b: 0.9411765, a: 1}
+    flashColor: {r: 1, g: 1, b: 1, a: 1}
+    hitPopupColor: {r: 1, g: 1, b: 1, a: 1}
+    killPopupColor: {r: 0.2784314, g: 0.8392157, b: 0.6392157, a: 1}
+  hud:
+    background: {r: 0.03529412, g: 0.047058824, b: 0.07058824, a: 1}
+    panelFill: {r: 0.06666667, g: 0.09019608, b: 0.14509805, a: 1}
+    panelEdge: {r: 0.16862746, g: 0.20392157, b: 0.28235295, a: 1}
+    textColor: {r: 0.9098039, g: 0.9254902, b: 0.9490196, a: 1}
+    dim: {r: 0.5921569, g: 0.6313726, b: 0.69803923, a: 1}
+    green: {r: 0.2784314, g: 0.8392157, b: 0.6392157, a: 1}
+    blue: {r: 0.35686275, g: 0.5529412, b: 0.9411765, a: 1}
+    gold: {r: 0.9137255, g: 0.7254902, b: 0.28627452, a: 1}
+    orange: {r: 0.9411765, g: 0.63529414, b: 0.22745098, a: 1}
+    yellow: {r: 0.9490196, g: 0.827451, b: 0.22745098, a: 1}
+    danger: {r: 0.8784314, g: 0.3137255, b: 0.36862746, a: 1}
+    bumperRing: {r: 0.6627451, g: 0.6784314, b: 0.72156864, a: 1}
+    boardFloor: {r: 0.1764706, g: 0.1882353, b: 0.23529412, a: 1}
+    buttonColor: {r: 0.13725491, g: 0.1882353, b: 0.2901961, a: 1}
+    buttonHoverColor: {r: 0.2, g: 0.27450982, b: 0.41960785, a: 1}
+    slotWidth: 170
+    slotHeight: 115
+    slotSpacing: 18
+    slotBottom: 40
+    popupTime: 1
+    popupRise: 40
+    energyBackground: {r: 0.10980392, g: 0.14509805, b: 0.21176471, a: 1}
+    canvasHeightMatch: 1
+    gameOverDetailsFontSize: 28
+    popupWorldForwardOffset: 0.75
+    overPlayfield:
+      halfWidth: 5
+      minZ: -11
+      maxZ: 12
+    handleDialog:
+      confirmButtonX: -110
+      confirmButtonY: -75
+    refreshSlots:
+      reservedFontSize: 26
+      functionalFontSize: 28
+      numberFontSize: 44
+      ghostNumberFontSize: 38
+      ghostFunctionalFontSize: 22
+    refreshBoardLabels:
+      spawnLabelPosition: {x: 0, y: 0, z: 11.2}
+      dangerLabelX: -5.6
+    refreshEnemyLabels:
+      belowOffset: {x: 0, y: -6}
+      aboveOffset: {x: 0, y: 4}
+      compactNumberThreshold: 100
+      compactFontSize: 24
+      regularFontSize: 30
+    makeEnemyLabel:
+      numberSize: {x: 120, y: 40}
+      belowSize: {x: 200, y: 20}
+      belowFontSize: 15
+      aboveSize: {x: 200, y: 20}
+      aboveFontSize: 15
+      popupSize: {x: 500, y: 40}
+      popupFontSize: 24
+    refreshPopups:
+      worldHeight: 0.5
+      initialRise: 14
+    build:
+      referenceResolution: {x: 1920, y: 1080}
+      titleSize: {x: 400, y: 50}
+      titleAnchor: {x: 0, y: 1}
+      titlePosition: {x: 60, y: -26}
+      titleFontSize: 40
+      effectsSize: {x: 600, y: 30}
+      effectsAnchor: {x: 1, y: 1}
+      effectsPosition: {x: -60, y: -34}
+      effectsFontSize: 22
+      topBarAnchor: {x: 0.5, y: 1}
+      topBarPosition: {x: 0, y: -140}
+      topBarSize: {x: 1060, y: 90}
+      scoreX: -490
+      livesX: -40
+      timeX: 280
+      leftHelpAnchor: {x: 0, y: 1}
+      leftHelpPosition: {x: 70, y: -230}
+      rightHelpAnchor: {x: 1, y: 1}
+      rightHelpPosition: {x: -70, y: -230}
+      spawnLabelSize: {x: 300, y: 24}
+      spawnLabelFontSize: 14
+      dangerLabelSize: {x: 200, y: 24}
+      dangerLabelFontSize: 16
+      dangerLabelPivot: {x: 1, y: 0.5}
+      bottomBarAnchor: {x: 0.5, y: 0}
+      bottomBarPosition: {x: 0, y: 210}
+      bottomBarWidthPadding: 60
+      bottomBarHeight: 80
+      bottomContentWidthPadding: 60
+      bottomContentInset: 25
+      luckyLabelSize: {x: 160, y: 30}
+      luckyFontSize: 20
+      luckyY: 17
+      currentLabelSize: {x: 300, y: 40}
+      currentFontSize: 34
+      currentX: 170
+      currentY: 17
+      previewLabelSize: {x: 400, y: 36}
+      previewFontSize: 26
+      previewX: 500
+      previewY: 17
+      energyLabelSize: {x: 200, y: 26}
+      energyFontSize: 18
+      energyY: -20
+      energyBarAnchor: {x: 0.5, y: 0.5}
+      energyBarSize: {x: 720, y: 14}
+      energyBarX: 170
+      energyBarExtraX: 360
+      energyBarY: -20
+      energyFillAnchor: {x: 0, y: 1}
+      handAnchor: {x: 0.5, y: 0}
+      handWidthPadding: 60
+      handHeightPadding: 16
+      slotAnchor: {x: 0.5, y: 0.5}
+      slotCaptionPosition: {x: 0, y: 38}
+      slotCaptionFontSize: 16
+      slotCaptionHeight: 22
+      slotCardPosition: {x: 0, y: 2}
+      slotCardHeight: 52
+      slotResultPosition: {x: 0, y: -36}
+      slotResultFontSize: 17
+      slotResultHeight: 22
+      replacementFontSize: 14
+      replacementY: 13
+      replacementWidthPadding: 40
+      replacementHeight: 20
+      ghostSize: {x: 120, y: 92}
+      ghostCardPosition: {x: 0, y: 12}
+      ghostCardSize: {x: 120, y: 46}
+      ghostResultPosition: {x: 0, y: -24}
+      ghostResultSize: {x: 120, y: 26}
+      ghostResultFontSize: 20
+      countdownPosition: {x: 0, y: 40}
+      countdownSize: {x: 300, y: 160}
+      countdownFontSize: 120
+      dialogAnchor: {x: 0.5, y: 0.5}
+      dialogPosition: {x: 0, y: 40}
+      dialogSize: {x: 640, y: 270}
+      dialogTextPosition: {x: 0, y: 45}
+      dialogTextSize: {x: 620, y: 140}
+      dialogFontSize: 52
+      buttonAnchor: {x: 0.5, y: 0.5}
+      buttonSize: {x: 190, y: 60}
+      firstButtonX: -110
+      secondButtonX: 110
+      buttonY: -75
+      buttonTextSize: {x: 190, y: 60}
+      buttonFontSize: 28
+    scoreStat:
+      captionSize: {x: 260, y: 24}
+      captionFontSize: 17
+      captionY: 20
+      valueSize: {x: 260, y: 44}
+      valueFontSize: 36
+      valueY: -16
+    livesStat:
+      captionSize: {x: 260, y: 24}
+      captionFontSize: 17
+      captionY: 20
+      valueSize: {x: 260, y: 44}
+      valueFontSize: 36
+      valueY: -16
+    timeStat:
+      captionSize: {x: 260, y: 24}
+      captionFontSize: 17
+      captionY: 20
+      valueSize: {x: 260, y: 44}
+      valueFontSize: 36
+      valueY: -16
+    leftHelp:
+      size: {x: 420, y: 10}
+      titleSize: {x: 420, y: 30}
+      titleFontSize: 24
+      titleSpacing: 40
+      lineSize: {x: 420, y: 26}
+      lineFontSize: 20
+      lineSpacing: 31
+      sectionSpacing: 32
+    rightHelp:
+      size: {x: 420, y: 10}
+      titleSize: {x: 420, y: 30}
+      titleFontSize: 24
+      titleSpacing: 40
+      lineSize: {x: 420, y: 26}
+      lineFontSize: 20
+      lineSpacing: 31
+      sectionSpacing: 32
+    panel:
+      fillAnchor: {x: 0.5, y: 0.5}
+      borderInset: {x: 4, y: 4}
+    makeText:
+      defaultAnchor: {x: 0.5, y: 0.5}
   board: {fileID: 2126269041}
   ball: {fileID: 618706456}
   launchLocal: {x: 0, y: 0.3, z: -9}
   launchSpeed: 18
   launchBiasDegrees: 8
-  gravity: 60
+  gravity: 180
   maxLives: 3
+  spawnInterval: 2
+  enemyDescendTime: 40
   matchKillMultiplier: 10
+  specialMatchKillMultiplier: 10
+  specialSpawnInterval: 10
+  bumperSpawnInterval: 1
+  bumperDescendTime: 40
   matchCardChancePercent: 5
-  extraBallCardChancePercent: 5
+  extraBallCardChancePercent: 15
 --- !u!4 &2021540453
 Transform:
   m_ObjectHideFlags: 0
@@ -3218,8 +3562,270 @@ Transform:
   - {fileID: 901091636}
   - {fileID: 2068723596}
   - {fileID: 64548870}
+  - {fileID: 2200000101}
+  - {fileID: 2200000201}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2200000100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2200000101}
+  - component: {fileID: 2200000104}
+  - component: {fileID: 2200000103}
+  - component: {fileID: 2200000102}
+  - component: {fileID: 2200000105}
+  m_Layer: 0
+  m_Name: SpringL
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2200000101
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.9, y: 0.25, z: 9.7}
+  m_LocalScale: {x: 1.1, y: 0.25, z: 1.1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2126269041}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &2200000102
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000100}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 464150ad2e714294eaa3d6229f061b96, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!64 &2200000103
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000100}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!33 &2200000104
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000100}
+  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &2200000105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96d2bdb6c57d7984f93dff696bfe09ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpringBumper
+  radius: 0.55
+  kickSpeed: 20
+  upwardBias: 0.3
+  coilMaterial: {fileID: 2100000, guid: e75db3e895965c44bbc95d1220924b43, type: 2}
+--- !u!1 &2200000200
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2200000201}
+  - component: {fileID: 2200000204}
+  - component: {fileID: 2200000203}
+  - component: {fileID: 2200000202}
+  - component: {fileID: 2200000205}
+  m_Layer: 0
+  m_Name: SpringR
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2200000201
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000200}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.9, y: 0.25, z: 9.7}
+  m_LocalScale: {x: 1.1, y: 0.25, z: 1.1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2126269041}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &2200000202
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000200}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 464150ad2e714294eaa3d6229f061b96, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!64 &2200000203
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000200}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!33 &2200000204
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000200}
+  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &2200000205
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96d2bdb6c57d7984f93dff696bfe09ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpringBumper
+  radius: 0.55
+  kickSpeed: 20
+  upwardBias: 0.3
+  coilMaterial: {fileID: 2100000, guid: e75db3e895965c44bbc95d1220924b43, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

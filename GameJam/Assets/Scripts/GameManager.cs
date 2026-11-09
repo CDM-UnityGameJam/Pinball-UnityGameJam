@@ -7,12 +7,37 @@ public class GameManager : MonoBehaviour
 {
     enum RunState { Waiting, Playing, GameOver }
 
-    const int LuckyNumber = Card.Lucky;
-    public const int EnergyPerCard = 100;
-    const float LaunchWait = 3f;
-    public const int HandSize = 5;
-    const int KillPoints = 50, SurvivalPoints = 5;
-    const float SurvivalInterval = 5f;
+    [Header("Run / Cards / Scoring")]
+    [Min(1)] public int handSize = 5;
+    [Min(1)] public int energyPerCard = 100;
+    [Min(0f)] public float launchWait = 3f;
+    [Min(0)] public int normalKillPoints = 50;
+    [Min(0)] public int survivalPoints = 5;
+    [Min(0.01f)] public float survivalInterval = 5f;
+    [Min(0f)] public float matchBoostDuration = 10f;
+    [Min(1)] public int extraBallsPerCard = 1;
+    [Min(0.01f)] public float queuedBallInterval = 1f;
+    [Min(0)] public int breachLifeCost = 1;
+    [Min(0)] public int drainLifeCost = 1;
+    [Min(0.001f)] public float physicsStep = 0.01f;
+    public CardTuning cards = new CardTuning();
+    [Header("Spawn Layout / Probability / Targets")]
+    public SpawnTuning spawning = new SpawnTuning();
+    [Header("Normal Enemy")]
+    public EnemyTuning normalEnemy = new EnemyTuning();
+    [Header("Special Enemy")]
+    public EnemyTuning specialEnemy = new EnemyTuning {
+        ringColor = new Color32(233, 185, 73, 255), fillColor = new Color32(110, 78, 28, 255),
+        killPopupColor = new Color32(233, 185, 73, 255) };
+    [Header("Bumper")]
+    public EnemyTuning bumperEnemy = new EnemyTuning {
+        ringColor = new Color32(169, 173, 184, 255), fillColor = new Color32(58, 63, 76, 255) };
+    [Header("HUD")]
+    public HudTuning hud = new HudTuning();
+    public int HandSize => hand == null ? Mathf.Max(1, handSize) : hand.Length;
+    public int EnergyPerCard => Mathf.Max(1, energyPerCard);
+    public EnemyTuning EnemySettings(Enemy.Kind kind) => kind == Enemy.Kind.Normal ? normalEnemy :
+        kind == Enemy.Kind.Special ? specialEnemy : bumperEnemy;
 
     public static GameManager Instance;
 
@@ -23,10 +48,19 @@ public class GameManager : MonoBehaviour
     public float launchSpeed = 18f;
     public float launchBiasDegrees = 8f;
     public float gravity = 60f;
-    public int maxLives = 3;
-    [Min(1), Tooltip("Reward multiplier for an instant match kill, shared by normal and special enemies.")]
+    [Min(1)] public int maxLives = 3;
+    [Header("Enemy Timing")]
+    [Min(0.1f), Tooltip("Seconds between normal-enemy spawn attempts.")]
+    public float spawnInterval = 5f;
+    [Min(0.1f), Tooltip("Seconds for normal enemies to reach the danger line.")]
+    public float enemyDescendTime = 40f;
+    [Min(1), Tooltip("Reward multiplier for a normal-enemy match kill.")]
     public int matchKillMultiplier = 10;
     public int MatchKillMultiplier => Mathf.Max(1, matchKillMultiplier);
+    [Min(1)] public int specialMatchKillMultiplier = 10;
+    [Min(0.01f)] public float specialSpawnInterval = 1f;
+    [Min(0.01f)] public float bumperSpawnInterval = 1f;
+    [Min(0.01f)] public float bumperDescendTime = 40f;
     [Header("Functional Card Chances (Percent)")]
     [Range(0f, 100f), Tooltip("Independent chance of a timed MATCH card. No cards are dealt at the start. 3 means 3%.")]
     public float matchCardChancePercent = 3f;
@@ -36,9 +70,9 @@ public class GameManager : MonoBehaviour
     RunState state;
     bool paused;
     float countdown, activeTime, survivalTimer;
-    int lives, energy, currentNumber = LuckyNumber;
+    int lives, energy, currentNumber;
     long score; // long: special kills multiply the total repeatedly
-    readonly Card?[] hand = new Card?[HandSize]; // null = empty slot
+    Card?[] hand; // null = empty slot
     readonly List<Rigidbody> balls = new List<Rigidbody>();
     Rigidbody ballTemplate;
     float matchBoostLeft, queuedLaunchTimer;
@@ -52,7 +86,9 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
-        Time.fixedDeltaTime = 0.01f;
+        hand = new Card?[Mathf.Max(1, handSize)];
+        currentNumber = cards.initialNumber;
+        Time.fixedDeltaTime = Mathf.Max(0.001f, physicsStep);
         Physics.gravity = Vector3.down * gravity;
     }
 
@@ -84,20 +120,20 @@ public class GameManager : MonoBehaviour
                 {
                     queuedBalls--;
                     LaunchBall(CreateBall());
-                    queuedLaunchTimer = 1f;
+                    queuedLaunchTimer = Mathf.Max(0.01f, queuedBallInterval);
                 }
             }
             activeTime += Time.deltaTime;
             survivalTimer += Time.deltaTime;
-            while (survivalTimer >= SurvivalInterval)
+            while (survivalTimer >= Mathf.Max(0.01f, survivalInterval))
             {
-                survivalTimer -= SurvivalInterval;
-                score = AddClamped(score, SurvivalPoints);
+                survivalTimer -= Mathf.Max(0.01f, survivalInterval);
+                score = AddClamped(score, survivalPoints);
             }
         }
         else if (state == RunState.Waiting)
         {
-            // Clamped so a load hitch cannot eat the 3 s wait.
+            // Clamp load hitches so they cannot consume the entire launch wait.
             countdown -= Mathf.Min(Time.unscaledDeltaTime, Time.maximumDeltaTime);
             if (countdown <= 0f) Launch();
         }
@@ -107,7 +143,7 @@ public class GameManager : MonoBehaviour
     void BeginWaiting()
     {
         state = RunState.Waiting;
-        countdown = LaunchWait;
+        countdown = launchWait;
         Time.timeScale = 0f;
         if (!ball) ball = CreateBall();
         ball.isKinematic = true;
@@ -120,7 +156,7 @@ public class GameManager : MonoBehaviour
         state = RunState.Playing;
         Time.timeScale = 1f;
         LaunchBall(ball);
-        queuedLaunchTimer = 1f;
+        queuedLaunchTimer = Mathf.Max(0.01f, queuedBallInterval);
     }
 
     Rigidbody CreateBall()
@@ -163,13 +199,13 @@ public class GameManager : MonoBehaviour
     {
         if (slot < 0 || slot >= HandSize || paused || state == RunState.GameOver || hand[slot] == null) return false;
         var card = hand[slot].Value;
-        if (card.kind == Card.Kind.MatchBoost) matchBoostLeft += 10f;
+        if (card.kind == Card.Kind.MatchBoost) matchBoostLeft += Mathf.Max(0f, matchBoostDuration);
         else if (card.kind == Card.Kind.ExtraBall)
         {
             if (state == RunState.Waiting) queuedBalls++;
             else LaunchBall(CreateBall());
         }
-        else currentNumber = card.Apply(LuckyNumber);
+        else currentNumber = card.Apply(cards.baseNumber);
         SlotReplaced?.Invoke(slot);
         hand[slot] = null;
         CompactHand();
@@ -251,8 +287,8 @@ public class GameManager : MonoBehaviour
             if (e.kind != Enemy.Kind.Bumper && e.hp > 0 && e.Visible) targets.Add(e.target);
 
         var card = Card.Reward(currentNumber, hand, targets,
-            matchCardChancePercent / 100f, extraBallCardChancePercent / 100f);
-        int slot = HandSize - 1; // full hand: replace slot 5
+            matchCardChancePercent / 100f, extraBallCardChancePercent / 100f, cards);
+        int slot = HandSize - 1; // Full hand: replace the final slot.
         for (int i = 0; i < HandSize; i++) if (hand[i] == null) { slot = i; break; }
         if (hand[slot] != null) SlotReplaced?.Invoke(slot);
         hand[slot] = card;
@@ -263,29 +299,31 @@ public class GameManager : MonoBehaviour
 
     public long OnNormalKill(bool matched = false)
     {
-        long reward = KillPoints * (matched ? (long)MatchKillMultiplier : 1L);
+        long reward = Mathf.Max(0, normalKillPoints) * (matched ? (long)MatchKillMultiplier : 1L);
         if (state == RunState.Playing) score = AddClamped(score, reward);
         return reward;
     }
 
-    // 111 / 222 / 333 multiply the total by 10 / 2 / 3; no flat points.
+    // Each configured special target owns its score multiplier.
     public void OnSpecialKill(int multiplier, bool matched = false)
     {
-        if (state == RunState.Playing) score = AddClamped(score, SpecialKillReward(score, multiplier, matched, MatchKillMultiplier));
+        if (state == RunState.Playing) score = AddClamped(score, SpecialKillReward(score, multiplier, matched, specialMatchKillMultiplier));
     }
 
     // Bonus applies to this kill's gain, preserving the existing total.
     public static long SpecialKillReward(long currentScore, int multiplier, bool matched, int matchMultiplier = 10) =>
-        MultiplyClamped(MultiplyClamped(currentScore, multiplier - 1), matched ? Mathf.Max(1, matchMultiplier) : 1);
+        MultiplyClamped(MultiplyClamped(currentScore, Mathf.Max(1, multiplier) - 1), matched ? Mathf.Max(1, matchMultiplier) : 1);
 
     // Repeated x10 kills could pass long.MaxValue, so scores saturate instead of wrapping negative.
     public static long AddClamped(long a, long b) => a > long.MaxValue - b ? long.MaxValue : a + b;
-    public static long MultiplyClamped(long a, int m) => a > long.MaxValue / m ? long.MaxValue : a * m;
+    public static long MultiplyClamped(long a, int m) => m <= 0 ? 0 : a > long.MaxValue / m ? long.MaxValue : a * m;
 
-    public void LoseLife()
+    public void LoseLife() => LoseLives(breachLifeCost);
+
+    void LoseLives(int amount)
     {
         if (state != RunState.Playing) return;
-        lives--;
+        lives -= Mathf.Max(0, amount);
         if (lives > 0) return;
         state = RunState.GameOver;
         queuedBalls = 0;
