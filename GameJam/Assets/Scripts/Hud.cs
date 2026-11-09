@@ -310,8 +310,8 @@ public class Hud : MonoBehaviour
         // Side panels.
         SidePanel(new Vector2(0f, 1f), new Vector2(70f, -230f), TextAnchor.UpperLeft, new[]
         {
-            ("MATCH TO ATTACK", TextColor, new[] { ("Green: current number matches.", Green), ("Blue: matches the dragged card preview.", Blue) }),
-            ("HIT TO REVEAL", TextColor, new[] { ("Hidden targets take no damage.", Dim), ("A hit reveals a target for 20s.", Dim), ("Every enemy hit gives +25 energy.", Dim), ("4 hits = 1 new card.", Dim) }),
+            ("MATCH TO INSTANT KILL", TextColor, new[] { ("Green: matches / kill reward x" + gm.MatchKillMultiplier + ".", Green), ("Match: all other enemies take 1 damage.", Dim), ("Also reveals hidden targets for 20s.", Dim), ("Blue: matches the dragged card preview.", Blue) }),
+            ("5 HP / HIT TO REVEAL", TextColor, new[] { ("Every normal hit deals 1 damage.", Dim), ("A hit reveals a target for 20s.", Dim), ("Every enemy hit gives +25 energy.", Dim), ("4 hits = 1 new card.", Dim) }),
             ("A / LEFT ARROW", Yellow, new[] { ("Left flipper", Dim) }),
             ("R", Yellow, new[] { ("Pause / restart", Dim) }),
         });

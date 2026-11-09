@@ -13,6 +13,14 @@ public static class ScoringCheck
         Expect(GameManager.MultiplyClamped(125, 3), 375, "x3");
         Expect(GameManager.MultiplyClamped(long.MaxValue / 2, 10), long.MaxValue, "x10 saturates");
         Expect(GameManager.AddClamped(long.MaxValue - 1, 50), long.MaxValue, "add saturates");
+        Expect(GameManager.SpecialKillReward(100, 2, false), 100, "222 ordinary kill gain");
+        Expect(GameManager.SpecialKillReward(100, 2, true), 1000, "222 match multiplies gain only");
+        Expect(GameManager.SpecialKillReward(100, 2, true, 5), 500, "custom match multiplier");
+        Expect(GameManager.SpecialKillReward(100, 2, true, 0), 100, "match multiplier minimum is one");
+        Expect(GameManager.SpecialKillReward(100, 3, true), 2000, "333 match gain");
+        Expect(GameManager.SpecialKillReward(100, 10, true), 9000, "111 match gain");
+        Expect(GameManager.SpecialKillReward(0, 10, true), 0, "special preserves zero-score rule");
+        Expect(GameManager.SpecialKillReward(long.MaxValue, 10, true), long.MaxValue, "match gain saturates");
         Debug.Log("Scoring check passed");
     }
 

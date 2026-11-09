@@ -1,0 +1,6 @@
+<linker>
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <!-- CreatePrimitive(Cylinder) creates this collider before Enemy replaces it. -->
+    <type fullname="UnityEngine.CapsuleCollider" preserve="all" />
+  </assembly>
+</linker>

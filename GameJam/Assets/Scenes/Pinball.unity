@@ -3071,6 +3071,7 @@ MonoBehaviour:
   launchBiasDegrees: 8
   gravity: 60
   maxLives: 3
+  matchKillMultiplier: 10
 --- !u!4 &2021540453
 Transform:
   m_ObjectHideFlags: 0

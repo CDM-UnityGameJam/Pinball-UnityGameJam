@@ -25,6 +25,9 @@ public class GameManager : MonoBehaviour
     public float launchBiasDegrees = 8f;
     public float gravity = 60f;
     public int maxLives = 3;
+    [Min(1), Tooltip("匹配秒杀时，本次击杀奖励的倍数（普通和特殊怪物共用）。")]
+    public int matchKillMultiplier = 10;
+    public int MatchKillMultiplier => Mathf.Max(1, matchKillMultiplier);
 
     RunState state;
     bool paused;
@@ -167,16 +170,22 @@ public class GameManager : MonoBehaviour
     // The spawner decides kind, target and board-local position.
     public Enemy SpawnEnemy(Enemy.Kind kind, int target, Vector3 local) => Enemy.Create(board, kind, target, local);
 
-    public void OnNormalKill()
+    public long OnNormalKill(bool matched = false)
     {
-        if (state == RunState.Playing) score = AddClamped(score, KillPoints);
+        long reward = KillPoints * (matched ? (long)MatchKillMultiplier : 1L);
+        if (state == RunState.Playing) score = AddClamped(score, reward);
+        return reward;
     }
 
     // 111 / 222 / 333 multiply the total by 10 / 2 / 3; no flat points.
-    public void OnSpecialKill(int multiplier)
+    public void OnSpecialKill(int multiplier, bool matched = false)
     {
-        if (state == RunState.Playing) score = MultiplyClamped(score, multiplier);
+        if (state == RunState.Playing) score = AddClamped(score, SpecialKillReward(score, multiplier, matched, MatchKillMultiplier));
     }
+
+    // Bonus applies to this kill's gain, preserving the existing total.
+    public static long SpecialKillReward(long currentScore, int multiplier, bool matched, int matchMultiplier = 10) =>
+        MultiplyClamped(MultiplyClamped(currentScore, multiplier - 1), matched ? Mathf.Max(1, matchMultiplier) : 1);
 
     // Repeated x10 kills could pass long.MaxValue, so scores saturate instead of wrapping negative.
     public static long AddClamped(long a, long b) => a > long.MaxValue - b ? long.MaxValue : a + b;

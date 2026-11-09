@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Board circle: normal enemy (hidden target, 3 HP), special enemy (111/222/333, 5 HP, 30 s life) or bumper.
+// Board circle: normal enemy (hidden target, 5 HP), special enemy (111/222/333, 5 HP, 30 s life) or bumper.
 // Drawn as a ring (the cylinder) around a darker cap; its on-screen label is drawn by Hud.
 public class Enemy : MonoBehaviour
 {
@@ -62,7 +62,7 @@ public class Enemy : MonoBehaviour
     {
         kind = k;
         target = targetNumber;
-        maxHp = hp = k == Kind.Special ? 5 : 3;
+        maxHp = hp = 5;
         lifeLeft = SpecialLifetime;
         ring = GetComponent<Renderer>().material;
         cap = capMaterial;
@@ -118,7 +118,7 @@ public class Enemy : MonoBehaviour
 
     void OnCollisionEnter(Collision c)
     {
-        if (!c.collider.CompareTag("Player") || Time.time - lastHit < HitCooldown) return;
+        if (!GameManager.Instance.IsPlaying || hp <= 0 || !c.collider.CompareTag("Player") || Time.time - lastHit < HitCooldown) return;
         lastHit = Time.time;
 
         if (kind == Kind.Bumper)
@@ -128,36 +128,45 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        // Spec order: damage uses visibility from before this hit, then reveal, then kill and energy.
+        var gm = GameManager.Instance;
+        bool matched = target == gm.CurrentNumber;
+        ApplyHit(matched);
+        if (matched)
+        {
+            // A pulse is ordinary damage: it cannot trigger another match or pulse.
+            foreach (var enemy in FindObjectsByType<Enemy>())
+                if (enemy != this) enemy.ApplyHit(false);
+        }
+        // Only the physical ball hit grants energy, after all kills and reveals resolve.
+        gm.AddEnergy(EnergyPerHit);
+    }
+
+    void ApplyHit(bool matched)
+    {
+        // Destroy is deferred until frame end, so dead enemies must reject further hits.
+        if (kind == Kind.Bumper || hp <= 0) return;
         var gm = GameManager.Instance;
         var hud = Hud.Instance;
-        bool wasVisible = Visible;
-        bool damage = wasVisible && target == gm.CurrentNumber;
         if (kind == Kind.Normal) visibleLeft = VisibleTime;
-        if (damage)
-        {
-            hp--;
-            flashLeft = FlashTime;
-            if (hud) hud.Popup(transform.position, "-1", Color.white);
-        }
-        else if (wasVisible && hud) hud.Popup(transform.position, "No match", Hud.Dim);
+        hp = matched ? 0 : hp - 1;
+        flashLeft = FlashTime;
+        if (hud) hud.Popup(transform.position, matched ? "MATCH!" : "-1", matched ? Hud.Green : Color.white);
 
         if (hp <= 0)
         {
             if (kind == Kind.Normal)
             {
-                gm.OnNormalKill();
-                if (hud) hud.Popup(transform.position, "+50", Hud.Green);
+                long reward = gm.OnNormalKill(matched);
+                if (hud) hud.Popup(transform.position, "+" + reward.ToString("N0"), Hud.Green);
             }
             else
             {
                 long before = gm.Score;
-                gm.OnSpecialKill(Multiplier);
-                if (hud) hud.Popup(transform.position, "x" + Multiplier + "   " + before.ToString("N0") + " > " + gm.Score.ToString("N0"), Hud.Gold);
+                gm.OnSpecialKill(Multiplier, matched);
+                if (hud) hud.Popup(transform.position, (matched ? "MATCH! " : "") + "+" + (gm.Score - before).ToString("N0"), Hud.Gold);
             }
             Destroy(gameObject);
         }
-        gm.AddEnergy(EnergyPerHit);
     }
 
     static int[] BuildNormalTargets()
