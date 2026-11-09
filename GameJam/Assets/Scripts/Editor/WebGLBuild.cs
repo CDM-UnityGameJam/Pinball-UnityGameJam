@@ -13,6 +13,7 @@ public static class WebGLBuild
     {
         ScoringCheck.Run();
         CardMathCheck.Run();
+        FunctionalCardCheck.RunRules();
         var output = Path.GetFullPath("Builds/WebGL");
         Directory.CreateDirectory(output);
         // Fallback decompression allows hosting on ordinary static web servers.

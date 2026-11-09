@@ -22,6 +22,7 @@ public class Enemy : MonoBehaviour
     float visibleLeft, lifeLeft, flashLeft;
     float lastHit = -1f;
     Rigidbody body;
+    Collider hitCollider;
     Material ring, cap;
     Color ringColor, capColor;
 
@@ -37,6 +38,7 @@ public class Enemy : MonoBehaviour
         var urp = board.GetComponentInChildren<Renderer>().sharedMaterial;
         var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         go.name = kind.ToString();
+        go.GetComponent<Collider>().enabled = false;
         Destroy(go.GetComponent<Collider>()); // default capsule would act like a sphere
         go.AddComponent<MeshCollider>().convex = true;
         go.GetComponent<Renderer>().sharedMaterial = urp;
@@ -62,6 +64,7 @@ public class Enemy : MonoBehaviour
     {
         kind = k;
         target = targetNumber;
+        hitCollider = GetComponent<MeshCollider>();
         maxHp = hp = 5;
         lifeLeft = SpecialLifetime;
         ring = GetComponent<Renderer>().material;
@@ -74,6 +77,22 @@ public class Enemy : MonoBehaviour
         {
             body = gameObject.AddComponent<Rigidbody>(); // kinematic body so a moving collider is not re-baked as static
             body.isKinematic = true;
+        }
+        RefreshBallCollisions();
+    }
+
+    // Ignore only ball pairs: unmatched specials remain visible and allow balls through.
+    // Called on spawn, number changes and every extra-ball creation, before the next physics step.
+    public void RefreshBallCollisions()
+    {
+        var gm = GameManager.Instance;
+        if (kind != Kind.Special || !hitCollider || !gm) return;
+        bool ignore = !gm.Matches(this);
+        foreach (var activeBall in gm.Balls)
+        {
+            if (!activeBall) continue;
+            foreach (var ballCollider in activeBall.GetComponentsInChildren<Collider>())
+                Physics.IgnoreCollision(hitCollider, ballCollider, ignore);
         }
     }
 
@@ -108,7 +127,7 @@ public class Enemy : MonoBehaviour
         var r = ringColor;
         if (kind != Kind.Bumper && Visible)
         {
-            if (target == GameManager.Instance.CurrentNumber) r = Hud.Green;
+            if (GameManager.Instance.Matches(this)) r = Hud.Green;
             else if (Hud.Instance && Hud.Instance.PreviewNumber == target) r = Hud.Blue;
         }
         ring.color = r;
@@ -118,6 +137,7 @@ public class Enemy : MonoBehaviour
 
     void OnCollisionEnter(Collision c)
     {
+        if (kind == Kind.Special && !GameManager.Instance.Matches(this)) return;
         if (!GameManager.Instance.IsPlaying || hp <= 0 || !c.collider.CompareTag("Player") || Time.time - lastHit < HitCooldown) return;
         lastHit = Time.time;
 
@@ -129,7 +149,7 @@ public class Enemy : MonoBehaviour
         }
 
         var gm = GameManager.Instance;
-        bool matched = target == gm.CurrentNumber;
+        bool matched = gm.Matches(this);
         ApplyHit(matched);
         if (matched)
         {
@@ -147,6 +167,7 @@ public class Enemy : MonoBehaviour
         if (kind == Kind.Bumper || hp <= 0) return;
         var gm = GameManager.Instance;
         var hud = Hud.Instance;
+        if (kind == Kind.Special && !matched) return;
         if (kind == Kind.Normal) visibleLeft = VisibleTime;
         hp = matched ? 0 : hp - 1;
         flashLeft = FlashTime;

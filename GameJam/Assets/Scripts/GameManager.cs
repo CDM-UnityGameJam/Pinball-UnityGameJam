@@ -11,7 +11,6 @@ public class GameManager : MonoBehaviour
     public const int EnergyPerCard = 100;
     const float LaunchWait = 3f;
     public const int HandSize = 5;
-    const int StartCards = 3;
     const int KillPoints = 50, SurvivalPoints = 5;
     const float SurvivalInterval = 5f;
 
@@ -25,9 +24,14 @@ public class GameManager : MonoBehaviour
     public float launchBiasDegrees = 8f;
     public float gravity = 60f;
     public int maxLives = 3;
-    [Min(1), Tooltip("匹配秒杀时，本次击杀奖励的倍数（普通和特殊怪物共用）。")]
+    [Min(1), Tooltip("Reward multiplier for an instant match kill, shared by normal and special enemies.")]
     public int matchKillMultiplier = 10;
     public int MatchKillMultiplier => Mathf.Max(1, matchKillMultiplier);
+    [Header("Functional Card Chances (Percent)")]
+    [Range(0f, 100f), Tooltip("Independent chance of a timed MATCH card. No cards are dealt at the start. 3 means 3%.")]
+    public float matchCardChancePercent = 3f;
+    [Range(0f, 100f), Tooltip("Independent chance of a BALL +1 extra-ball card. 3 means 3%.")]
+    public float extraBallCardChancePercent = 3f;
 
     RunState state;
     bool paused;
@@ -35,6 +39,15 @@ public class GameManager : MonoBehaviour
     int lives, energy, currentNumber = LuckyNumber;
     long score; // long: special kills multiply the total repeatedly
     readonly Card?[] hand = new Card?[HandSize]; // null = empty slot
+    readonly List<Rigidbody> balls = new List<Rigidbody>();
+    Rigidbody ballTemplate;
+    float matchBoostLeft, queuedLaunchTimer;
+    int queuedBalls;
+    public IReadOnlyList<Rigidbody> Balls => balls;
+    public int BallCount => balls.Count;
+    public int QueuedBalls => queuedBalls;
+    public float MatchBoostLeft => matchBoostLeft;
+    public bool HasMatchBoost => matchBoostLeft > 0f;
 
     void Awake()
     {
@@ -46,7 +59,10 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         lives = maxLives;
-        for (int i = 0; i < StartCards; i++) hand[i] = Card.Random();
+        ballTemplate = Instantiate(ball);
+        ballTemplate.name = "BallTemplate";
+        ballTemplate.gameObject.SetActive(false);
+        balls.Add(ball);
         gameObject.AddComponent<Spawner>();
         new GameObject("Hud").AddComponent<Hud>();
         BeginWaiting();
@@ -60,6 +76,17 @@ public class GameManager : MonoBehaviour
 
         if (state == RunState.Playing)
         {
+            matchBoostLeft = Mathf.Max(0f, matchBoostLeft - Time.deltaTime);
+            if (queuedBalls > 0)
+            {
+                queuedLaunchTimer -= Time.deltaTime;
+                if (queuedLaunchTimer <= 0f)
+                {
+                    queuedBalls--;
+                    LaunchBall(CreateBall());
+                    queuedLaunchTimer = 1f;
+                }
+            }
             activeTime += Time.deltaTime;
             survivalTimer += Time.deltaTime;
             while (survivalTimer >= SurvivalInterval)
@@ -82,6 +109,7 @@ public class GameManager : MonoBehaviour
         state = RunState.Waiting;
         countdown = LaunchWait;
         Time.timeScale = 0f;
+        if (!ball) ball = CreateBall();
         ball.isKinematic = true;
         ball.position = board.TransformPoint(launchLocal);
         ball.transform.position = ball.position;
@@ -91,10 +119,32 @@ public class GameManager : MonoBehaviour
     {
         state = RunState.Playing;
         Time.timeScale = 1f;
-        ball.isKinematic = false;
-        var dir = Quaternion.Euler(0f, Random.Range(-launchBiasDegrees, launchBiasDegrees), 0f) * Vector3.forward;
-        ball.linearVelocity = board.TransformDirection(dir) * launchSpeed;
+        LaunchBall(ball);
+        queuedLaunchTimer = 1f;
     }
+
+    Rigidbody CreateBall()
+    {
+        var added = Instantiate(ballTemplate);
+        added.name = "Ball";
+        added.position = board.TransformPoint(launchLocal);
+        added.gameObject.SetActive(true);
+        balls.Add(added);
+        RefreshSpecialCollisions();
+        return added;
+    }
+
+    void LaunchBall(Rigidbody launched)
+    {
+        launched.position = board.TransformPoint(launchLocal);
+        launched.isKinematic = false;
+        launched.angularVelocity = Vector3.zero;
+        var dir = Quaternion.Euler(0f, Random.Range(-launchBiasDegrees, launchBiasDegrees), 0f) * Vector3.forward;
+        launched.linearVelocity = board.TransformDirection(dir) * launchSpeed;
+    }
+
+    public bool Matches(Enemy enemy) => enemy.target == currentNumber ||
+        (enemy.kind == Enemy.Kind.Normal && HasMatchBoost);
 
     public void SetPaused(bool value)
     {
@@ -108,23 +158,63 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
-    // Consumes the card; its result replaces the current number until the next card is used.
+    // Functional cards preserve the current number.
     public bool UseCard(int slot)
     {
-        if (paused || state == RunState.GameOver || hand[slot] == null) return false;
-        currentNumber = hand[slot].Value.Apply(LuckyNumber);
+        if (slot < 0 || slot >= HandSize || paused || state == RunState.GameOver || hand[slot] == null) return false;
+        var card = hand[slot].Value;
+        if (card.kind == Card.Kind.MatchBoost) matchBoostLeft += 10f;
+        else if (card.kind == Card.Kind.ExtraBall)
+        {
+            if (state == RunState.Waiting) queuedBalls++;
+            else LaunchBall(CreateBall());
+        }
+        else currentNumber = card.Apply(LuckyNumber);
+        SlotReplaced?.Invoke(slot);
         hand[slot] = null;
+        CompactHand();
+        RefreshSpecialCollisions();
         return true;
     }
 
-    // Insertion move: the card lands in slot `to` and the slots between shift by one, empties included.
-    public void MoveCard(int from, int to)
+    // Insertion move within the occupied hand; empty slots always stay on the right.
+    public int MoveCard(int from, int to)
     {
-        if (from == to || paused || state == RunState.GameOver) return;
+        if (from < 0 || from >= HandSize || hand[from] == null || paused || state == RunState.GameOver) return from;
+        int count = 0;
+        foreach (var card in hand) if (card != null) count++;
+        to = Mathf.Clamp(to, 0, count - 1);
+        if (from == to) return from;
         var c = hand[from];
         if (from < to) for (int i = from; i < to; i++) hand[i] = hand[i + 1];
         else for (int i = from; i > to; i--) hand[i] = hand[i - 1];
         hand[to] = c;
+        return to;
+    }
+
+    // Keep the dragged card attached to its new slot when another card is used.
+    public event System.Action<int, int> CardShifted;
+
+    void CompactHand()
+    {
+        int next = 0;
+        for (int i = 0; i < HandSize; i++)
+        {
+            if (hand[i] == null) continue;
+            if (i != next)
+            {
+                hand[next] = hand[i];
+                hand[i] = null;
+                CardShifted?.Invoke(i, next);
+            }
+            next++;
+        }
+    }
+
+    void RefreshSpecialCollisions()
+    {
+        foreach (var enemy in FindObjectsByType<Enemy>())
+            if (enemy.kind == Enemy.Kind.Special) enemy.RefreshBallCollisions();
     }
 
     // Raised before a draw overwrites an occupied slot, so a drag on that card can be cancelled.
@@ -160,7 +250,8 @@ public class GameManager : MonoBehaviour
         foreach (var e in FindObjectsByType<Enemy>())
             if (e.kind != Enemy.Kind.Bumper && e.hp > 0 && e.Visible) targets.Add(e.target);
 
-        var card = Card.Draw(currentNumber, hand, targets);
+        var card = Card.Reward(currentNumber, hand, targets,
+            matchCardChancePercent / 100f, extraBallCardChancePercent / 100f);
         int slot = HandSize - 1; // full hand: replace slot 5
         for (int i = 0; i < HandSize; i++) if (hand[i] == null) { slot = i; break; }
         if (hand[slot] != null) SlotReplaced?.Invoke(slot);
@@ -197,13 +288,21 @@ public class GameManager : MonoBehaviour
         lives--;
         if (lives > 0) return;
         state = RunState.GameOver;
+        queuedBalls = 0;
+        matchBoostLeft = 0f;
         Time.timeScale = 0f;
-        ball.isKinematic = true;
+        foreach (var activeBall in balls) if (activeBall) activeBall.isKinematic = true;
     }
 
-    public void OnDrain()
+    public void OnDrain(Rigidbody drained)
     {
-        if (state != RunState.Playing) return;
+        if (state != RunState.Playing || !drained || !balls.Remove(drained)) return;
+        drained.gameObject.SetActive(false);
+        Destroy(drained.gameObject);
+        if (balls.Count > 0) { ball = balls[0]; return; }
+        ball = null;
+        queuedBalls = 0;
+        matchBoostLeft = 0f;
         LoseLife();
         if (state == RunState.Playing) BeginWaiting();
     }

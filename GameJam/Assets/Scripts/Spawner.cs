@@ -100,8 +100,9 @@ public class Spawner : MonoBehaviour
             var d = e.transform.localPosition - p;
             if (Mathf.Abs(d.x) < side && Mathf.Abs(d.z) < stack) return false;
         }
-        var ball = GameManager.Instance.board.InverseTransformPoint(GameManager.Instance.ball.position);
-        return Flat(ball, p) >= Radius + BallRadius + Gap;
+        foreach (var ball in GameManager.Instance.Balls)
+            if (ball && Flat(GameManager.Instance.board.InverseTransformPoint(ball.position), p) < Radius + BallRadius + Gap) return false;
+        return true;
     }
 
     static bool PathHitsSpecial(float x, Enemy[] others)

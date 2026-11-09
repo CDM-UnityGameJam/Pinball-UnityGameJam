@@ -3072,6 +3072,8 @@ MonoBehaviour:
   gravity: 60
   maxLives: 3
   matchKillMultiplier: 10
+  matchCardChancePercent: 5
+  extraBallCardChancePercent: 5
 --- !u!4 &2021540453
 Transform:
   m_ObjectHideFlags: 0

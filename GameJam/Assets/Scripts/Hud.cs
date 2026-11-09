@@ -39,6 +39,7 @@ public class Hud : MonoBehaviour
     readonly List<FloatingText> popups = new List<FloatingText>();
 
     int dragSlot = -1; // slot the dragged card currently owns; -1 = no drag
+    Text effectText;
 
     // Result the dragged card would give. Display only: damage keeps using the current number until release.
     public int? PreviewNumber
@@ -47,7 +48,7 @@ public class Hud : MonoBehaviour
         {
             if (dragSlot < 0) return null;
             var c = gm.GetCard(dragSlot);
-            return c == null ? (int?)null : c.Value.Apply(Card.Lucky);
+            return c == null || !c.Value.IsNumber ? (int?)null : c.Value.Apply(Card.Lucky);
         }
     }
 
@@ -58,10 +59,18 @@ public class Hud : MonoBehaviour
         cam = Camera.main;
         font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         gm.SlotReplaced += OnSlotReplaced;
+        gm.CardShifted += OnCardShifted;
         Build();
     }
 
-    void OnDestroy() { if (gm) gm.SlotReplaced -= OnSlotReplaced; }
+    void OnDestroy()
+    {
+        if (!gm) return;
+        gm.SlotReplaced -= OnSlotReplaced;
+        gm.CardShifted -= OnCardShifted;
+    }
+
+    void OnCardShifted(int from, int to) { if (dragSlot == from) dragSlot = to; }
 
     // A draw is replacing the dragged card: drop the drag so its release can never use the new card.
     void OnSlotReplaced(int slot) { if (slot == dragSlot) dragSlot = -1; }
@@ -106,7 +115,7 @@ public class Hud : MonoBehaviour
                 float d = Mathf.Abs(RectTransformUtility.WorldToScreenPoint(null, slots[i].rect.position).x - pointer.x);
                 if (d < best) { best = d; nearest = i; }
             }
-            if (nearest != dragSlot) { gm.MoveCard(dragSlot, nearest); dragSlot = nearest; }
+            if (nearest != dragSlot) dragSlot = gm.MoveCard(dragSlot, nearest);
         }
 
         if (released)
@@ -157,7 +166,9 @@ public class Hud : MonoBehaviour
         livesText.text = gm.Lives + " / " + gm.maxLives;
         timeText.text = FormatTime(gm.ActiveTime);
         currentText.text = "CURRENT " + gm.CurrentNumber;
-        previewText.text = PreviewNumber == null ? "" : "PREVIEW: " + Expression(gm.GetCard(dragSlot).Value, true);
+        previewText.text = dragSlot < 0 ? "" : "PREVIEW: " + Expression(gm.GetCard(dragSlot).Value, true);
+        effectText.text = "BALLS " + gm.BallCount + (gm.QueuedBalls > 0 ? "  (QUEUED " + gm.QueuedBalls + ")" : "") +
+            (gm.HasMatchBoost ? "  |  MATCH " + gm.MatchBoostLeft.ToString("0.0") + "s" : "");
         energyText.text = "ENERGY " + gm.Energy + " / " + GameManager.EnergyPerCard;
         energyFill.anchorMax = new Vector2(Mathf.Clamp01(gm.Energy / (float)GameManager.EnergyPerCard), 1f);
     }
@@ -171,7 +182,7 @@ public class Hud : MonoBehaviour
             bool reserved = i == dragSlot;
             s.edge.color = reserved ? Blue : i == slots.Length - 1 ? Orange : PanelEdge;
             s.card.color = reserved ? Blue : TextColor;
-            s.card.fontSize = reserved ? 26 : 44;
+            s.card.fontSize = reserved ? 26 : c != null && !c.Value.IsNumber ? 28 : 44;
             s.card.text = reserved ? "RESERVED" : c == null ? "-" : c.Value.ToString();
             s.result.text = reserved || c == null ? "" : Expression(c.Value, false);
         }
@@ -181,7 +192,8 @@ public class Hud : MonoBehaviour
         var card = gm.GetCard(dragSlot).Value;
         ghost.anchoredPosition = pointer / canvas.scaleFactor;
         ghostCard.text = card.ToString();
-        ghostResult.text = "= " + card.Apply(Card.Lucky);
+        ghostCard.fontSize = card.IsNumber ? 38 : 22;
+        ghostResult.text = card.IsNumber ? "= " + card.Apply(Card.Lucky) : card.kind == Card.Kind.MatchBoost ? "+10 seconds" : "+1 ball";
     }
 
     // Board callouts from the mockup, pinned to board positions.
@@ -216,7 +228,7 @@ public class Hud : MonoBehaviour
             l.above.gameObject.SetActive(e.kind == Enemy.Kind.Special);
             l.number.text = visible ? e.target.ToString() : "?";
             l.number.fontSize = e.target >= 100 && visible ? 24 : 30; // 3 digits stay inside the disc
-            l.number.color = !visible ? TextColor : e.target == current ? Green : preview == e.target ? Blue : TextColor;
+            l.number.color = !visible ? TextColor : gm.Matches(e) ? Green : preview == e.target ? Blue : TextColor;
 
             switch (e.kind)
             {
@@ -299,7 +311,7 @@ public class Hud : MonoBehaviour
 
         // Title row above the stats bar, as in the mockup.
         Bold(Anchored(MakeText(root, "LUCKY 37", 40, TextColor, TextAnchor.UpperLeft, Vector2.zero, new Vector2(400f, 50f)), new Vector2(0f, 1f), new Vector2(60f, -26f)));
-        Anchored(MakeText(root, "TEMPORARY UI / REDESIGN LATER", 22, Orange, TextAnchor.UpperRight, Vector2.zero, new Vector2(500f, 30f)), new Vector2(1f, 1f), new Vector2(-60f, -34f));
+        effectText = Anchored(MakeText(root, "", 22, Orange, TextAnchor.UpperRight, Vector2.zero, new Vector2(600f, 30f)), new Vector2(1f, 1f), new Vector2(-60f, -34f));
 
         // Top: score, lives, active time.
         topBar = Panel(root, "TopBar", new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(1060f, 90f), PanelEdge);
@@ -317,9 +329,9 @@ public class Hud : MonoBehaviour
         });
         SidePanel(new Vector2(1f, 1f), new Vector2(-70f, -230f), TextAnchor.UpperLeft, new[]
         {
-            ("SPECIAL ENEMY", TextColor, new[] { ("5 HP / always visible", Gold), ("30s lifetime / stationary", Gold), ("111: score x10", Gold), ("222: score x2", Gold), ("333: score x3", Gold) }),
-            ("HAND MANAGEMENT", TextColor, new[] { ("Drag cards to reorder.", Dim), ("Drop on the table to use.", Dim), ("Drop elsewhere to cancel.", Dim), ("Full hand: replace slot 5.", Dim) }),
-            ("D / RIGHT ARROW", Yellow, new[] { ("Right flipper", Dim) }),
+            ("SPECIAL ENEMY", TextColor, new[] { ("Exact number match only / ignores pulse", Gold), ("Unmatched: balls pass through.", Gold), ("30s lifetime / stationary", Gold), ("111: score x10", Gold), ("222: score x2", Gold), ("333: score x3", Gold) }),
+            ("HAND MANAGEMENT", TextColor, new[] { ("Start empty / cards shift left after use.", Dim), ("Drag cards to reorder.", Dim), ("Drop on the table to use.", Dim), ("Drop elsewhere to cancel.", Dim), ("Full hand: replace slot 5.", Dim), ("D / Right arrow: right flipper.", Yellow) }),
+            ("FUNCTION CARDS", Orange, new[] { ("MATCH: +10s auto-match normal enemies.", Dim), ("BALL +1: add a ball / no ball limit.", Dim), ("Only losing the last ball costs a life.", Dim) }),
         });
 
         // Board callouts.
@@ -489,8 +501,9 @@ public class Hud : MonoBehaviour
         rt.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(rt, screen, null);
 
     // Slot form "37 +3 = 40"; preview form "37 + 3 = 40" as in the mockup.
-    static string Expression(Card c, bool spaced) =>
-        Card.Lucky + " " + (spaced ? c.op + " " + c.n : c.ToString()) + " = " + c.Apply(Card.Lucky);
+    static string Expression(Card c, bool spaced) => !c.IsNumber
+        ? c.kind == Card.Kind.MatchBoost ? "+10s auto-match" : "+1 ball"
+        : Card.Lucky + " " + (spaced ? c.op + " " + c.n : c.ToString()) + " = " + c.Apply(Card.Lucky);
 
     static string FormatTime(float t) => Mathf.FloorToInt(t / 60f).ToString("00") + ":" + Mathf.FloorToInt(t % 60f).ToString("00");
 
