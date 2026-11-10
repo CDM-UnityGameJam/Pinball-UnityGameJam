@@ -172,6 +172,10 @@ public class GameManager : MonoBehaviour
 
     void LaunchBall(Rigidbody launched)
     {
+        var returnState = launched.GetComponent<BallReturnState>();
+        if (!returnState) returnState = launched.gameObject.AddComponent<BallReturnState>();
+        var band = board.GetComponentInChildren<ReturnBand>();
+        returnState.BeginLaunch(band ? band.returnsPerLaunch : 0);
         launched.position = board.TransformPoint(launchLocal);
         launched.isKinematic = false;
         launched.angularVelocity = Vector3.zero;

@@ -12,6 +12,7 @@ public class Flipper : MonoBehaviour
 
     Rigidbody rb;
     float angle;
+    public bool IsPressed { get; private set; }
 
     void Awake()
     {
@@ -25,6 +26,7 @@ public class Flipper : MonoBehaviour
         bool pressed = kb != null && (isLeft
             ? kb.aKey.isPressed || kb.leftArrowKey.isPressed
             : kb.dKey.isPressed || kb.rightArrowKey.isPressed);
+        IsPressed = pressed;
         angle = Mathf.MoveTowards(angle, pressed ? upAngle : restAngle, speed * Time.fixedDeltaTime);
         rb.MoveRotation(transform.parent.rotation * Quaternion.Euler(0f, angle, 0f));
     }

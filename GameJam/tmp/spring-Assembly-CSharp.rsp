@@ -516,6 +516,7 @@
 /preferreduilang:en-US
 -out:"tmp/Assembly-CSharp.dll"
 -refout:"tmp/Assembly-CSharp.ref.dll"
+"E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/BallReturnState.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/Card.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/Drain.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/Enemy.cs"
@@ -524,6 +525,10 @@
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/GameTuning.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/Hud.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/HudTuning.cs"
+"E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/OuterRingSurface.cs"
+"E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/ReturnBand.cs"
+"E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/SideReturnBall.cs"
+"E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/SideReturnLane.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/Spawner.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/Scripts/SpringBumper.cs"
 "E:/unityProject/Pinball-UnityGameJam/GameJam/Assets/TutorialInfo/Readme.cs"

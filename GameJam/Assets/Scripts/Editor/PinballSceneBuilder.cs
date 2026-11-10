@@ -84,6 +84,7 @@ public static class PinballSceneBuilder
         Camera.main.backgroundColor = Hud.Background;
         Camera.main.clearFlags = CameraClearFlags.SolidColor;
 
+        OuterRingSetup.ApplyToScene(gm);
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         Debug.Log("Pinball scene built: " + ScenePath);

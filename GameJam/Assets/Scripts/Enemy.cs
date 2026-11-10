@@ -16,6 +16,7 @@ public class Enemy : MonoBehaviour
     float lastHit = float.NegativeInfinity;
     Rigidbody body;
     Collider hitCollider;
+    OuterRingSurface surface;
     Material ring, cap;
     Color ringColor, capColor;
 
@@ -46,7 +47,8 @@ public class Enemy : MonoBehaviour
         go.GetComponent<Renderer>().sharedMaterial = urp;
         go.transform.SetParent(board, false);
         // Flat disc 0.5 tall, centred at the ball's centre height so hits land on its side.
-        go.transform.localPosition = new Vector3(local.x, settings.centerHeight, local.z);
+        var terrain = board.GetComponentInChildren<OuterRingSurface>();
+        go.transform.localPosition = new Vector3(local.x, settings.centerHeight + (terrain ? terrain.HeightAt(local.x, local.z) : 0f), local.z);
         go.transform.localScale = new Vector3(settings.radius * 2f, settings.halfHeight, settings.radius * 2f);
 
         var capGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -66,6 +68,7 @@ public class Enemy : MonoBehaviour
     {
         kind = k;
         settings = GameManager.Instance.EnemySettings(k);
+        surface = transform.parent.GetComponentInChildren<OuterRingSurface>();
         target = targetNumber;
         hitCollider = GetComponent<MeshCollider>();
         maxHp = hp = Mathf.Max(1, settings.health);
@@ -115,6 +118,7 @@ public class Enemy : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+        if (surface) p.y = settings.centerHeight + surface.HeightAt(p.x, p.z);
         body.MovePosition(board.TransformPoint(p));
     }
 

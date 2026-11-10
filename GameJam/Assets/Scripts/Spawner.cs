@@ -7,11 +7,13 @@ public class Spawner : MonoBehaviour
     SpawnTuning S => gm.spawning;
     float normalTimer, specialTimer, bumperTimer;
     SpringBumper[] springs;
+    SideReturnLane[] returnLanes;
 
     void Start()
     {
         gm = GameManager.Instance;
         springs = gm.board.GetComponentsInChildren<SpringBumper>();
+        returnLanes = gm.board.GetComponentsInChildren<SideReturnLane>();
         MakeRedLine();
         int count = Mathf.Max(0, S.openingNormalCount);
         var columns = new float[count];
@@ -91,6 +93,8 @@ public class Spawner : MonoBehaviour
     bool Clear(Vector3 p, Enemy[] others, Enemy.Kind kind)
     {
         var settings = gm.EnemySettings(kind);
+        foreach (var lane in returnLanes)
+            if (lane.BlocksSpawn(p, settings.radius + settings.wallClearance, kind != Enemy.Kind.Special, S.dangerZ)) return false;
         foreach (var spring in springs)
             if (spring && spring.BlocksSpawn(p, settings.radius, settings.wallClearance,
                 kind != Enemy.Kind.Special, S.dangerZ)) return false;
@@ -118,6 +122,7 @@ public class Spawner : MonoBehaviour
         float dz = z - S.arcCenterZ;
         float width = dz > 0f ? Mathf.Sqrt(Mathf.Max(0f, S.arcRadius * S.arcRadius - dz * dz)) : S.boardHalfWidth;
         var settings = gm.EnemySettings(kind);
+        if (dz > 0f && S.arcHorizontalRadius > 0f) width *= S.arcHorizontalRadius / S.arcRadius;
         return width - settings.radius - settings.wallClearance;
     }
 

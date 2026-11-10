@@ -175,7 +175,10 @@ public class Hud : MonoBehaviour
         timeText.text = FormatTime(gm.ActiveTime);
         currentText.text = "CURRENT " + gm.CurrentNumber;
         previewText.text = dragSlot < 0 ? "" : "PREVIEW: " + Expression(gm.GetCard(dragSlot).Value, true);
-        effectText.text = "BALLS " + gm.BallCount + (gm.QueuedBalls > 0 ? "  (QUEUED " + gm.QueuedBalls + ")" : "") +
+        int autoReturns = 0;
+        foreach (var activeBall in gm.Balls)
+            if (activeBall && activeBall.TryGetComponent<SideReturnBall>(out var returnState) && returnState.InTransit) autoReturns++;
+        effectText.text = "BALLS " + gm.BallCount + "  |  RETURNING " + autoReturns + (gm.QueuedBalls > 0 ? "  (QUEUED " + gm.QueuedBalls + ")" : "") +
             (gm.HasMatchBoost ? "  |  MATCH " + gm.MatchBoostLeft.ToString("0.0") + "s" : "");
         energyText.text = "ENERGY " + gm.Energy + " / " + gm.EnergyPerCard;
         energyFill.anchorMax = new Vector2(Mathf.Clamp01(gm.Energy / (float)gm.EnergyPerCard), 1f);

@@ -71,6 +71,7 @@ public class SpawnTuning
     [Min(0.01f)] public float boardHalfWidth = 5f;
     public float arcCenterZ = 7f;
     [Min(0.01f)] public float arcRadius = 5f;
+    [Min(0f)] public float arcHorizontalRadius; // Zero keeps the original circular boundary.
     [Min(0f)] public float ballRadius = 0.25f;
     public Vector3 dangerLineScale = new Vector3(10f, 0.02f, 0.08f);
     public Vector2 dangerLineOffset = new Vector2(0f, 0.01f);

@@ -7,6 +7,8 @@ public class SpringBumper : MonoBehaviour
     [Min(0f)] public float kickSpeed = 20f;
     [Range(0f, 0.5f)] public float upwardBias = 0.3f;
     public Material coilMaterial;
+    public bool guideAlongGutter;
+    public Vector3 gutterDirection = new Vector3(.12f, 0f, -1f);
 
     void Awake() => EnsureVisual();
 
@@ -42,6 +44,13 @@ public class SpringBumper : MonoBehaviour
         if (away.sqrMagnitude < 0.01f) away = -gm.board.forward;
         // Keep an outward component even when struck from above; never kick through the pad.
         var direction = (away + gm.board.forward * upwardBias).normalized;
+        if (guideAlongGutter)
+        {
+            direction = gm.board.TransformDirection(gutterDirection).normalized;
+            // Preserve separation from the real cylinder, including off-center hits.
+            float separation = Vector3.Dot(direction, away);
+            if (separation < .15f) direction = (direction + away * (.15f - separation)).normalized;
+        }
         ball.linearVelocity = direction * kickSpeed;
     }
 
