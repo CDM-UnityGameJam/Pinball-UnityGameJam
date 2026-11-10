@@ -1,25 +1,28 @@
 using UnityEngine;
 
-// Plays one SfxCue from this object. Play() can be called from scripts or UnityEvents.
+// Plays an SfxCue asset from this object. The FMOD event and parameters are set on the asset.
+// Play() can be called from scripts or UnityEvents.
 [AddComponentMenu("Feedback/SFX Player")]
 public class SfxPlayer : MonoBehaviour
 {
-    [SerializeField] SfxCue cue = new SfxCue();
+    [SerializeField] SfxCue cue;
     [SerializeField, Tooltip("Keep the sound on this object as it moves, instead of leaving it where it started.")]
     bool followObject;
 
+    public SfxCue Cue { get => cue; set => cue = value; }
+
     [ContextMenu("Play")]
-    public void Play()
+    public void Play() => Fire(null, 0f);
+
+    public void Play(string parameter, float value) => Fire(parameter, value);
+
+    public void PlayAt(Vector3 position)
     {
-        if (followObject) cue.PlayAttached(gameObject);
-        else cue.Play(transform.position);
+        if (cue) cue.Play(position);
     }
 
-    public void Play(string parameter, float value)
+    void Fire(string parameter, float value)
     {
-        if (followObject) cue.PlayAttached(gameObject, parameter, value);
-        else cue.Play(transform.position, parameter, value);
+        if (cue) cue.Fire(transform.position, followObject ? gameObject : null, null, parameter, value);
     }
-
-    public void PlayAt(Vector3 position) => cue.Play(position);
 }

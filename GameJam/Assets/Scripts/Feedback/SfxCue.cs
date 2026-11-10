@@ -16,43 +16,47 @@ public struct SfxParameter
     }
 }
 
-// A one-shot FMOD event that can be added as a field to any script.
-// An empty cue does nothing, so calls can be wired up before the sound exists.
-[Serializable]
-public class SfxCue
+// One FMOD one-shot event as an asset (Create > Feedback > SFX Cue).
+// Reference it from an SfxPlayer, or from any script as a field and call Play.
+// A cue with no event picked does nothing, so it can be wired up before the sound exists.
+[CreateAssetMenu(fileName = "NewSfxCue", menuName = "Feedback/SFX Cue")]
+public class SfxCue : ScriptableObject
 {
     public EventReference sound;
-    [Min(0f), Tooltip("Seconds to ignore repeat plays of this cue, so rapid contacts don't stack up.")]
+    [Min(0f), Tooltip("Seconds to ignore repeat plays of this cue from any object, so rapid contacts don't stack up.")]
     public float minInterval = 0.05f;
-    [Tooltip("Applied on every play. Values passed from code override these.")]
+    [Tooltip("Applied on every play. Values from an SfxPlayer or from code override these.")]
     public SfxParameter[] parameters;
 
-    double lastPlayed = double.NegativeInfinity;
+    [NonSerialized] double lastPlayed = double.NegativeInfinity;
 
-    public void Play(Vector3 position) => Fire(position, null, null, 0f, null);
-    public void Play(Vector3 position, string parameter, float value) => Fire(position, null, parameter, value, null);
-    public void Play(Vector3 position, params SfxParameter[] overrides) => Fire(position, null, null, 0f, overrides);
+    public void Play(Vector3 position) => Fire(position, null, null, null, 0f);
+    public void Play(Vector3 position, string parameter, float value) => Fire(position, null, null, parameter, value);
+    public void Play(Vector3 position, params SfxParameter[] overrides) => Fire(position, null, overrides, null, 0f);
 
     public void PlayAttached(GameObject target)
     {
-        if (target) Fire(target.transform.position, target, null, 0f, null);
+        if (target) Fire(target.transform.position, target, null, null, 0f);
     }
 
     public void PlayAttached(GameObject target, string parameter, float value)
     {
-        if (target) Fire(target.transform.position, target, parameter, value, null);
+        if (target) Fire(target.transform.position, target, null, parameter, value);
     }
 
     public void PlayAttached(GameObject target, params SfxParameter[] overrides)
     {
-        if (target) Fire(target.transform.position, target, null, 0f, overrides);
+        if (target) Fire(target.transform.position, target, overrides, null, 0f);
     }
 
-    void Fire(Vector3 position, GameObject target, string parameter, float value, SfxParameter[] overrides)
+    // A null target plays at the position; otherwise the sound follows the target.
+    internal void Fire(Vector3 position, GameObject target, SfxParameter[] overrides, string parameter, float value)
     {
         if (!Application.isPlaying || sound.IsNull) return;
         double now = Time.unscaledTimeAsDouble;
-        if (now - lastPlayed < minInterval) return;
+        // In the editor this asset keeps lastPlayed after Play mode ends but the clock restarts,
+        // so a lastPlayed in the future means a new session.
+        if (now >= lastPlayed && now - lastPlayed < minInterval) return;
         lastPlayed = now;
 
         bool hasParameters = parameter != null || overrides is { Length: > 0 } || parameters is { Length: > 0 };
@@ -71,7 +75,7 @@ public class SfxCue
         }
         catch (EventNotFoundException)
         {
-            Debug.LogWarning("[Sfx] Event not found: " + sound);
+            Debug.LogWarning($"[Sfx] Event not found on {name}: {sound}", this);
             return;
         }
 
@@ -92,11 +96,11 @@ public class SfxCue
         foreach (var entry in values) Apply(instance, entry.name, entry.value);
     }
 
-    void Apply(EventInstance instance, string name, float value)
+    void Apply(EventInstance instance, string parameterName, float value)
     {
-        if (string.IsNullOrEmpty(name)) return;
+        if (string.IsNullOrEmpty(parameterName)) return;
         // One-shots are short, so skip the seek speed and use the value immediately.
-        var result = instance.setParameterByName(name, value, true);
-        if (result != FMOD.RESULT.OK) Debug.LogWarning($"[Sfx] Could not set parameter '{name}' on {sound}: {result}");
+        var result = instance.setParameterByName(parameterName, value, true);
+        if (result != FMOD.RESULT.OK) Debug.LogWarning($"[Sfx] Could not set parameter '{parameterName}' on {name}: {result}", this);
     }
 }
