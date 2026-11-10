@@ -1,3 +1,4 @@
+#if LEGACY_ARITHMETIC_PROTOTYPE
 using UnityEditor;
 using UnityEngine;
 
@@ -32,3 +33,5 @@ public static class SpawnerCheck
         if (Mathf.Abs(actual - expected) > tolerance) throw new System.Exception("Spawner check failed: " + what + " gave " + actual + ", expected " + expected);
     }
 }
+
+#endif

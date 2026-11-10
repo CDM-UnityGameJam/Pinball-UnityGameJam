@@ -1,11 +1,11 @@
 using UnityEngine;
 
-// Each population has its own timer, placement settings and probability.
+// Only ordinary enemies spawn; existing placement, chance and descent settings are retained.
 public class Spawner : MonoBehaviour
 {
     GameManager gm;
     SpawnTuning S => gm.spawning;
-    float normalTimer, specialTimer, bumperTimer;
+    float normalTimer;
     SpringBumper[] springs;
     SideReturnLane[] returnLanes;
 
@@ -30,34 +30,16 @@ public class Spawner : MonoBehaviour
     {
         if (!gm.IsPlaying) return;
         normalTimer += Time.deltaTime;
-        bumperTimer += Time.deltaTime;
-        float normalInterval = Mathf.Max(0.01f, gm.spawnInterval);
-        float bumperInterval = Mathf.Max(0.01f, gm.bumperSpawnInterval);
-        float specialInterval = Mathf.Max(0.01f, gm.specialSpawnInterval);
-        while (normalTimer >= normalInterval)
-        {
-            normalTimer -= normalInterval;
+        float interval = Mathf.Max(0.01f, gm.spawnInterval);
+        while (normalTimer >= interval) {
+            normalTimer -= interval;
             if (Random.value < S.normalChancePercent / 100f) TrySpawnDescending(Enemy.Kind.Normal);
-        }
-        while (bumperTimer >= bumperInterval)
-        {
-            bumperTimer -= bumperInterval;
-            if (Random.value < S.bumperChancePercent / 100f) TrySpawnDescending(Enemy.Kind.Bumper);
-        }
-        // Delay uses active play time and never accumulates a backlog of missed rolls.
-        if (gm.ActiveTime < S.specialStartDelay) return;
-        specialTimer += Time.deltaTime;
-        while (specialTimer >= specialInterval)
-        {
-            specialTimer -= specialInterval;
-            if (Random.value < S.SpecialChance(gm.ActiveTime)) TrySpawnSpecial();
         }
     }
 
     void TrySpawnDescending(Enemy.Kind kind, float? fixedX = null)
     {
         bool normal = kind == Enemy.Kind.Normal;
-        if (normal && (S.normalTargets == null || S.normalTargets.Length == 0)) return;
         float z = normal ? S.normalSpawnZ : S.bumperSpawnZ;
         int attempts = normal ? S.normalAttempts : S.bumperAttempts;
         var others = FindObjectsByType<Enemy>();
@@ -67,25 +49,7 @@ public class Spawner : MonoBehaviour
             if (width < 0f || (fixedX.HasValue && Mathf.Abs(fixedX.Value) > width)) return;
             var p = new Vector3(fixedX ?? Random.Range(-width, width), 0f, z);
             if (!Clear(p, others, kind)) continue;
-            gm.SpawnEnemy(kind, normal ? S.normalTargets[Random.Range(0, S.normalTargets.Length)] : 0, p);
-            return;
-        }
-    }
-
-    // Specials reserve their current space only; no descending column is blocked.
-    void TrySpawnSpecial()
-    {
-        var entry = S.PickSpecial(Random.value);
-        if (entry == null) return;
-        var others = FindObjectsByType<Enemy>();
-        for (int i = 0; i < S.specialAttempts; i++)
-        {
-            float z = Random.Range(Mathf.Min(S.specialMinZ, S.specialMaxZ), Mathf.Max(S.specialMinZ, S.specialMaxZ));
-            float width = HalfWidth(z, Enemy.Kind.Special);
-            if (width < 0f) continue;
-            var p = new Vector3(Random.Range(-width, width), 0f, z);
-            if (!Clear(p, others, Enemy.Kind.Special)) continue;
-            gm.SpawnEnemy(Enemy.Kind.Special, entry.target, p);
+            gm.SpawnEnemy(kind, Random.Range(1, 7), p);
             return;
         }
     }
@@ -100,6 +64,7 @@ public class Spawner : MonoBehaviour
                 kind != Enemy.Kind.Special, S.dangerZ)) return false;
         foreach (var e in others)
         {
+            if (!e.Alive) continue;
             float side = settings.radius + e.Radius + settings.horizontalGap +
                 (kind == Enemy.Kind.Special && e.kind == Enemy.Kind.Special ? S.specialPairExtraGap : 0f);
             float stack = settings.radius + e.Radius + settings.verticalGap +

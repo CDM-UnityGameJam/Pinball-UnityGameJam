@@ -5,15 +5,15 @@ using UnityEngine;
 public class SideReturnLane : MonoBehaviour
 {
     public int side = 1;
-    [Min(.1f), Tooltip("输送完整回流路线的秒数。越小传送越快；出口被占用时会额外等待。")]
+    [Min(.1f), Tooltip("Travel time for the full return route. Lower values are faster; a blocked outlet adds waiting time.")]
     public float travelSeconds = 2.3f;
-    [Min(0f), Tooltip("离开顶部出口时的弹射速度，不影响通道内输送时间。")]
+    [Min(0f), Tooltip("Launch speed at the top outlet, independent of travel time inside the lane.")]
     public float exitSpeed = 18f;
-    [Min(0f), Tooltip("离开出口后再次进入回流道的冷却秒数。")]
+    [Min(0f), Tooltip("Cooldown before re-entering the return lane after leaving the outlet.")]
     public float reentryCooldown = 1.2f;
     public Vector3 outlet = new Vector3(4.3f, .3f, 8.3f);
     public Vector3[] path;
-    [Tooltip("出口朝向，X 为横向，Y 为沿球台向上的分量。")]
+    [Tooltip("Outlet direction: X across the board, Y toward the top of the board.")]
     public Vector2 exitDirection;
     class Trip
     {

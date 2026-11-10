@@ -1,3 +1,4 @@
+#if LEGACY_ARITHMETIC_PROTOTYPE
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -100,3 +101,5 @@ public static class TuningCheck
         Debug.Log("Independent tuning gameplay passed");
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if LEGACY_ARITHMETIC_PROTOTYPE
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -108,3 +109,5 @@ public static class FunctionalCardCheck
         Debug.Log("Functional card gameplay passed");
     }
 }
+
+#endif

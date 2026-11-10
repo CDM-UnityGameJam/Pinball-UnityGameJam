@@ -11,9 +11,7 @@ public static class WebGLBuild
     [MenuItem("LuckyPinball/Build Web Game")]
     public static void Build()
     {
-        ScoringCheck.Run();
-        CardMathCheck.Run();
-        FunctionalCardCheck.RunRules();
+        LuckPrototypeCheck.CheckCards();
         var output = Path.GetFullPath("Builds/WebGL");
         Directory.CreateDirectory(output);
         // Fallback decompression allows hosting on ordinary static web servers.

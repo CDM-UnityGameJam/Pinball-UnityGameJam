@@ -14,17 +14,17 @@ public class OuterRingSurface : MonoBehaviour
     public float bottomZ = -4f;
     public float fieldHeight = .32f;
     public float bevelWidth = .45f;
-    [Min(.5f), Tooltip("从挡板区进入内场的缓坡长度，与两侧外环边缘分开设置。")]
+    [Min(.5f), Tooltip("Ramp length from the flipper area to the playfield, independent of the outer side edges.")]
     public float entryRampLength = 3f;
-    [Min(0f), Tooltip("左右及顶部护唇高出内场的高度。底部发射通道不加护唇。")]
+    [Min(0f), Tooltip("Side and top lip height above the playfield. No lip along the bottom launch lane.")]
     public float lipHeight = .08f;
-    [Min(.1f), Tooltip("护唇在内场边缘占用的平滑过渡宽度。")]
+    [Min(.1f), Tooltip("Smooth lip transition width along the playfield edge.")]
     public float lipWidth = .6f;
-    [Min(0f), Tooltip("顶部及侧面上段护唇额外增高；下段仍保持基础高度。")]
+    [Min(0f), Tooltip("Extra lip height along the top and upper sides; lower sides keep the base height.")]
     public float upperLipExtraHeight = .06f;
     public float upperLipStartZ = 1f;
     public float upperLipFullZ = 5f;
-    [Tooltip("两侧沟槽与护唇从此处开始接回顶部平地。")]
+    [Tooltip("Position where side gutters and lips reconnect to the flat top area.")]
     public float topTransitionStartZ = 7f;
     public float topTransitionEndZ = 7.6f;
     public float MaximumHeight => fieldHeight + lipHeight + upperLipExtraHeight;

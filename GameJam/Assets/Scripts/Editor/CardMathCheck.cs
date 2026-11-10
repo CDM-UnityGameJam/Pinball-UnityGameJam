@@ -1,3 +1,4 @@
+#if LEGACY_ARITHMETIC_PROTOTYPE
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -51,3 +52,5 @@ public static class CardMathCheck
         if (actual != expected) throw new System.Exception("Card math check failed: " + what + " gave " + actual + ", expected " + expected);
     }
 }
+
+#endif

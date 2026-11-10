@@ -1,3 +1,4 @@
+#if LEGACY_ARITHMETIC_PROTOTYPE
 using UnityEditor;
 using UnityEngine;
 
@@ -29,3 +30,5 @@ public static class ScoringCheck
         if (actual != expected) throw new System.Exception("Scoring check failed: " + what + " gave " + actual + ", expected " + expected);
     }
 }
+
+#endif

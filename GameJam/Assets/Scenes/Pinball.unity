@@ -4815,23 +4815,77 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   handSize: 5
-  energyPerCard: 100
   launchWait: 3
   normalKillPoints: 50
-  survivalPoints: 5
-  survivalInterval: 5
-  matchBoostDuration: 10
-  extraBallsPerCard: 1
-  queuedBallInterval: 1
   breachLifeCost: 1
   drainLifeCost: 1
   physicsStep: 0.01
-  cards:
-    baseNumber: 37
-    initialNumber: 37
-    operandMin: 1
-    operandMax: 9
-    matchWinsTieChance: 0.5
+  luck:
+    refillInterval: 8
+    playRefillDelay: 4
+    luckyRefreshInterval: 10
+    collisionDamage: 4
+    passiveArcDamage: 4
+    passiveArcRadius: 3
+    passiveSparkRadius: 2.5
+    passiveBurnDps: 4
+    passiveBurnDuration: 3
+    passiveStunDuration: 0.35
+    shockRadius: 1.2
+    shockRadiusPerCard: 0.25
+    passiveStunImmunity: 2
+    enemyQueueGap: 0.1
+    burnTickInterval: 0.5
+    activeArcDamage: 12
+    activeBurnDps: 6
+    activeShockDamage: 8
+    arcWaveInterval: 0.25
+    shockWaveInterval: 0.35
+    shortCircuitMin: 2
+    shortCircuitMax: 4
+    low:
+      targetsMin: 2
+      targetsMax: 3
+      arcWavesMin: 1
+      arcWavesMax: 1
+      shockWavesMin: 1
+      shockWavesMax: 1
+      burnMin: 1
+      burnMax: 2
+      stunMin: 0.4
+      stunMax: 0.8
+    medium:
+      targetsMin: 4
+      targetsMax: 8
+      arcWavesMin: 1
+      arcWavesMax: 2
+      shockWavesMin: 1
+      shockWavesMax: 2
+      burnMin: 3
+      burnMax: 5
+      stunMin: 1
+      stunMax: 1.8
+    high:
+      targetsMin: 0
+      targetsMax: 0
+      arcWavesMin: 3
+      arcWavesMax: 4
+      shockWavesMin: 2
+      shockWavesMax: 3
+      burnMin: 6
+      burnMax: 8
+      stunMin: 2
+      stunMax: 3
+    normalWeights:
+      backlash: 25
+      low: 45
+      medium: 25
+      high: 5
+    luckyWeights:
+      backlash: 10
+      low: 25
+      medium: 40
+      high: 25
   spawning:
     normalChancePercent: 96
     bumperChancePercent: 4
@@ -4872,7 +4926,7 @@ MonoBehaviour:
       weight: 45
       scoreMultiplier: 3
   normalEnemy:
-    health: 5
+    health: 40
     radius: 0.75
     halfHeight: 0.25
     centerHeight: 0.25
@@ -5162,13 +5216,6 @@ MonoBehaviour:
   maxLives: 3
   spawnInterval: 2
   enemyDescendTime: 40
-  matchKillMultiplier: 10
-  specialMatchKillMultiplier: 10
-  specialSpawnInterval: 10
-  bumperSpawnInterval: 1
-  bumperDescendTime: 40
-  matchCardChancePercent: 5
-  extraBallCardChancePercent: 15
 --- !u!4 &2021540453
 Transform:
   m_ObjectHideFlags: 0

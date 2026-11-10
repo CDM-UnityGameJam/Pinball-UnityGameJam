@@ -1,37 +1,29 @@
 using UnityEngine;
 
-// Board circle: normal enemy, stationary special enemy or bumper; each kind has independent tuning.
+// Ordinary enemy; legacy kind values remain for serialized scene compatibility.
 // Drawn as a ring (the cylinder) around a darker cap; its on-screen label is drawn by Hud.
 public class Enemy : MonoBehaviour
 {
     public enum Kind { Normal, Special, Bumper }
 
+    static long nextSpawnOrder;
+    public long SpawnOrder { get; private set; }
+    public bool Alive => kind == Kind.Normal && hp > 0 && gameObject.activeInHierarchy;
     EnemyTuning settings;
     public EnemyTuning Settings => settings;
     public float Radius => settings.radius;
     public Kind kind;
-    public int target, hp, maxHp;
+    public int Number { get; private set; }
+    public int hp, maxHp;
+    public bool PreviewTarget { get; set; }
 
-    float visibleLeft, lifeLeft, flashLeft;
-    float lastHit = float.NegativeInfinity;
+    float flashLeft;
+    double lastHit = double.NegativeInfinity;
     Rigidbody body;
     Collider hitCollider;
     OuterRingSurface surface;
     Material ring, cap;
     Color ringColor, capColor;
-
-    public bool Visible => kind == Kind.Special || visibleLeft > 0f;
-    public float VisibleLeft => visibleLeft;
-    public float LifeLeft => lifeLeft;
-    public int Multiplier
-    {
-        get
-        {
-            foreach (var entry in GameManager.Instance.spawning.specialTargets)
-                if (entry != null && entry.target == target) return Mathf.Max(1, entry.scoreMultiplier);
-            return 1;
-        }
-    }
 
     // Creates the circle under the board at a board-local XZ position.
     public static Enemy Create(Transform board, Kind kind, int target, Vector3 local)
@@ -66,114 +58,66 @@ public class Enemy : MonoBehaviour
 
     void Init(Kind k, int targetNumber, Material capMaterial)
     {
+        SpawnOrder = nextSpawnOrder++;
         kind = k;
         settings = GameManager.Instance.EnemySettings(k);
         surface = transform.parent.GetComponentInChildren<OuterRingSurface>();
-        target = targetNumber;
+        Number = Mathf.Clamp(targetNumber, 1, 6);
         hitCollider = GetComponent<MeshCollider>();
         maxHp = hp = Mathf.Max(1, settings.health);
-        lifeLeft = settings.lifetime;
         ring = GetComponent<Renderer>().material;
         cap = capMaterial;
         ringColor = settings.ringColor;
         capColor = settings.fillColor;
         ring.color = ringColor;
         cap.color = capColor;
-        if (k != Kind.Special)
         {
             body = gameObject.AddComponent<Rigidbody>(); // kinematic body so a moving collider is not re-baked as static
             body.isKinematic = true;
         }
-        RefreshBallCollisions();
     }
 
-    // Ignore only ball pairs: unmatched specials remain visible and allow balls through.
-    // Called on spawn, number changes and every extra-ball creation, before the next physics step.
-    public void RefreshBallCollisions()
+    public Vector3 LocalPosition => transform.parent.InverseTransformPoint(body ? body.position : transform.position);
+    public void MoveToLocal(Vector3 local)
     {
-        var gm = GameManager.Instance;
-        if (kind != Kind.Special || !hitCollider || !gm) return;
-        bool ignore = !gm.Matches(this);
-        foreach (var activeBall in gm.Balls)
-        {
-            if (!activeBall) continue;
-            foreach (var ballCollider in activeBall.GetComponentsInChildren<Collider>())
-                Physics.IgnoreCollision(hitCollider, ballCollider, ignore);
-        }
+        if(surface) local.y=settings.centerHeight+surface.HeightAt(local.x,local.z);
+        body.MovePosition(transform.parent.TransformPoint(local));
     }
-
-    // Normal enemies and bumpers descend; FixedUpdate stops on its own while timeScale is 0.
-    void FixedUpdate()
+    public void Breach()
     {
-        if (!body) return;
-        var board = transform.parent;
-        var p = board.InverseTransformPoint(body.position);
-        var gm = GameManager.Instance;
-        float origin = kind == Kind.Bumper ? gm.spawning.bumperSpawnZ : gm.spawning.normalSpawnZ;
-        float duration = kind == Kind.Bumper ? gm.bumperDescendTime : gm.enemyDescendTime;
-        p.z -= (origin - gm.spawning.dangerZ) / Mathf.Max(0.01f, duration) * Time.fixedDeltaTime;
-        if (p.z <= GameManager.Instance.spawning.dangerZ)
-        {
-            if (kind == Kind.Normal && hp > 0) GameManager.Instance.LoseLife(); // no kill credit, no relaunch
-            Destroy(gameObject);
-            return;
-        }
-        if (surface) p.y = settings.centerHeight + surface.HeightAt(p.x, p.z);
-        body.MovePosition(board.TransformPoint(p));
+        if(!Alive || !GameManager.Instance.IsPlaying) return;
+        hp=0;
+        GameManager.Instance.LoseLife();
+        gameObject.SetActive(false);
+        Destroy(gameObject);
     }
 
-    // Scaled time: visibility and special lifetime freeze during the launch wait and pause.
     void Update()
     {
-        if (kind == Kind.Normal && visibleLeft > 0f) visibleLeft = Mathf.Max(0f, visibleLeft - Time.deltaTime);
-        if (kind == Kind.Special)
-        {
-            lifeLeft -= Time.deltaTime;
-            if (lifeLeft <= 0f) { Destroy(gameObject); return; } // timeout: no reward
-        }
-
-        // Ring turns green when the current number hits it, blue when the dragged card's preview would.
-        // Hidden targets never light up.
-        var r = ringColor;
-        if (kind != Kind.Bumper && Visible)
-        {
-            if (GameManager.Instance.Matches(this)) r = settings.matchColor;
-            else if (Hud.Instance && Hud.Instance.PreviewNumber == target) r = settings.previewColor;
-        }
-        ring.color = r;
+        ring.color = PreviewTarget ? Hud.Gold : ringColor;
         if (flashLeft > 0f) flashLeft -= Time.unscaledDeltaTime;
-        cap.color = flashLeft > 0f ? settings.flashColor : capColor;
+        cap.color = flashLeft > 0f ? settings.flashColor : IsBurning ? new Color(1,.32f,.03f) : IsStunned ? new Color(.3f,.7f,1f) : capColor;
     }
 
     void OnCollisionEnter(Collision c)
     {
         NudgeSlowBall(c);
-        if (kind == Kind.Special && !GameManager.Instance.Matches(this)) return;
-        if (!GameManager.Instance.IsPlaying || hp <= 0 || !c.collider.CompareTag("Player") || Time.time - lastHit < settings.hitCooldown) return;
-        lastHit = Time.time;
+        TryBallHit(c.rigidbody, c.contactCount>0 ? c.GetContact(0).point : transform.position);
+    }
 
-        if (kind == Kind.Bumper)
-        {
-            var dir = Vector3.ProjectOnPlane(c.rigidbody.position - transform.position, transform.up).normalized;
-            c.rigidbody.linearVelocity = dir * settings.kickSpeed;
-            return;
-        }
-
+    public bool TryBallHit(Rigidbody ball) => TryBallHit(ball,transform.position);
+    public bool TryBallHit(Rigidbody ball,Vector3 collisionPoint)
+    {
         var gm = GameManager.Instance;
-        bool matched = gm.Matches(this);
-        ApplyHit(matched);
-        if (matched)
-        {
-            // A pulse is ordinary damage: it cannot trigger another match or pulse.
-            foreach (var enemy in FindObjectsByType<Enemy>())
-                if (enemy != this) enemy.ApplyDamage(false, settings.pulseDamage);
-        }
-        // Only the physical ball hit grants energy, after all kills and reveals resolve.
-        gm.AddEnergy(settings.hitEnergy);
+        if (!gm || !gm.IsPlaying || !Alive || !ball || ball.isKinematic || !ball.CompareTag("Player") || gm.CombatTime - lastHit < settings.hitCooldown - .000001) return false;
+        lastHit = gm.CombatTime;
+        TakeDamage(gm.luck.collisionDamage);
+        gm.RegisterBallHit(this,collisionPoint);
+        return true;
     }
 
     // Persistent contacts need their own push: OnCollisionEnter only runs once.
-    // This never counts as another hit or grants energy.
+    // This never counts as another hit.
     void OnCollisionStay(Collision c) => NudgeSlowBall(c);
 
     void NudgeSlowBall(Collision c)
@@ -181,7 +125,6 @@ public class Enemy : MonoBehaviour
         var gm = GameManager.Instance;
         var ball = c.rigidbody;
         if (!gm || !gm.IsPlaying || hp <= 0 || !ball || ball.isKinematic || !c.collider.CompareTag("Player")) return;
-        if (kind == Kind.Special && !gm.Matches(this)) return;
 
         var board = gm.board;
         var velocity = Vector3.ProjectOnPlane(ball.linearVelocity, board.up);
@@ -193,35 +136,74 @@ public class Enemy : MonoBehaviour
         ball.AddForce(direction * settings.unstickAcceleration, ForceMode.Acceleration);
     }
 
-    void ApplyHit(bool matched) => ApplyDamage(matched, settings.hitDamage);
-
-    void ApplyDamage(bool matched, int damage)
+    public void TakeDamage(int damage,AttackRecord source = null)
     {
-        // Destroy is deferred until frame end, so dead enemies must reject further hits.
-        if (kind == Kind.Bumper || hp <= 0) return;
-        var gm = GameManager.Instance;
-        var hud = Hud.Instance;
-        if (kind == Kind.Special && !matched) return;
-        if (kind == Kind.Normal) visibleLeft = settings.revealDuration;
-        hp = matched ? 0 : Mathf.Max(0, hp - Mathf.Max(0, damage));
+        if (!Alive || !GameManager.Instance.IsPlaying) return;
+        damage = Mathf.Max(0, damage);
+        if (damage == 0) return;
+        hp = Mathf.Max(0, hp - damage);
         flashLeft = settings.flashDuration;
-        if (hud) hud.Popup(transform.position, matched ? "MATCH!" : "-" + Mathf.Max(0, damage), matched ? settings.matchColor : settings.hitPopupColor);
-
-        if (hp <= 0)
-        {
-            if (kind == Kind.Normal)
-            {
-                long reward = gm.OnNormalKill(matched);
-                if (hud) hud.Popup(transform.position, "+" + reward.ToString("N0"), settings.killPopupColor);
-            }
-            else
-            {
-                long before = gm.Score;
-                gm.OnSpecialKill(Multiplier, matched);
-                if (hud) hud.Popup(transform.position, (matched ? "MATCH! " : "") + "+" + (gm.Score - before).ToString("N0"), settings.killPopupColor);
-            }
-            Destroy(gameObject);
-        }
+        if (Hud.Instance) Hud.Instance.Popup(transform.position, "-" + Mathf.Max(0, damage), settings.hitPopupColor);
+        if (hp > 0) return;
+        hitCollider.enabled = false;
+        long reward = GameManager.Instance.OnNormalKill(source);
+        if (Hud.Instance) Hud.Instance.Popup(transform.position, "+" + reward, settings.killPopupColor);
+        gameObject.SetActive(false);
+        Destroy(gameObject);
     }
-
+    double passiveBurnUntil=double.NegativeInfinity, activeBurnUntil=double.NegativeInfinity;
+    double nextBurnTick=double.PositiveInfinity, stunUntil=double.NegativeInfinity, immuneUntil=double.NegativeInfinity;
+    AttackRecord passiveBurnSource,activeBurnSource;
+    public double NextBurnTickAt => Alive ? nextBurnTick : double.PositiveInfinity;
+    double Now => GameManager.Instance.CombatTime;
+    public bool IsBurning => Alive && (passiveBurnUntil>Now || activeBurnUntil>Now);
+    public bool IsStunned => Alive && stunUntil>Now+.000001;
+    public float StunRemaining => (float)System.Math.Max(0,stunUntil-Now);
+    public float PassiveImmunityRemaining => IsStunned ? 0 : (float)System.Math.Max(0,immuneUntil-Now);
+    public float PassiveBurnRemaining => (float)System.Math.Max(0,passiveBurnUntil-Now);
+    public float ActiveBurnRemaining => (float)System.Math.Max(0,activeBurnUntil-Now);
+    public void Ignite(bool active,float duration,AttackRecord source)
+    {
+        if(!Alive || !GameManager.Instance.IsPlaying || duration<=0) return;
+        if(!IsBurning) nextBurnTick=Now+Mathf.Max(.01f,GameManager.Instance.luck.burnTickInterval);
+        double until=Now+duration;
+        if(active) {
+            if(until>=activeBurnUntil) { activeBurnUntil=until; activeBurnSource=source; }
+        } else if(until>=passiveBurnUntil) { passiveBurnUntil=until; passiveBurnSource=source; }
+        if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.Ignite(transform.position,active);
+    }
+    public bool Stun(float duration,bool active)
+    {
+        if(!Alive || !GameManager.Instance.IsPlaying || duration<=0) return false;
+        // Agreed rule: passive stun cannot refresh an ongoing stun; active stun may extend it.
+        if(!active && (IsStunned || Now<immuneUntil-.000001)) return false;
+        stunUntil=System.Math.Max(stunUntil,Now+duration);
+        immuneUntil=System.Math.Max(immuneUntil,stunUntil+GameManager.Instance.luck.passiveStunImmunity);
+        return true;
+    }
+    public void TickStatus()
+    {
+        if(!Alive || !GameManager.Instance.IsPlaying || nextBurnTick>Now+.000001) return;
+        var t=GameManager.Instance.luck;
+        bool strong=activeBurnUntil>=nextBurnTick-.000001;
+        bool weak=passiveBurnUntil>=nextBurnTick-.000001;
+        if(strong || weak) {
+            bool useActive=strong && (!weak || t.activeBurnDps>=t.passiveBurnDps);
+            int dps=useActive ? t.activeBurnDps : t.passiveBurnDps;
+            var source=useActive ? activeBurnSource : passiveBurnSource;
+            if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.BurnTick(transform.position,strong);
+            TakeDamage(Mathf.FloorToInt(dps*t.burnTickInterval+.5f),source);
+        }
+        double following=nextBurnTick+Mathf.Max(.01f,t.burnTickInterval);
+        nextBurnTick=Alive && System.Math.Max(passiveBurnUntil,activeBurnUntil)>Now+.000001 ? following : double.PositiveInfinity;
+    }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    public bool DebugSetNumber(int number)
+    {
+        if (!Alive || number < 1 || number > 6) return false;
+        Number = number;
+        return true;
+    }
+#endif
+    void OnDestroy() { if (ring) Destroy(ring); if (cap) Destroy(cap); }
 }
