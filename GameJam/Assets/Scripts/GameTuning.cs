@@ -19,6 +19,8 @@ public class EnemyTuning
     [Min(0)] public int hitDamage = 1;
     [Min(0)] public int pulseDamage = 1;
     [Min(0f)] public float kickSpeed = 20f;
+    [Min(0f), Tooltip("A ball hitting this enemy leaves at least this fast, pushed away like a pop bumper. 0 = plain bounce.")]
+    public float hitBounceSpeed = 14f;
     [Min(0f)] public float unstickSpeed = 2f;
     [Min(0f)] public float unstickAcceleration = 3f;
     public float unstickForwardBias = 0.35f;
