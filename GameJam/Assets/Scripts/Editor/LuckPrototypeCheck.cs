@@ -32,7 +32,8 @@ public static class LuckPrototypeCheck
         }
         public void Hand(params Card[] cards) {
             var values=new Card[5];Array.Copy(cards,values,cards.Length);typeof(GameManager).GetField("hand",Private).SetValue(gm,values);
-            typeof(GameManager).GetField("nextRefillAt",Private).SetValue(gm,cards.Length==5?double.PositiveInfinity:gm.CombatTime+8);
+            var account=(RechargeAccount)typeof(GameManager).GetField("recharge",Private).GetValue(gm);
+            account.FullHand(); if(cards.Length<5)account.StartMissing(gm.luck.rechargeBaseCost);
         }
         public void ApplyMoves(float dt) {
             foreach(var m in EnemyMovement.Plan(gm,dt)) {
@@ -139,28 +140,30 @@ public static class LuckPrototypeCheck
             using(var f=new Fixture()) {
                 var gm=f.gm;var e=f.Enemy(hp:1000);gm.DebugFixNextOutcome(90);gm.UseCard(2);gm.DebugFixNextOutcome(-10);gm.UseCard(0);
                 e.Ignite(false,3,null);e.Stun(1,true);
-                float refill=gm.RefillRemaining,stun=e.StunRemaining,burn=e.PassiveBurnRemaining,shorted=gm.ShortCircuitRemaining(Card.Equipment.Spark),luck=gm.LuckyRemaining;int hp=e.hp,waves=gm.LastCast.WavesFired;
+                double refill=gm.RechargeRequired;float stun=e.StunRemaining,burn=e.PassiveBurnRemaining,shorted=gm.ShortCircuitRemaining(Card.Equipment.Spark),luck=gm.LuckyRemaining;int hp=e.hp,waves=gm.LastCast.WavesFired;
                 gm.SetPaused(true);gm.TickGameplay(100);
-                Check(!gm.UseCard(0)&&e.hp==hp,"7 paused play and burn frozen");Near(gm.RefillRemaining,refill,"refill frozen");Near(gm.LuckyRemaining,luck,"luck frozen");Near(e.StunRemaining,stun,"stun frozen");Near(e.PassiveBurnRemaining,burn,"burn duration frozen");Near(gm.ShortCircuitRemaining(Card.Equipment.Spark),shorted,"short circuit frozen");
-                gm.SetPaused(false);State(gm,"Waiting");gm.TickGameplay(100);Near(gm.RefillRemaining,refill,"launch wait preserves debt");Check(e.hp==hp,"waiting freezes pending waves");
+                Check(!gm.UseCard(0)&&e.hp==hp,"7 paused play and burn frozen");Near(gm.RechargeRequired,refill,"refill frozen");Near(gm.LuckyRemaining,luck,"luck frozen");Near(e.StunRemaining,stun,"stun frozen");Near(e.PassiveBurnRemaining,burn,"burn duration frozen");Near(gm.ShortCircuitRemaining(Card.Equipment.Spark),shorted,"short circuit frozen");
+                gm.SetPaused(false);State(gm,"Waiting");gm.TickGameplay(100);Near(gm.RechargeRequired,refill,"launch wait preserves debt");Check(e.hp==hp,"waiting freezes pending waves");
                 State(gm,"Playing");gm.TickGameplay(.25f);Check(e.hp==hp-12,"pending arc wave resumes after wait");
             }
             foreach(int count in new[]{1,2,3,5}) using(var f=new Fixture()) {
                 var gm=f.gm;
                 for(int i=0;i<count;i++){gm.DebugFixNextOutcome(i%3==0?5:i%3==1?-6:0);gm.UseCard(0);}
-                double first=8+4*count;Near(gm.RefillRemaining,first,"6 every success/failure pays additive delay");
+                double cost=100+50*count;Near(gm.RechargeRequired,cost,"6 every success/failure pays additive charge demand");
+                double first=cost/10;
                 gm.TickGameplay((float)first-.001f);Check(gm.CardCount==5-count,"no early refill");gm.TickGameplay(.001f);Check(gm.CardCount==6-count,"first card at delayed deadline");
-                for(int i=1;i<count;i++){gm.TickGameplay(8);Check(gm.CardCount==6-count+i,"remaining cards refill every eight seconds");}
+                for(int i=1;i<count;i++){gm.TickGameplay(10);Check(gm.CardCount==6-count+i,"remaining cards require one hundred natural charge");}
                 Check(gm.IsHandFull,"full recovery at expected deadline");
-                if(count==5)Near(gm.Metrics.lowEquipmentSeconds,36,"metric uses agreed zero-to-one-card threshold");
+                if(count==5)Near(gm.Metrics.lowEquipmentSeconds,45,"metric uses agreed zero-to-one-card threshold");
             }
             using(var f=new Fixture()) {
-                var gm=f.gm;gm.DebugFixNextOutcome(0);gm.UseCard(0);gm.TickGameplay(3);gm.DebugFixNextOutcome(0);gm.UseCard(0);Near(gm.RefillRemaining,13,"in-progress countdown adds four instead of restarting");
-                float debt=gm.RefillRemaining;gm.LoseLife();Near(gm.RefillRemaining,debt,"life loss never clears debt");
+                var gm=f.gm;gm.DebugFixNextOutcome(0);gm.UseCard(0);gm.TickGameplay(3);gm.DebugFixNextOutcome(0);gm.UseCard(0);Near(gm.RechargeRequired,200,"in-progress cast adds fifty required charge");Near(gm.RechargeProgress,30,"casting preserves existing recharge");
+                double debt=gm.RechargeRequired;gm.LoseLife();Near(gm.RechargeRequired,debt,"life loss never clears debt");
             }
+            RechargeCheck.RunIntegration();
             CheckNumberRestrictedEnchantments();
             CheckRealCollision();
-            Debug.Log("Luck v0.3 acceptance PASSED: contact-only enchants; real physics contact; statuses; Q scaling and timed waves; queue; 12/24/36/60-second recovery; pause and 0-1-card metrics.");
+            Debug.Log("Luck v0.3 acceptance PASSED: contact-only enchants; real physics contact; statuses; Q scaling and timed waves; queue; 150/200/250/350-point first refill costs; pause and 0-1-card metrics.");
         }finally {GameManager.Instance=original;Hud.Instance=hud;UnityEngine.Random.state=random;Physics.gravity=gravity;Time.timeScale=scale;Time.fixedDeltaTime=step;}
     }
     static void CheckNumberRestrictedEnchantments()

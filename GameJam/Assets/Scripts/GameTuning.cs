@@ -148,8 +148,13 @@ public struct SkillPlan
 [Serializable]
 public class LuckTuning
 {
-    [Min(0.01f)] public float refillInterval = 8f;
-    [Min(0f)] public float playRefillDelay = 4f;
+    [Header("Recharge")]
+    [Min(1)] public float rechargeBaseCost = 100f;
+    [Min(0)] public float rechargeCastCost = 50f;
+    [Min(0)] public float rechargePerSecond = 10f;
+    [Min(0)] public float rechargeHit = 2f, rechargeMatchBonus = 1f;
+    [Min(.01f)] public float rechargeEnemyCooldown = 1f;
+    [Min(0)] public float rechargeRollingCap = 16f;
     [Min(0.01f)] public float luckyRefreshInterval = 10f;
     [Min(0)] public int collisionDamage = 4;
     [Header("Ball enchantments")]

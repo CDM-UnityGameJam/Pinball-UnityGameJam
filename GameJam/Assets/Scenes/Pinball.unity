@@ -4904,8 +4904,13 @@ MonoBehaviour:
   drainLifeCost: 1
   physicsStep: 0.01
   luck:
-    refillInterval: 8
-    playRefillDelay: 4
+    rechargeBaseCost: 100
+    rechargeCastCost: 50
+    rechargePerSecond: 10
+    rechargeHit: 2
+    rechargeMatchBonus: 1
+    rechargeEnemyCooldown: 1
+    rechargeRollingCap: 16
     luckyRefreshInterval: 10
     collisionDamage: 4
     passiveArcDamage: 4

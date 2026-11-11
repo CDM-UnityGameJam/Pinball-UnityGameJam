@@ -44,7 +44,7 @@ public class Hud : MonoBehaviour
     readonly List<FloatingText> popups = new List<FloatingText>();
 
     int dragSlot = -1; // slot the dragged card currently owns; -1 = no drag
-    Text effectText, metricsText;
+    Text effectText, metricsText, rechargeHintText;
     FloatingText castToast;
 
     readonly HashSet<Enemy> previewTargets = new HashSet<Enemy>();
@@ -197,8 +197,9 @@ public class Hud : MonoBehaviour
         previewText.fontSize=16; previewText.color=cast!=null && cast.Quality<0?Danger:Orange;
         effectText.text=ElementStatus(Card.Equipment.Arc)+" · "+ElementStatus(Card.Equipment.Spark)+" · "+ElementStatus(Card.Equipment.Shockwave);
         effectText.fontSize=19;
-        energyText.text=gm.IsHandFull?"Equipment full":"Refill "+gm.RefillRemaining.ToString("0.0")+"s";
-        energyFill.anchorMax=new Vector2(gm.IsHandFull?0f:Mathf.Clamp01(1-gm.RefillRemaining/(gm.luck.refillInterval+gm.luck.playRefillDelay)),1f);
+        energyText.text=gm.IsHandFull?"Equipment full":"Recharge: "+gm.RechargeProgress.ToString("0.#")+" / "+gm.RechargeRequired.ToString("0.#");
+        if(rechargeHintText) rechargeHintText.text="Next cast: required charge +"+gm.luck.rechargeCastCost.ToString("0.#");
+        energyFill.anchorMax=new Vector2(gm.IsHandFull || gm.RechargeRequired<=0 ? 0f : Mathf.Clamp01((float)(gm.RechargeProgress/gm.RechargeRequired)),1f);
         if(metricsText) metricsText.text="RUN STATS\nPlays: "+gm.Metrics.plays+" · Average hand: "+gm.Metrics.AverageHand.ToString("0.00")+"\nLow gear (0-1 cards): "+gm.Metrics.lowEquipmentSeconds.ToString("0.0")+"s\nDeath cause: "+gm.Metrics.deathCause;
     }
     void RefreshSlots(Vector2 pointer)
@@ -213,7 +214,7 @@ public class Hud : MonoBehaviour
             s.card.fontSize = c != null && c.equipment == Card.Equipment.Shockwave ? 23 : 30;
             s.card.rectTransform.anchoredPosition = new Vector2(0, 12);
             s.card.text = c == null ? "Empty" : CardText(c);
-            s.result.text = c == null ? "Awaiting refill" : c.Description(gm.luck);
+            s.result.text = c == null ? "Awaiting charge" : c.Description(gm.luck);
             s.cooldown.text = c == null ? "" : "#" + c.number + " stack: " + gm.HeldCount(c.equipment,c.number);
             s.cooldown.color = c != null && c.number == gm.CurrentNumber ? Gold : Dim;
             s.result.fontSize = 15;
@@ -225,7 +226,7 @@ public class Hud : MonoBehaviour
         if (dragSlot < 0) return;
         var card = gm.GetCard(dragSlot);
         Vector2 pos=pointer/canvas.scaleFactor;
-        ghost.anchoredPosition=new Vector2(Mathf.Clamp(pos.x+265,260,root.rect.width-260),Mathf.Clamp(pos.y,165,root.rect.height-165));
+        ghost.anchoredPosition=new Vector2(Mathf.Clamp(pos.x+265,260,root.rect.width-260),Mathf.Clamp(pos.y,180,root.rect.height-180));
         ghostCard.text = CardText(card);
         ghostCard.fontSize = 27;
         bool lucky = card.number == gm.CurrentNumber;
@@ -235,7 +236,7 @@ public class Hud : MonoBehaviour
         int mid0=EquipmentResolver.ActiveTargets(gm,gm.luck.Plan(card.equipment,20)).Count;
         int mid1=EquipmentResolver.ActiveTargets(gm,gm.luck.Plan(card.equipment,59)).Count;
         int after=gm.HeldCount(card.equipment,card.number)-1;
-        float before=gm.IsHandFull?gm.luck.refillInterval:gm.RefillRemaining;
+        double before=gm.IsHandFull?gm.luck.rechargeBaseCost:gm.RechargeRequired;
         ghostResult.text=(lucky?"Lucky match":"Normal cast")+" · Backlash "+weights.Chance(0).ToString("P0")+" · High power "+weights.Chance(3).ToString("P0")+
             "\nPassive #"+card.number+" matches: "+previewTargets.Count+" foes (gold)"+
             "\nLow: nearest 2-3, any number (now "+low0+"-"+low1+" foes)"+
@@ -243,7 +244,8 @@ public class Hud : MonoBehaviour
             "\nHigh: all foes at cast time (now "+EquipmentResolver.Targets(gm).Count+" foes)"+
             "\nAfter cast: #"+card.number+" "+card.Name+" "+gm.HeldCount(card.equipment,card.number)+" → "+after+" cards"+
             "\n"+(after==0 ? "#"+card.number+" enchantment lost" : gm.EnchantmentSummary(card.equipment,after))+
-            "\nNext refill: "+before.ToString("0.0")+" → "+gm.RefillAfterPlay.ToString("0.0")+"s";
+            "\nRequired charge: "+before.ToString("0.#")+" → "+gm.RechargeAfterPlay.ToString("0.#")+
+            "\nNext cast: required charge +"+gm.luck.rechargeCastCost.ToString("0.#");
     }
 
     // Board callouts from the mockup, pinned to board positions.
@@ -352,7 +354,7 @@ public class Hud : MonoBehaviour
         });
         SidePanel(H.build.rightHelpAnchor,H.build.rightHelpPosition,H.rightHelp,TextAnchor.UpperLeft,new[] {
             ("CAST = RANDOM SKILL POWER",TextColor,new[] {("Arc: Thunderstorm / Spark: Inferno",Blue),("Shockwave: Impact",Blue),("Low: small groups, brief effects",Dim),("Mid: more foes, waves or duration",Dim),("High: all current foes, stronger effects",Orange),("Active skills ignore enemy numbers",Dim)}),
-            ("EVERY CAST HAS A COST",Gold,new[] {("Refill: 8s base, +4s for every cast",Gold),("Play 3: refill at 20 / 28 / 36 seconds",Dim),("Q < 0: that element is offline for 2-4s",Danger),("Q = 0: misfire. All casts pay full cost.",Dim)})
+            ("EVERY CAST HAS A COST",Gold,new[] {($"Recharge: {gm.luck.rechargeBaseCost:0.#} base, +{gm.luck.rechargeCastCost:0.#} per cast",Gold),($"Recover {gm.luck.rechargePerSecond:0.#}/s; hits +{gm.luck.rechargeHit:0.#} (+{gm.luck.rechargeHit+gm.luck.rechargeMatchBonus:0.#} MATCH)",Dim),($"All sources: rolling cap {gm.luck.rechargeRollingCap:0.#}/s",Dim),("Q < 0: that element is offline for 2-4s",Danger),("Q = 0: misfire. All casts pay full cost.",Dim)})
         });
         metricsText=Anchored(MakeText(root,"",17,Dim,TextAnchor.UpperLeft,Vector2.zero,new Vector2(390,140)),new Vector2(0,1),new Vector2(70,-650));
 
@@ -369,7 +371,8 @@ public class Hud : MonoBehaviour
         currentText = Bold(LeftText(MakeText(bottomBar, "", H.build.currentFontSize, Green, TextAnchor.MiddleLeft, new Vector2(left + H.build.currentX, H.build.currentY), H.build.currentLabelSize)));
         previewText = LeftText(MakeText(bottomBar, "", H.build.previewFontSize, Blue, TextAnchor.MiddleLeft, new Vector2(left + H.build.previewX, H.build.previewY), H.build.previewLabelSize));
         energyText = LeftText(MakeText(bottomBar, "", H.build.energyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.energyY), H.build.energyLabelSize));
-        var barBack = Box(bottomBar, "EnergyBar", H.build.energyBarAnchor, new Vector2(left + H.build.energyBarX + H.build.energyBarExtraX, H.build.energyBarY), H.build.energyBarSize, H.energyBackground);
+        rechargeHintText = LeftText(MakeText(bottomBar,"",15,Dim,TextAnchor.MiddleLeft,new Vector2(left+230,-12),new Vector2(450,24)));
+        var barBack = Box(bottomBar, "EnergyBar", H.build.energyBarAnchor, new Vector2(left + H.build.energyBarX + H.build.energyBarExtraX, -32), H.build.energyBarSize, H.energyBackground);
         energyFill = Box(barBack, "Fill", Vector2.zero, Vector2.zero, Vector2.zero, Green);
         energyFill.anchorMin = Vector2.zero; energyFill.anchorMax = H.build.energyFillAnchor;
         energyFill.offsetMin = energyFill.offsetMax = Vector2.zero;
@@ -389,9 +392,9 @@ public class Hud : MonoBehaviour
         }
 
         // Dragged card ghost.
-        ghost = Panel(root, "Ghost", Vector2.zero, Vector2.zero, new Vector2(500, 310), Blue);
-        ghostCard = Bold(MakeText(ghost, "", H.refreshSlots.ghostNumberFontSize, Blue, TextAnchor.MiddleCenter, new Vector2(0, 128), new Vector2(480, 40)));
-        ghostResult = MakeText(ghost, "", 17, Blue, TextAnchor.MiddleCenter, new Vector2(0, -8), new Vector2(475, 240));
+        ghost = Panel(root, "Ghost", Vector2.zero, Vector2.zero, new Vector2(500, 335), Blue);
+        ghostCard = Bold(MakeText(ghost, "", H.refreshSlots.ghostNumberFontSize, Blue, TextAnchor.MiddleCenter, new Vector2(0, 140), new Vector2(480, 40)));
+        ghostResult = MakeText(ghost, "", 17, Blue, TextAnchor.MiddleCenter, new Vector2(0, -8), new Vector2(475, 265));
         ghost.gameObject.SetActive(false);
 
         countdownText = Bold(MakeText(root, "", H.build.countdownFontSize, TextColor, TextAnchor.MiddleCenter, H.build.countdownPosition, H.build.countdownSize));

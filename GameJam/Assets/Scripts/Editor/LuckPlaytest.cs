@@ -58,21 +58,21 @@ public static class LuckPlaytest
                     records.Add(gm.Metrics);
                 }
             }
-            var report=new StringBuilder("# Luck Number v0.3 号码限定附魔：出牌成本对照\n\n");
+            var report=new StringBuilder("# Luck Number v0.4：固定命中节奏对照（不是密度验证）\n\n");
             report.Append("以下为脚本化遭遇模拟，并非真实挡板／弹球试玩。每种策略使用5个固定随机种子，最长180秒；沿用场景生成间隔和下降时间，按固定横向列生成，拥挤时跳过生成，每1.2秒向最前排提交一次有效球命中。运行真实附魔、状态、技能波次、队列、概率和补牌代码；不模拟挡板操作和落球。因此死亡原因只能为越线，结论不能直接外推到真实玩家。\n\n");
-            report.Append("策略：见牌就打每0.5秒消耗全部可用牌；保留策略保持至少3张装备，仅敌群≥8或最前怪进入z≤2时考虑出牌，优先幸运同号。低装备严格按用户确认的0～1张计算。概率及补牌追加延迟保持设计值，未自动调参。\n\n");
+            report.Append("策略：见牌就打每0.5秒消耗全部可用牌；保留策略保持至少3张装备，仅敌群≥8或最前怪进入z≤2时考虑出牌，优先幸运同号。低装备严格按用户确认的0～1张计算。概率和充能参数保持设计值，未自动调参。\n\n");
             report.Append("|策略|样本|出牌次数|平均手牌|0～1张持续秒数|运行秒数|击杀|死亡原因|\n|---|---:|---:|---:|---:|---:|---:|---|\n");
             int index=0;
             foreach(var r in records) {
                 report.Append($"|{r.policy}|{index++%5+1}|{r.plays}|{r.AverageHand:F2}|{r.lowEquipmentSeconds:F1}|{r.elapsed:F1}|{r.kills}|{r.deathCause}|\n");
-                Debug.Log("Luck v0.3 scripted policy: "+r.Summary());
+                Debug.Log("Luck v0.4 scripted policy: "+r.Summary());
             }
             report.Append("\n|策略|平均出牌|平均手牌|平均低装备秒数|平均运行秒数|存活至180秒|\n|---|---:|---:|---:|---:|---:|\n");
             foreach(var group in records.GroupBy(r=>r.policy))
                 report.Append($"|{group.Key}|{group.Average(r=>r.plays):F1}|{group.Average(r=>r.AverageHand):F2}|{group.Average(r=>r.lowEquipmentSeconds):F1}|{group.Average(r=>r.elapsed):F1}|{group.Count(r=>r.deathCause=="Alive")}/5|\n");
-            report.Append("\n人工试玩可直接观察左侧本局记录；结束或重开时 Console 自动输出统计，或在 GameManager Inspector 点击记录按钮。应补充两种真实玩家策略的落球、越线和通关压力，再决定追加延迟改为3秒或提高。\n");
-            Directory.CreateDirectory("Docs");File.WriteAllText(Path.GetFullPath("Docs/LuckNumberV03Balance.md"),report.ToString());
-            Debug.Log("Luck v0.3 policy comparison saved to Docs/LuckNumberV03Balance.md");
+            report.Append("\n人工试玩可直接观察左侧本局记录；结束或重开时 Console 自动输出统计，或在 GameManager Inspector 点击记录按钮。应补充两种真实玩家策略的落球、越线和通关压力，再校准单次命中充能；若高密度明显更容易，先将全来源上限16降到15，保留自然恢复10。\n");
+            Directory.CreateDirectory("Docs");File.WriteAllText(Path.GetFullPath("Docs/LuckNumberV04ScriptedBalance.md"),report.ToString());
+            Debug.Log("Luck v0.4 policy comparison saved to Docs/LuckNumberV04ScriptedBalance.md");
         }finally {GameManager.Instance=original;Hud.Instance=hud;UnityEngine.Random.state=random;Physics.gravity=gravity;Time.timeScale=scale;Time.fixedDeltaTime=step;}
     }
 }

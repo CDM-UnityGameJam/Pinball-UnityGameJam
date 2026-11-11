@@ -1,0 +1,28 @@
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 29032)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 26976)
+VBCSCompiler prewarm took 17.38 ms
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.6/respin/6000.6.8f1-b6138bef9630' branch; Version is '6000.6.8f1 (237b6593792b) revision 2325349'; Using compiler version '194234433'; Build Type 'Release'
+OS: 'Windows 11  (10.0.26200) CoreCountrySpecific' Language: 'zh' Physical Memory: 15773 MB
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Mannix" at "2026-11-11T06:36:44.9750083Z"
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-11-11T06:36:44Z
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 11936, path: "E:/unity/UnityLicensingClient_V1/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Error: Unexpected message Type: ApiErrorResponse, expected: HandshakeResponse
+
+COMMAND LINE ARGUMENTS:
+E:\6000.6.8f1\Editor\Unity.exe
+-batchmode
+-nographics
+-projectPath
+E:\unityProject\Pinball-UnityGameJam\GameJam
+-executeMethod
+RechargeBatchCheck.Run
+-logFile
+E:\unityProject\Pinball-UnityGameJam\GameJam\tmp\v04-unity.log
+Successfully changed project path to: E:\unityProject\Pinball-UnityGameJam\GameJam
+E:/unityProject/Pinball-UnityGameJam/GameJam
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 1

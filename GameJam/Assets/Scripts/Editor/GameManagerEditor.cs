@@ -47,7 +47,7 @@ public class GameManagerEditor : Editor
         }
         serializedObject.ApplyModifiedProperties();
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Luck Number v0.3 · Developer Tools", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Luck Number v0.4 · Developer Tools", EditorStyles.boldLabel);
         var gm = (GameManager)target;
         using (new EditorGUI.DisabledScope(!Application.isPlaying || gm.IsGameOver)) {
             debugNumber = EditorGUILayout.IntSlider("Lucky number", debugNumber, 1, 6);
@@ -62,6 +62,7 @@ public class GameManagerEditor : Editor
                 if (GUILayout.Button("Add specified card")) gm.DebugAddCard(debugCardNumber, debugEquipment);
             EditorGUILayout.LabelField("Run statistics",gm.Metrics.Summary(),EditorStyles.wordWrappedLabel);
             if(GUILayout.Button("Log run statistics")) Debug.Log(gm.Metrics.Summary());
+            EditorGUILayout.LabelField("Recharge measurements",gm.Metrics.RechargeSummary(),EditorStyles.wordWrappedLabel);
             debugEnemyNumber = EditorGUILayout.IntSlider("Enemy number", debugEnemyNumber, 1, 6);
             debugEnemyPosition = EditorGUILayout.Vector3Field("Board-local position", debugEnemyPosition);
             if (GUILayout.Button("Spawn specified enemy")) gm.SpawnEnemy(Enemy.Kind.Normal, debugEnemyNumber, debugEnemyPosition);

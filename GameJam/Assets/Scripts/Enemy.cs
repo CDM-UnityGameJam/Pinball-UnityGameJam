@@ -19,6 +19,7 @@ public class Enemy : MonoBehaviour
 
     float flashLeft;
     double lastHit = double.NegativeInfinity;
+    double lastRechargeHit = double.NegativeInfinity;
     Rigidbody body;
     Collider hitCollider;
     OuterRingSurface surface;
@@ -111,8 +112,12 @@ public class Enemy : MonoBehaviour
         var gm = GameManager.Instance;
         if (!gm || !gm.IsPlaying || !Alive || !ball || ball.isKinematic || !ball.CompareTag("Player") || gm.CombatTime - lastHit < settings.hitCooldown - .000001) return false;
         lastHit = gm.CombatTime;
+        bool missing=!gm.IsHandFull;
+        bool match=gm.HoldsNumber(Number);
+        bool chargeEligible=missing && gm.CombatTime-lastRechargeHit>=gm.luck.rechargeEnemyCooldown;
+        if(chargeEligible) lastRechargeHit=gm.CombatTime;
         TakeDamage(gm.luck.collisionDamage);
-        gm.RegisterBallHit(this,collisionPoint);
+        gm.RegisterBallHit(this,collisionPoint,missing,match,chargeEligible);
         return true;
     }
 

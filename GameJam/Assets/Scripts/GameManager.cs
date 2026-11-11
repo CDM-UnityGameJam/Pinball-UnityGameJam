@@ -164,7 +164,7 @@ public class GameManager : MonoBehaviour
 
     public void Restart()
     {
-        Debug.Log("Luck v0.3 run stats (before restart): "+Metrics.Summary());
+        Debug.Log("Luck v0.4 run stats (before restart): "+Metrics.Summary());
         Time.timeScale = 1f; // survives scene load
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
@@ -182,8 +182,8 @@ public class GameManager : MonoBehaviour
             SlotReplaced?.Invoke(slot);
             hand[slot]=null;
             CompactHand();
-            if(wasFull || double.IsPositiveInfinity(nextRefillAt)) nextRefillAt=CombatTime+Mathf.Max(.01f,luck.refillInterval);
-            nextRefillAt+=Mathf.Max(0,luck.playRefillDelay);
+            if(wasFull) Metrics.StartRechargeInterval(CombatTime);
+            recharge.Play(wasFull,luck.rechargeBaseCost,luck.rechargeCastCost);
             LastPlayedNumber=card.number; LastLockedLucky=lockedLucky;
             LastPlayWasLucky=card.number==lockedLucky;
             int quality=NextOutcome(LastPlayWasLucky);
@@ -245,7 +245,8 @@ public class GameManager : MonoBehaviour
     public int Lives => lives;
     public int Energy => 0; // Compatibility for existing return-structure checks.
 
-    double combatTime, nextLuckyAt, nextRefillAt=double.PositiveInfinity;
+    double combatTime, nextLuckyAt;
+    readonly RechargeAccount recharge=new RechargeAccount();
     readonly double[] shortCircuitUntil=new double[3];
     readonly List<SkillCast> casts=new List<SkillCast>();
     bool resolving;
@@ -264,8 +265,11 @@ public class GameManager : MonoBehaviour
     public int EnabledCount(Card.Equipment type,int number) => ShortCircuitRemaining(type)>0 ? 0 : HeldCount(type,number);
     public int EnabledCount(Card.Equipment type) => ShortCircuitRemaining(type)>0 ? 0 : HeldCount(type);
     public float ShortCircuitRemaining(Card.Equipment type) => (float)System.Math.Max(0,shortCircuitUntil[(int)type]-combatTime);
-    public float RefillRemaining => IsHandFull ? 0 : (float)System.Math.Max(0,nextRefillAt-combatTime);
-    public float RefillAfterPlay => (IsHandFull ? Mathf.Max(.01f,luck.refillInterval) : RefillRemaining)+Mathf.Max(0,luck.playRefillDelay);
+    public double RechargeProgress => recharge.Progress;
+    public double RechargeRequired => recharge.Required;
+    public double RechargeAfterPlay => (IsHandFull ? luck.rechargeBaseCost : recharge.Required)+luck.rechargeCastCost;
+    public double RechargeWindowUsed => recharge.WindowUsed(CombatTime);
+    public bool HoldsNumber(int number) { foreach(var c in hand) if(c!=null && c.number==number) return true;return false; }
     public float LuckyRemaining => (float)System.Math.Max(0,nextLuckyAt-combatTime);
     public int? LastOutcome { get; private set; }
     public int LastPlayedNumber { get; private set; }
@@ -282,11 +286,33 @@ public class GameManager : MonoBehaviour
         if(type==Card.Equipment.Spark) return $"Ignite matching hit target + {luck.ExtraSparkTargets(count)} nearby matches";
         return $"Matching foes in {luck.ShockRadius(count):0.##}m shockwave";
     }
-    public void RegisterBallHit(Enemy direct,Vector3 point)
+    public void RegisterBallHit(Enemy direct,Vector3 point,bool missingAtStart,bool matchedAtStart,bool chargeEligible)
     {
         if(!IsPlaying || resolving) return;
         Metrics.validBallHits++;
-        EquipmentResolver.BallHit(this,direct,point);
+        if(missingAtStart) Metrics.RecordRechargeHit(matchedAtStart,chargeEligible);
+        resolving=true;
+        try {
+            EquipmentResolver.BallHit(this,direct,point);
+            // New cards are acquired only AFTER every enchantment from this hit has resolved.
+            if(missingAtStart && chargeEligible) {
+                double actual=EarnRecharge(luck.rechargeHit+(matchedAtStart?luck.rechargeMatchBonus:0),false);
+                double shown=System.Math.Floor(actual*100+1e-8)/100;
+                if(shown>0 && Hud.Instance) Hud.Instance.Popup(point-board.forward*1.2f,"+"+shown.ToString("0.##")+(matchedAtStart?" MATCH":""),Hud.Blue);
+            }
+        } finally { resolving=false; }
+    }
+    double EarnRecharge(double amount,bool natural)
+    {
+        if(!IsPlaying || IsHandFull) return 0;
+        recharge.StartMissing(luck.rechargeBaseCost);
+        double actual=recharge.Earn(CombatTime,amount,luck.rechargeRollingCap);
+        Metrics.RecordRecharge(amount,actual,natural);
+        while(!IsHandFull && recharge.Consume(luck.rechargeBaseCost)) {
+            AddCard(Card.Random());
+            Metrics.RecordRefill(CombatTime);
+        }
+        return actual;
     }
     // All combat clocks share effective game time and stop together during pause / launch wait.
     public void TickGameplay(float elapsed)
@@ -296,12 +322,15 @@ public class GameManager : MonoBehaviour
         const double epsilon=.000001;
         while(combatTime+epsilon<end && IsPlaying) {
             var enemies=EquipmentResolver.Targets(this);
-            double next=System.Math.Min(end,nextLuckyAt);
-            if(!IsHandFull) next=System.Math.Min(next,nextRefillAt);
+            // Small charge slices distribute natural recovery through time even across a long frame.
+            double next=System.Math.Min(System.Math.Min(end,nextLuckyAt),combatTime+.01);
+            bool missing=!IsHandFull;
+            double before=combatTime;
             foreach(var cast in casts) next=System.Math.Min(next,cast.NextWaveAt);
             foreach(var e in enemies) next=System.Math.Min(next,e.NextBurnTickAt);
             next=System.Math.Max(combatTime,next);
             Metrics.Tick((float)(next-combatTime),CardCount);
+            if(missing) Metrics.TickRecharge((float)(next-combatTime),enemies.Count);
             combatTime=next; activeTime=(float)combatTime;
             foreach(var e in enemies) if(e.Alive) e.TickStatus();
             for(int i=casts.Count-1;i>=0;i--) {
@@ -313,10 +342,7 @@ public class GameManager : MonoBehaviour
                 currentNumber=(currentNumber-1+Random.Range(1,6))%6+1;
                 nextLuckyAt=combatTime+Mathf.Max(.01f,luck.luckyRefreshInterval);
             }
-            if(!IsHandFull && nextRefillAt<=combatTime+epsilon) {
-                AddCard(Card.Random());
-                nextRefillAt=IsHandFull ? double.PositiveInfinity : combatTime+Mathf.Max(.01f,luck.refillInterval);
-            }
+            if(missing) EarnRecharge(luck.rechargePerSecond*(combatTime-before),true);
         }
         RefreshBallEnchantments();
     }
@@ -325,8 +351,8 @@ public class GameManager : MonoBehaviour
         if(card==null || IsHandFull) return false;
         for(int i=0;i<HandSize;i++) if(hand[i]==null) {
             SlotReplaced?.Invoke(i); hand[i]=card;
-            if(IsHandFull) nextRefillAt=double.PositiveInfinity;
-            else if(double.IsPositiveInfinity(nextRefillAt)) nextRefillAt=combatTime+Mathf.Max(.01f,luck.refillInterval);
+            if(IsHandFull) recharge.FullHand();
+            else recharge.StartMissing(luck.rechargeBaseCost);
             RefreshBallEnchantments(); return true;
         }
         return false;
