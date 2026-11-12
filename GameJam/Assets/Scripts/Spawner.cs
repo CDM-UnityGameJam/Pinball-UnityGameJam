@@ -49,7 +49,7 @@ public class Spawner : MonoBehaviour
             if (width < 0f || (fixedX.HasValue && Mathf.Abs(fixedX.Value) > width)) return;
             var p = new Vector3(fixedX ?? Random.Range(-width, width), 0f, z);
             if (!Clear(p, others, kind)) continue;
-            gm.SpawnEnemy(kind, Random.Range(1, 7), p);
+            gm.SpawnEnemy((Card.Equipment)Random.Range(0,3),p);
             return;
         }
     }

@@ -16,6 +16,11 @@ public sealed class RechargeAccount
         else StartMissing(baseCost);
         Required+=Math.Max(0,extraCost);
     }
+    public void PlayBatch(bool wasFull,int count,double baseCost,double perCardCost)
+    {
+        if(count<1 || count>5)throw new ArgumentOutOfRangeException("count");
+        Play(wasFull,baseCost,perCardCost*count);
+    }
     public void FullHand() { Progress=0;Required=0; } // Deliberately keeps the rolling journal.
     public double WindowUsed(double now)
     {

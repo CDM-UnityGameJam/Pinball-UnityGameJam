@@ -22,7 +22,9 @@ public class GameManagerEditor : Editor
         "hitPopupColor", "killPopupColor"
     };
 
-    int debugNumber = 6, debugResult = 40, debugCardNumber = 6, debugEnemyNumber = 2;
+    int debugCardNumber=6;
+    string debugDice="6, 2";
+    Card.Equipment debugEnemyElement;
     Card.Equipment debugEquipment;
     Vector3 debugEnemyPosition = new Vector3(0, 0, 5);
 
@@ -47,15 +49,17 @@ public class GameManagerEditor : Editor
         }
         serializedObject.ApplyModifiedProperties();
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Luck Number v0.4 · Developer Tools", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Luck Number v0.5 · Developer Tools", EditorStyles.boldLabel);
         var gm = (GameManager)target;
         using (new EditorGUI.DisabledScope(!Application.isPlaying || gm.IsGameOver)) {
-            debugNumber = EditorGUILayout.IntSlider("Lucky number", debugNumber, 1, 6);
-            if (GUILayout.Button("Set lucky number (keep timer)")) gm.DebugSetLuckyNumber(debugNumber);
-            debugResult = EditorGUILayout.IntSlider("Next cast strength Q", debugResult, -10, 100);
-            if (GUILayout.Button("Force next Q (once)")) gm.DebugFixNextOutcome(debugResult);
-            EditorGUILayout.LabelField("Forced Q", gm.FixedNextOutcome.HasValue ? gm.FixedNextOutcome.Value.ToString() : "None");
-            if (GUILayout.Button("Clear forced Q")) gm.DebugClearFixedOutcome();
+            debugDice=EditorGUILayout.TextField("Next dice (complete sequence)",debugDice);
+            if(GUILayout.Button("Set next dice sequence")) {
+                var values=new System.Collections.Generic.List<int>();bool valid=true;
+                foreach(var part in debugDice.Split(',')) {if(int.TryParse(part.Trim(),out int value))values.Add(value);else valid=false;}
+                if(!valid || !gm.DebugSetDice(values.ToArray()))Debug.LogWarning("Enter 1-5 dice, each 1-6. The count must equal the submitted card count.");
+            }
+            EditorGUILayout.LabelField("Pending debug dice",gm.FixedDice);
+            if(GUILayout.Button("Clear fixed dice"))gm.DebugClearDice();
             debugCardNumber = EditorGUILayout.IntSlider("Card number", debugCardNumber, 1, 6);
             debugEquipment = (Card.Equipment)EditorGUILayout.EnumPopup("Equipment type", debugEquipment);
             using (new EditorGUI.DisabledScope(gm.IsHandFull))
@@ -63,9 +67,9 @@ public class GameManagerEditor : Editor
             EditorGUILayout.LabelField("Run statistics",gm.Metrics.Summary(),EditorStyles.wordWrappedLabel);
             if(GUILayout.Button("Log run statistics")) Debug.Log(gm.Metrics.Summary());
             EditorGUILayout.LabelField("Recharge measurements",gm.Metrics.RechargeSummary(),EditorStyles.wordWrappedLabel);
-            debugEnemyNumber = EditorGUILayout.IntSlider("Enemy number", debugEnemyNumber, 1, 6);
+            debugEnemyElement=(Card.Equipment)EditorGUILayout.EnumPopup("Enemy element",debugEnemyElement);
             debugEnemyPosition = EditorGUILayout.Vector3Field("Board-local position", debugEnemyPosition);
-            if (GUILayout.Button("Spawn specified enemy")) gm.SpawnEnemy(Enemy.Kind.Normal, debugEnemyNumber, debugEnemyPosition);
+            if (GUILayout.Button("Spawn specified enemy")) gm.SpawnEnemy(debugEnemyElement,debugEnemyPosition);
         }
     }
 

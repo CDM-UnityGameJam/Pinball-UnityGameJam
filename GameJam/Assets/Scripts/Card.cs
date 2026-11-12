@@ -14,9 +14,11 @@ public sealed class Card
     }
     public static Card Random() => new Card(UnityEngine.Random.Range(1, 7), (Equipment)UnityEngine.Random.Range(0, 3));
     public string Name => equipment == Equipment.Arc ? "Arc" : equipment == Equipment.Spark ? "Spark" : "Shockwave";
-    public string Description(LuckTuning t) => equipment == Equipment.Arc ? $"#{number} foes in {t.passiveArcRadius:0.#}m\n{t.passiveArcDamage} dmg; excludes hit foe"
-        : equipment == Equipment.Spark ? $"#{number} burn: {t.passiveBurnDps} DPS / {t.passiveBurnDuration:0.#}s\nSame-number spread"
-        : $"#{number} stun: {t.passiveStunDuration:0.##}s\nMore #{number} cards: wider area";
+    public static Color ColorFor(Equipment type) => type==Equipment.Arc?new Color(.12f,.55f,1):type==Equipment.Spark?new Color(1,.24f,.15f):new Color(.73f,.4f,1);
+    public static string IconFor(Equipment type) => type==Equipment.Arc?"ϟ":type==Equipment.Spark?"▲":"◎";
+    public string Description(LuckTuning t) => equipment==Equipment.Arc?$"Arc: {t.passiveArcDamage} dmg in {t.passiveArcRadius:0.#}m\nLightning foes immune"
+        :equipment==Equipment.Spark?$"Burn: {t.passiveBurnDps} DPS / {t.passiveBurnDuration:0.#}s\nFire foes immune"
+        :$"Area stun: {t.passiveStunDuration:0.##}s\nShockwave foes immune";
     public string SkillName => equipment == Equipment.Arc ? "Thunderstorm" : equipment == Equipment.Spark ? "Inferno" : "Impact";
     public override string ToString() => number + " · " + Name;
 }

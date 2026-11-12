@@ -2,17 +2,12 @@ using UnityEditor;
 using UnityEngine;
 
 [CustomEditor(typeof(Enemy))]
-public class EnemyEditor : Editor
+public class EnemyEditor:Editor
 {
-    int number = 1;
-    void OnEnable() { number = ((Enemy)target).Number; }
     public override void OnInspectorGUI()
     {
-        DrawDefaultInspector();
-        var enemy = (Enemy)target;
-        EditorGUILayout.LabelField("Resonance number", enemy.Number.ToString());
-        number = EditorGUILayout.IntSlider("Debug: number", number, 1, 6);
-        using (new EditorGUI.DisabledScope(!Application.isPlaying || !enemy.Alive))
-            if (GUILayout.Button("Set enemy number")) enemy.DebugSetNumber(number);
+        DrawDefaultInspector();var enemy=(Enemy)target;
+        EditorGUILayout.LabelField("Element / immunity",enemy.Element.ToString());
+        EditorGUILayout.HelpBox("Element is fixed at spawn. Its own damage and status are immune; base ball damage is neutral.",MessageType.Info);
     }
 }

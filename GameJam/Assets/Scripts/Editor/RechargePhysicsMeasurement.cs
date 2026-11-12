@@ -56,7 +56,7 @@ public class RechargePhysicsMeasurement : MonoBehaviour
         }
         if(!manager.IsGameOver && manager.ActiveTime<Duration)return;
         results.Add(new Result {profile=episode<Seeds?"Regular":"High (2x spawn attempts)",seed=episode%Seeds+1,stats=manager.Metrics});
-        Debug.Log("V04 REAL PHYSICS: "+manager.Metrics.Summary());
+        Debug.Log("V05 REAL PHYSICS: "+manager.Metrics.Summary());
         episode++;
         if(episode<Seeds*2)NextScene();else Finish();
     }
@@ -68,20 +68,20 @@ public class RechargePhysicsMeasurement : MonoBehaviour
         foreach(var f in flippers)f.Step(ball && p.z< -6 && (f.isLeft?p.x<1.5f:p.x> -1.5f),Time.fixedDeltaTime);
         var enemies=EquipmentResolver.Targets(manager);
         bool pressure=enemies.Count>=8 || (enemies.Count>0 && enemies[0].LocalPosition.z<=2);
-        if(manager.CardCount<4 || !pressure)return;
-        int slot=0;for(int i=0;i<manager.HandSize;i++)if(manager.GetCard(i)!=null && manager.GetCard(i).number==manager.CurrentNumber){slot=i;break;}
+        if(manager.CardCount<4 || !pressure || !manager.CanSubmit)return;
+        int slot=0;for(int i=0;i<manager.HandSize;i++)if(manager.GetCard(i)!=null && manager.NumberCount(manager.GetCard(i).number)>1){slot=i;break;}
         manager.UseCard(slot);
     }
     [MenuItem("LuckyPinball/Luck Number/Stop Physical Recharge Measurement")]
     public static void Stop() {var driver=FindAnyObjectByType<RechargePhysicsMeasurement>();if(driver)driver.Finish();}
     void Finish()
     {
-        var csv=new StringBuilder("profile,seed,effective_seconds,missing_seconds,raw_hits_per_missing_second,eligible_hits_per_missing_second,eligible_match_ratio,actual_charge_per_missing_second,average_enemies,refills,mean_refill_interval,breaches,drains,death_cause\n");
-        var md=new StringBuilder("# v0.4 real-physics density measurement\n\nNative ball collisions in Pinball, original enemy movement/returns/skills, a fixed ball-position-based flipper controller, three paired seeds, up to 120 effective seconds per run. The high profile doubles the starting spawn-attempt frequency only for that run; there is no time-based acceleration. Both profiles keep at least three cards and cast under pressure. This is automated real-physics play, not human playtesting.\n\n|Profile|Seed|Missing hits/s|Eligible hits/s|Match|Actual charge/s|Mean enemies|Refills|Mean refill interval|Breaches|Drains|Death|\n|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n");
+        var csv=new StringBuilder("profile,seed,effective_seconds,missing_seconds,raw_hits_per_missing_second,eligible_hits_per_missing_second,batch_hit_ratio,actual_charge_per_missing_second,average_enemies,refills,mean_refill_interval,breaches,drains,death_cause\n");
+        var md=new StringBuilder("# v0.5 real-physics density measurement\n\nNative ball collisions in Pinball, original enemy movement/returns/skills, a fixed ball-position-based flipper controller, three paired seeds, up to 120 effective seconds per run. The high profile doubles the starting spawn-attempt frequency only for that run; there is no time-based acceleration. Both profiles keep at least three cards and cast under pressure. This is automated real-physics play, not human playtesting.\n\n|Profile|Seed|Missing hits/s|Eligible hits/s|Batch hit|Actual charge/s|Mean enemies|Refills|Mean refill interval|Breaches|Drains|Death|\n|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n");
         foreach(var r in results) {
             var m=r.stats;
-            csv.AppendFormat(CultureInfo.InvariantCulture,"{0},{1},{2:F3},{3:F3},{4:F4},{5:F4},{6:F4},{7:F4},{8:F3},{9},{10:F3},{11},{12},{13}\n",r.profile,r.seed,m.elapsed,m.missingSeconds,m.MissingHitRate,m.EligibleHitRate,m.MatchRatio,m.RechargeRate,m.AverageEnemyCount,m.refills,m.AverageRefillInterval,m.breaches,m.drains,m.deathCause);
-            md.AppendFormat(CultureInfo.InvariantCulture,"|{0}|{1}|{2:F2}|{3:F2}|{4:P1}|{5:F2}|{6:F2}|{7}|{8:F2}s|{9}|{10}|{11}|\n",r.profile,r.seed,m.MissingHitRate,m.EligibleHitRate,m.MatchRatio,m.RechargeRate,m.AverageEnemyCount,m.refills,m.AverageRefillInterval,m.breaches,m.drains,m.deathCause);
+            csv.AppendFormat(CultureInfo.InvariantCulture,"{0},{1},{2:F3},{3:F3},{4:F4},{5:F4},{6:F4},{7:F4},{8:F3},{9},{10:F3},{11},{12},{13}\n",r.profile,r.seed,m.elapsed,m.missingSeconds,m.MissingHitRate,m.EligibleHitRate,m.GroupHitRatio,m.RechargeRate,m.AverageEnemyCount,m.refills,m.AverageRefillInterval,m.breaches,m.drains,m.deathCause);
+            md.AppendFormat(CultureInfo.InvariantCulture,"|{0}|{1}|{2:F2}|{3:F2}|{4:P1}|{5:F2}|{6:F2}|{7}|{8:F2}s|{9}|{10}|{11}|\n",r.profile,r.seed,m.MissingHitRate,m.EligibleHitRate,m.GroupHitRatio,m.RechargeRate,m.AverageEnemyCount,m.refills,m.AverageRefillInterval,m.breaches,m.drains,m.deathCause);
         }
         var regular=results.Where(r=>r.profile=="Regular").ToArray();
         if(regular.Length>0) {
@@ -90,7 +90,7 @@ public class RechargePhysicsMeasurement : MonoBehaviour
             md.AppendFormat(CultureInfo.InvariantCulture,"\nRegular weighted charge rate: {0:F2}/s. Reference: 12.5/s; the equivalent waiting-time tolerance of +/-10% corresponds to approximately 11.36-13.89/s. No gains or caps are automatically retuned from this controller's performance.\n",rate);
         }
         md.Append("\nDo not certify 'high density is slightly harder' from the cap alone. Compare breach pressure, drains, sample length and real human runs. If high density is clearly easier at comparable operation, try 15/s while keeping the 10/s base recovery.\n");
-        Directory.CreateDirectory("Data");Directory.CreateDirectory("Docs");File.WriteAllText("Data/v04-real-physics.csv",csv.ToString());File.WriteAllText("Docs/LuckNumberV04Physics.md",md.ToString());
+        Directory.CreateDirectory("Data");Directory.CreateDirectory("Docs");File.WriteAllText("Data/v05-real-physics.csv",csv.ToString());File.WriteAllText("Docs/LuckNumberV05Physics.md",md.ToString());
         Time.captureDeltaTime=oldCapture;Application.runInBackground=oldBackground;
         var callback=completed;Destroy(gameObject);SceneManager.LoadScene("Assets/Scenes/Pinball.unity");callback?.Invoke();
     }

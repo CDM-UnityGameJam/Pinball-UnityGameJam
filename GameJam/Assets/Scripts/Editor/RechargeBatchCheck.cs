@@ -29,7 +29,7 @@ public static class RechargeBatchCheck
             var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
             typeof(GameManager).GetMethod("Launch",flags).Invoke(gm,null);
             gm.ball.isKinematic=true;gm.GetComponent<Spawner>().enabled=false;
-            gm.DebugFixNextOutcome(0);gm.UseCard(0);gm.TickGameplay(7.4f);
+            gm.DebugSetDice(new int[]{1});gm.UseCard(0);gm.TickGameplay(7.4f);
             typeof(Hud).GetMethod("RefreshBars",flags).Invoke(Hud.Instance,null);
             var label=(UnityEngine.UI.Text)typeof(Hud).GetField("energyText",flags).GetValue(Hud.Instance);
             if(!label.text.StartsWith("Recharge:") || Math.Abs(gm.RechargeProgress-74)>.001)throw new Exception("English recharge HUD / natural recovery mismatch: "+label.text);
@@ -41,8 +41,8 @@ public static class RechargeBatchCheck
     {
         EditorApplication.update-=WaitForPlay;
         Directory.CreateDirectory("tmp");
-        File.WriteAllText("tmp/v04-functional-result.txt",(passed?"PASS":"FAIL")+"\n"+detail);
-        Debug.Log("V04 FUNCTIONAL "+(passed?"PASS ":"FAIL ")+detail);
+        File.WriteAllText("tmp/v05-functional-result.txt",(passed?"PASS":"FAIL")+"\n"+detail);
+        Debug.Log("V05 FUNCTIONAL "+(passed?"PASS ":"FAIL ")+detail);
         EditorApplication.Exit(passed?0:1);
     }
 }

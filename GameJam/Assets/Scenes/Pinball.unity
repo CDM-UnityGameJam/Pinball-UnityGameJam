@@ -4907,11 +4907,10 @@ MonoBehaviour:
     rechargeBaseCost: 100
     rechargeCastCost: 50
     rechargePerSecond: 10
-    rechargeHit: 2
-    rechargeMatchBonus: 1
+    rechargeHit: 2.5
     rechargeEnemyCooldown: 1
     rechargeRollingCap: 16
-    luckyRefreshInterval: 10
+    diceRevealDelay: 0.45
     collisionDamage: 4
     passiveArcDamage: 4
     passiveArcRadius: 3
@@ -4929,51 +4928,20 @@ MonoBehaviour:
     activeShockDamage: 8
     arcWaveInterval: 0.25
     shockWaveInterval: 0.35
-    shortCircuitMin: 2
-    shortCircuitMax: 4
-    low:
-      targetsMin: 2
-      targetsMax: 3
-      arcWavesMin: 1
-      arcWavesMax: 1
-      shockWavesMin: 1
-      shockWavesMax: 1
-      burnMin: 1
-      burnMax: 2
-      stunMin: 0.4
-      stunMax: 0.8
-    medium:
-      targetsMin: 4
-      targetsMax: 8
-      arcWavesMin: 1
-      arcWavesMax: 2
-      shockWavesMin: 1
-      shockWavesMax: 2
-      burnMin: 3
-      burnMax: 5
-      stunMin: 1
-      stunMax: 1.8
-    high:
-      targetsMin: 0
-      targetsMax: 0
-      arcWavesMin: 3
-      arcWavesMax: 4
-      shockWavesMin: 2
-      shockWavesMax: 3
-      burnMin: 6
-      burnMax: 8
-      stunMin: 2
-      stunMax: 3
-    normalWeights:
-      backlash: 25
-      low: 45
-      medium: 25
-      high: 5
-    luckyWeights:
-      backlash: 10
-      low: 25
-      medium: 40
-      high: 25
+    standardTargets: 4
+    standardArcWaves: 2
+    fullArcWaves: 3
+    jackpotArcWaves: 4
+    standardShockWaves: 1
+    fullShockWaves: 2
+    jackpotShockWaves: 3
+    standardBurn: 4
+    fullBurn: 6
+    jackpotBurn: 8
+    standardStun: 1.5
+    fullStun: 2
+    jackpotStun: 3
+    extraBurnPerCard: 2
   spawning:
     normalChancePercent: 96
     bumperChancePercent: 4

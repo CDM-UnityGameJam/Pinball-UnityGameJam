@@ -13,7 +13,8 @@ public class Enemy : MonoBehaviour
     public EnemyTuning Settings => settings;
     public float Radius => settings.radius;
     public Kind kind;
-    public int Number { get; private set; }
+    public Card.Equipment Element {get;private set;}
+    public bool CanReceive(Card.Equipment type)=>Alive && Element!=type;
     public int hp, maxHp;
     public bool PreviewTarget { get; set; }
 
@@ -27,7 +28,7 @@ public class Enemy : MonoBehaviour
     Color ringColor, capColor;
 
     // Creates the circle under the board at a board-local XZ position.
-    public static Enemy Create(Transform board, Kind kind, int target, Vector3 local)
+    public static Enemy Create(Transform board, Kind kind, Card.Equipment element, Vector3 local)
     {
         // Runtime primitives get a built-in material that renders magenta in URP player builds; reuse the board's URP material.
         var settings = GameManager.Instance.EnemySettings(kind);
@@ -53,23 +54,23 @@ public class Enemy : MonoBehaviour
         capGo.transform.localScale = settings.capScale;
 
         var e = go.AddComponent<Enemy>();
-        e.Init(kind, target, capGo.GetComponent<Renderer>().material);
+        e.Init(kind, element, capGo.GetComponent<Renderer>().material);
         return e;
     }
 
-    void Init(Kind k, int targetNumber, Material capMaterial)
+    void Init(Kind k, Card.Equipment element, Material capMaterial)
     {
         SpawnOrder = nextSpawnOrder++;
         kind = k;
         settings = GameManager.Instance.EnemySettings(k);
         surface = transform.parent.GetComponentInChildren<OuterRingSurface>();
-        Number = Mathf.Clamp(targetNumber, 1, 6);
+        Element=element;
         hitCollider = GetComponent<MeshCollider>();
         maxHp = hp = Mathf.Max(1, settings.health);
         ring = GetComponent<Renderer>().material;
         cap = capMaterial;
-        ringColor = settings.ringColor;
-        capColor = settings.fillColor;
+        ringColor=Card.ColorFor(Element);
+        capColor=Color.Lerp(Color.black,ringColor,.35f);
         ring.color = ringColor;
         cap.color = capColor;
         {
@@ -113,11 +114,10 @@ public class Enemy : MonoBehaviour
         if (!gm || !gm.IsPlaying || !Alive || !ball || ball.isKinematic || !ball.CompareTag("Player") || gm.CombatTime - lastHit < settings.hitCooldown - .000001) return false;
         lastHit = gm.CombatTime;
         bool missing=!gm.IsHandFull;
-        bool match=gm.HoldsNumber(Number);
         bool chargeEligible=missing && gm.CombatTime-lastRechargeHit>=gm.luck.rechargeEnemyCooldown;
         if(chargeEligible) lastRechargeHit=gm.CombatTime;
         TakeDamage(gm.luck.collisionDamage);
-        gm.RegisterBallHit(this,collisionPoint,missing,match,chargeEligible);
+        gm.RegisterBallHit(this,collisionPoint,missing,chargeEligible);
         return true;
     }
 
@@ -141,6 +141,8 @@ public class Enemy : MonoBehaviour
         ball.AddForce(direction * settings.unstickAcceleration, ForceMode.Acceleration);
     }
 
+    public void TakeElementDamage(int damage,Card.Equipment element,AttackRecord source=null)
+    {if(CanReceive(element))TakeDamage(damage,source);}
     public void TakeDamage(int damage,AttackRecord source = null)
     {
         if (!Alive || !GameManager.Instance.IsPlaying) return;
@@ -169,7 +171,7 @@ public class Enemy : MonoBehaviour
     public float ActiveBurnRemaining => (float)System.Math.Max(0,activeBurnUntil-Now);
     public void Ignite(bool active,float duration,AttackRecord source)
     {
-        if(!Alive || !GameManager.Instance.IsPlaying || duration<=0) return;
+        if(!CanReceive(Card.Equipment.Spark) || !GameManager.Instance.IsPlaying || duration<=0) return;
         if(!IsBurning) nextBurnTick=Now+Mathf.Max(.01f,GameManager.Instance.luck.burnTickInterval);
         double until=Now+duration;
         if(active) {
@@ -179,7 +181,7 @@ public class Enemy : MonoBehaviour
     }
     public bool Stun(float duration,bool active)
     {
-        if(!Alive || !GameManager.Instance.IsPlaying || duration<=0) return false;
+        if(!CanReceive(Card.Equipment.Shockwave) || !GameManager.Instance.IsPlaying || duration<=0) return false;
         // Agreed rule: passive stun cannot refresh an ongoing stun; active stun may extend it.
         if(!active && (IsStunned || Now<immuneUntil-.000001)) return false;
         stunUntil=System.Math.Max(stunUntil,Now+duration);
@@ -197,18 +199,10 @@ public class Enemy : MonoBehaviour
             int dps=useActive ? t.activeBurnDps : t.passiveBurnDps;
             var source=useActive ? activeBurnSource : passiveBurnSource;
             if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.BurnTick(transform.position,strong);
-            TakeDamage(Mathf.FloorToInt(dps*t.burnTickInterval+.5f),source);
+            TakeElementDamage(Mathf.FloorToInt(dps*t.burnTickInterval+.5f),Card.Equipment.Spark,source);
         }
         double following=nextBurnTick+Mathf.Max(.01f,t.burnTickInterval);
         nextBurnTick=Alive && System.Math.Max(passiveBurnUntil,activeBurnUntil)>Now+.000001 ? following : double.PositiveInfinity;
     }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-    public bool DebugSetNumber(int number)
-    {
-        if (!Alive || number < 1 || number > 6) return false;
-        Number = number;
-        return true;
-    }
-#endif
     void OnDestroy() { if (ring) Destroy(ring); if (cap) Destroy(cap); }
 }

@@ -14,16 +14,12 @@ public static class EquipmentResolver
         });
         return targets;
     }
-    public static List<Enemy> ActiveTargets(GameManager gm, SkillPlan plan)
-    {
-        var all=Targets(gm); var result=new List<Enemy>();
-        for(int i=0;i<all.Count;i++) if(plan.allTargets || i<plan.targetCount) result.Add(all[i]);
-        return result;
-    }
-    public static List<Enemy> Nearby(GameManager gm, Vector3 point, float radius, int number, Enemy except = null)
+    public static List<EnemySnapshot> Snapshot(GameManager gm)
+    {var result=new List<EnemySnapshot>();foreach(var e in Targets(gm))result.Add(new EnemySnapshot(e));return result;}
+    public static List<Enemy> Nearby(GameManager gm, Vector3 point, float radius, Card.Equipment element, Enemy except = null)
     {
         var targets=Targets(gm);
-        targets.RemoveAll(e=>e.Number!=number || e==except || Vector3.ProjectOnPlane(e.transform.position-point,gm.board.up).sqrMagnitude > radius*radius + .00001f);
+        targets.RemoveAll(e=>!e.CanReceive(element) || e==except || Vector3.ProjectOnPlane(e.transform.position-point,gm.board.up).sqrMagnitude > radius*radius + .00001f);
         targets.Sort((a,b)=> {
             float da=Vector3.ProjectOnPlane(a.transform.position-point,gm.board.up).sqrMagnitude;
             float db=Vector3.ProjectOnPlane(b.transform.position-point,gm.board.up).sqrMagnitude;
@@ -36,32 +32,25 @@ public static class EquipmentResolver
     public static void BallHit(GameManager gm, Enemy direct, Vector3 point)
     {
         var source=new AttackRecord("Ball enchantments");
-        // Each element-number pair is independent. Slot order never changes these groups.
-        for(int number=1;number<=6;number++) {
-            int arcs=gm.EnabledCount(Card.Equipment.Arc,number);
-            if(arcs<=0) continue;
-            var targets=Nearby(gm,point,gm.luck.passiveArcRadius,number,direct);
+        int arcs=gm.HeldCount(Card.Equipment.Arc);
+        if(arcs>0) {
+            var targets=Nearby(gm,point,gm.luck.passiveArcRadius,Card.Equipment.Arc,direct);
             for(int i=0;i<Mathf.Min(gm.luck.ArcTargets(arcs),targets.Count);i++) {
-                var e=targets[i];
-                if(gm.Vfx) gm.Vfx.Lightning(point,e.transform.position,false);
-                e.TakeDamage(gm.luck.passiveArcDamage,source);
+                var e=targets[i];if(gm.Vfx)gm.Vfx.Lightning(point,e.transform.position,false);
+                e.TakeElementDamage(gm.luck.passiveArcDamage,Card.Equipment.Arc,source);
             }
         }
-        for(int number=1;number<=6;number++) {
-            int sparks=gm.EnabledCount(Card.Equipment.Spark,number);
-            if(sparks<=0) continue;
-            if(direct && direct.Alive && direct.Number==number) direct.Ignite(false,gm.luck.passiveBurnDuration,source);
-            var targets=Nearby(gm,point,gm.luck.passiveSparkRadius,number,direct);
-            for(int i=0;i<Mathf.Min(gm.luck.ExtraSparkTargets(sparks),targets.Count);i++) targets[i].Ignite(false,gm.luck.passiveBurnDuration,source);
+        int sparks=gm.HeldCount(Card.Equipment.Spark);
+        if(sparks>0) {
+            if(direct && direct.CanReceive(Card.Equipment.Spark))direct.Ignite(false,gm.luck.passiveBurnDuration,source);
+            var targets=Nearby(gm,point,gm.luck.passiveSparkRadius,Card.Equipment.Spark,direct);
+            for(int i=0;i<Mathf.Min(gm.luck.ExtraSparkTargets(sparks),targets.Count);i++)targets[i].Ignite(false,gm.luck.passiveBurnDuration,source);
         }
-        for(int number=1;number<=6;number++) {
-            int shocks=gm.EnabledCount(Card.Equipment.Shockwave,number);
-            if(shocks<=0) continue;
-            float radius=gm.luck.ShockRadius(shocks);
-            var targets=Nearby(gm,point,radius,number);
-            bool affected=false;
-            foreach(var e in targets) affected|=e.Stun(gm.luck.passiveStunDuration,false);
-            if(affected && gm.Vfx) gm.Vfx.Ring(point,radius,false);
+        int shocks=gm.HeldCount(Card.Equipment.Shockwave);
+        if(shocks>0) {
+            float radius=gm.luck.ShockRadius(shocks);bool affected=false;
+            foreach(var e in Nearby(gm,point,radius,Card.Equipment.Shockwave))affected|=e.Stun(gm.luck.passiveStunDuration,false);
+            if(affected && gm.Vfx)gm.Vfx.Ring(point,radius,false);
         }
     }
 }

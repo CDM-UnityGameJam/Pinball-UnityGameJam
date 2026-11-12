@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-// Runtime HUD. Drag-to-submit only; hand positions cannot be reordered.
+// Click selection is independent of equipment ownership until the batch is accepted.
 public class Hud : MonoBehaviour
 {
     public static Hud Instance;
@@ -43,7 +43,14 @@ public class Hud : MonoBehaviour
     readonly List<Enemy> gone = new List<Enemy>();
     readonly List<FloatingText> popups = new List<FloatingText>();
 
-    int dragSlot = -1; // slot the dragged card currently owns; -1 = no drag
+    readonly CardSelection selection=new CardSelection();
+    RectTransform castButton,dicePanel;
+    Text castButtonText,diceFaces,diceCards,diceResult;
+    public IList<Card> SelectedCards=>selection.Cards;
+    public bool SelectCard(int slot)=>gm.CanSubmit && selection.Toggle(gm.GetCard(slot));
+    public bool SubmitSelection()=>gm.UseCards(new List<Card>(selection.Cards));
+    void OnHandChanged()=>selection.KeepOnly(gm.HandSnapshot);
+    void OnBatchSubmitted(DiceBatch batch)=>selection.Clear();
     Text effectText, metricsText, rechargeHintText;
     FloatingText castToast;
 
@@ -57,28 +64,23 @@ public class Hud : MonoBehaviour
         slots = new SlotView[gm.HandSize];
         cam = Camera.main;
         font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        gm.SlotReplaced += OnSlotReplaced;
-        gm.CardShifted += OnCardShifted;
+        gm.HandChanged+=OnHandChanged;
+        gm.BatchSubmitted+=OnBatchSubmitted;
         Build();
     }
 
     void OnDestroy()
     {
         if (!gm) return;
-        gm.SlotReplaced -= OnSlotReplaced;
-        gm.CardShifted -= OnCardShifted;
+        gm.HandChanged-=OnHandChanged;
+        gm.BatchSubmitted-=OnBatchSubmitted;
     }
-
-    void OnCardShifted(int from, int to) { if (dragSlot == from) dragSlot = to; }
-
-    // A draw is replacing the dragged card: drop the drag so its release can never use the new card.
-    void OnSlotReplaced(int slot) { if (slot == dragSlot) dragSlot = -1; }
 
     void Update()
     {
         var mouse = Mouse.current;
         Vector2 pointer = mouse != null ? mouse.position.ReadValue() : Vector2.zero;
-        HandleDrag(mouse != null, mouse != null && mouse.leftButton.wasPressedThisFrame, mouse != null && mouse.leftButton.wasReleasedThisFrame, pointer);
+        HandleSelection(mouse!=null && mouse.leftButton.wasPressedThisFrame,pointer);
         HandleDialog(mouse != null && mouse.leftButton.wasPressedThisFrame, pointer);
         RefreshPreview();
         RefreshBars();
@@ -86,40 +88,16 @@ public class Hud : MonoBehaviour
         RefreshBoardLabels();
         RefreshEnemyLabels();
         RefreshPopups();
+        RefreshDice();
     }
 
     // ---- Input ----
 
-    void HandleDrag(bool hasMouse, bool pressed, bool released, Vector2 pointer)
+    void HandleSelection(bool pressed,Vector2 pointer)
     {
-        bool inputAllowed = gm.IsPlaying;
-        if (!inputAllowed || !hasMouse) { dragSlot = -1; return; }
-
-        if (dragSlot < 0)
-        {
-            if (!pressed) return;
-            for (int i = 0; i < slots.Length; i++)
-                if (gm.GetCard(i) != null && Contains(slots[i].rect, pointer)) { dragSlot = i; break; }
-            return;
-        }
-
-        if (gm.GetCard(dragSlot) == null) { dragSlot = -1; return; }
-
-        if (released)
-        {
-            if (OverPlayfield(pointer)) gm.UseCard(dragSlot); // Outside the table: cancel without consuming.
-            dragSlot = -1;
-        }
-    }
-
-    bool OverPlayfield(Vector2 pointer)
-    {
-        if (Contains(topBar, pointer) || Contains(bottomBar, pointer) || Contains(handArea, pointer)) return false;
-        var board = gm.board;
-        var ray = cam.ScreenPointToRay(pointer);
-        if (!new Plane(board.up, board.position).Raycast(ray, out float dist)) return false;
-        var local = board.InverseTransformPoint(ray.GetPoint(dist));
-        return Mathf.Abs(local.x) <= H.overPlayfield.halfWidth && local.z >= H.overPlayfield.minZ && local.z <= H.overPlayfield.maxZ;
+        if(!pressed || !gm.CanSubmit)return;
+        if(Contains(castButton,pointer)){if(selection.Count>0)SubmitSelection();return;}
+        for(int i=0;i<slots.Length;i++)if(Contains(slots[i].rect,pointer)){SelectCard(i);return;}
     }
 
     void HandleDialog(bool pressed, Vector2 pointer)
@@ -149,25 +127,37 @@ public class Hud : MonoBehaviour
 
     void RefreshPreview()
     {
-        foreach (var e in previewTargets) if (e) e.PreviewTarget = false;
+        foreach(var e in previewTargets)if(e)e.PreviewTarget=false;
         previewTargets.Clear();
-        var card = gm.GetCard(dragSlot);
-        if (!gm.IsPlaying || card == null) return;
-        foreach (var e in EquipmentResolver.Targets(gm)) {
-            if(e.Number!=card.number) continue;
-            previewTargets.Add(e);
-            e.PreviewTarget = true;
+        if(selection.Count==0)return;
+        foreach(var card in selection.Cards) {
+            int count=0;
+            foreach(var e in EquipmentResolver.Targets(gm)) {
+                if(!e.CanReceive(card.equipment))continue;
+                if(selection.Count==1 && count>=gm.luck.standardTargets)break;
+                count++;previewTargets.Add(e);e.PreviewTarget=true;
+            }
         }
     }
-    public void ShowCast(SkillCast cast,bool lucky)
+    public void ShowBatch(DiceBatch batch)
     {
-        if(castToast!=null) {
-            if(castToast.text) Destroy(castToast.text.gameObject);
-            popups.Remove(castToast); castToast=null;
-        }
-        string result=cast.Quality<0 ? cast.Card.Name+" short circuit" : cast.Quality==0 ? "Misfire" : cast.Card.SkillName+" · "+cast.Plan.Summary(cast.Card.equipment);
-        Popup(gm.board.TransformPoint(new Vector3(0,0,2)),result+"  Q="+cast.Quality,cast.Quality<0 ? Danger : cast.Quality==0 ? Dim : Orange);
+        if(castToast!=null){if(castToast.text)Destroy(castToast.text.gameObject);popups.Remove(castToast);}
+        Popup(gm.board.TransformPoint(new Vector3(0,0,2)),DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets",batch.Tier==CastTier.Miss?Dim:batch.Tier==CastTier.Jackpot?Gold:Blue);
         castToast=popups[popups.Count-1];
+    }
+    void RefreshDice()
+    {
+        var batch=gm.LastBatch;
+        dicePanel.gameObject.SetActive(batch!=null && (!batch.Revealed || gm.CombatTime-batch.RevealAt<2.5));
+        if(batch==null)return;
+        var names=new List<string>();foreach(var c in batch.Cards)names.Add(c.ToString());
+        diceCards.text=string.Join("   |   ",names);
+        diceCards.color=batch.Revealed && batch.Tier!=CastTier.Miss?Gold:TextColor;
+        var faces=new List<string>();
+        foreach(int value in batch.Dice)faces.Add(!batch.Revealed?"[ ? ]":value==batch.Number?"<color=#FFD56A>[ "+value+" ]</color>":"[ "+value+" ]");
+        diceFaces.text=string.Join("   ",faces);
+        diceResult.text=!batch.Revealed?"Rolling to match #"+batch.Number:DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets · "+batch.Kills+" kills";
+        diceResult.color=batch.Revealed && batch.Tier==CastTier.Jackpot?Gold:TextColor;
     }
     public void ShowMultiKill(AttackRecord source)
     {
@@ -178,74 +168,55 @@ public class Hud : MonoBehaviour
         popups[popups.Count-1].source=source;
     }
     string ElementStatus(Card.Equipment type)
-    {
-        string name=type==Card.Equipment.Arc?"Arc":type==Card.Equipment.Spark?"Spark":"Shockwave";
-        float left=gm.ShortCircuitRemaining(type);
-        var groups=new List<string>();
-        for(int number=1;number<=6;number++) if(gm.HeldCount(type,number)>0) groups.Add("#"+number+"×"+gm.HeldCount(type,number));
-        return name+" ["+(groups.Count==0?"none":string.Join(", ",groups))+"]"+(left>0?" [OFF "+left.ToString("0.0")+"s]":"");
-    }
+    {return (type==Card.Equipment.Arc?"Arc":type==Card.Equipment.Spark?"Spark":"Shockwave")+" ×"+gm.HeldCount(type);}
     void RefreshBars()
     {
-        scoreText.text=gm.Score.ToString("N0"); livesText.text=gm.Lives+" / "+gm.maxLives; timeText.text=FormatTime(gm.ActiveTime);
-        currentText.text=gm.CurrentNumber+"  Next "+gm.LuckyRemaining.ToString("0.0")+"s"; currentText.fontSize=25;
-        var cast=gm.LastCast;
-        if(cast==null) previewText.text="Active skill: not used";
-        else if(cast.Quality<0) previewText.text=cast.Card.Name+" Q="+cast.Quality+" · OFF "+gm.ShortCircuitRemaining(cast.Card.equipment).ToString("0.0")+"s";
-        else if(cast.Quality==0) previewText.text=cast.Card.SkillName+" Q=0 · Misfire";
-        else previewText.text=cast.Card.SkillName+" Q="+cast.Quality+" · "+(cast.Card.equipment==Card.Equipment.Spark ? cast.Plan.Summary(cast.Card.equipment) : "Wave "+cast.WavesFired+"/"+cast.Plan.waves)+" · Kills "+cast.Kills;
-        previewText.fontSize=16; previewText.color=cast!=null && cast.Quality<0?Danger:Orange;
+        scoreText.text=gm.Score.ToString("N0");livesText.text=gm.Lives+" / "+gm.maxLives;timeText.text=FormatTime(gm.ActiveTime);
+        currentText.fontSize=22;currentText.text=gm.PendingBatch!=null?"Rolling "+gm.PendingBatch.Dice.Count+" dice":selection.Count==0?"Select cards":"Match #"+selection.Number+" · "+selection.Count+" selected";
+        var batch=gm.LastBatch;
+        previewText.text=batch==null?"No cast yet":!batch.Revealed?"Revealing dice...":DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets · "+batch.Kills+" kills";
+        previewText.fontSize=17;previewText.color=batch!=null && batch.Revealed && batch.Tier==CastTier.Jackpot?Gold:Blue;
         effectText.text=ElementStatus(Card.Equipment.Arc)+" · "+ElementStatus(Card.Equipment.Spark)+" · "+ElementStatus(Card.Equipment.Shockwave);
         effectText.fontSize=19;
         energyText.text=gm.IsHandFull?"Equipment full":"Recharge: "+gm.RechargeProgress.ToString("0.#")+" / "+gm.RechargeRequired.ToString("0.#");
-        if(rechargeHintText) rechargeHintText.text="Next cast: required charge +"+gm.luck.rechargeCastCost.ToString("0.#");
-        energyFill.anchorMax=new Vector2(gm.IsHandFull || gm.RechargeRequired<=0 ? 0f : Mathf.Clamp01((float)(gm.RechargeProgress/gm.RechargeRequired)),1f);
-        if(metricsText) metricsText.text="RUN STATS\nPlays: "+gm.Metrics.plays+" · Average hand: "+gm.Metrics.AverageHand.ToString("0.00")+"\nLow gear (0-1 cards): "+gm.Metrics.lowEquipmentSeconds.ToString("0.0")+"s\nDeath cause: "+gm.Metrics.deathCause;
+        rechargeHintText.text="Per card cast: required charge +"+gm.luck.rechargeCastCost.ToString("0.#");
+        energyFill.anchorMax=new Vector2(gm.RechargeRequired<=0?0:Mathf.Clamp01((float)(gm.RechargeProgress/gm.RechargeRequired)),1);
+        metricsText.text="RUN STATS\nBatches: "+gm.Metrics.batches+" · Cards: "+gm.Metrics.plays+"\nMean hand: "+gm.Metrics.AverageHand.ToString("0.00")+" · Low gear: "+gm.Metrics.lowEquipmentSeconds.ToString("0.0")+"s\nMiss / Hit / Full / Jackpot: "+gm.Metrics.missBatches+" / "+gm.Metrics.standardBatches+" / "+gm.Metrics.fullFieldBatches+" / "+gm.Metrics.jackpotBatches;
+        castButtonText.text="Cast "+selection.Count+" · Roll "+selection.Count+(selection.Count==1?" die":" dice");
+        castButton.GetComponent<Image>().color=selection.Count>0 && gm.CanSubmit?ButtonColor:PanelEdge;
+        castButtonText.color=selection.Count>0 && gm.CanSubmit?TextColor:Dim;
     }
     void RefreshSlots(Vector2 pointer)
     {
-        for (int i = 0; i < slots.Length; i++)
-        {
-            var s = slots[i];
-            var c = gm.GetCard(i);
-            bool reserved = i == dragSlot;
-            s.edge.color = reserved ? Blue : c != null && c.number == gm.CurrentNumber ? Gold : PanelEdge;
-            s.card.color = reserved ? Blue : TextColor;
-            s.card.fontSize = c != null && c.equipment == Card.Equipment.Shockwave ? 23 : 30;
-            s.card.rectTransform.anchoredPosition = new Vector2(0, 12);
-            s.card.text = c == null ? "Empty" : CardText(c);
-            s.result.text = c == null ? "Awaiting charge" : c.Description(gm.luck);
-            s.cooldown.text = c == null ? "" : "#" + c.number + " stack: " + gm.HeldCount(c.equipment,c.number);
-            s.cooldown.color = c != null && c.number == gm.CurrentNumber ? Gold : Dim;
-            s.result.fontSize = 15;
-            s.result.rectTransform.sizeDelta = new Vector2(H.slotWidth - 6, 58);
-            s.result.rectTransform.anchoredPosition = new Vector2(0, -34);
+        for(int i=0;i<slots.Length;i++) {
+            var v=slots[i];var c=gm.GetCard(i);bool picked=c!=null && selection.Contains(c);
+            bool blocked=c!=null && selection.Number.HasValue && c.number!=selection.Number.Value;
+            v.edge.color=picked?Gold:blocked?PanelEdge:c==null?PanelEdge:Card.ColorFor(c.equipment);
+            v.card.color=blocked?Dim:c==null?Dim:Card.ColorFor(c.equipment);
+            v.card.fontSize=c!=null && c.equipment==Card.Equipment.Shockwave?22:29;
+            v.card.rectTransform.anchoredPosition=new Vector2(0,12);
+            v.card.text=c==null?"Empty":c.ToString();
+            v.cooldown.text=c==null?"":(picked?"SELECTED · ":"")+Card.IconFor(c.equipment)+(gm.NumberCount(c.number)>=2?"  PAIR":"");
+            v.cooldown.color=picked?Gold:blocked?Dim:TextColor;
+            v.result.text=c==null?"Awaiting charge":c.Description(gm.luck);v.result.fontSize=14;v.result.color=blocked?Dim:TextColor;
+            v.result.rectTransform.sizeDelta=new Vector2(H.slotWidth-6,58);v.result.rectTransform.anchoredPosition=new Vector2(0,-34);
         }
-
-        ghost.gameObject.SetActive(dragSlot >= 0);
-        if (dragSlot < 0) return;
-        var card = gm.GetCard(dragSlot);
-        Vector2 pos=pointer/canvas.scaleFactor;
-        ghost.anchoredPosition=new Vector2(Mathf.Clamp(pos.x+265,260,root.rect.width-260),Mathf.Clamp(pos.y,180,root.rect.height-180));
-        ghostCard.text = CardText(card);
-        ghostCard.fontSize = 27;
-        bool lucky = card.number == gm.CurrentNumber;
-        var weights = gm.luck.Weights(lucky);
-        int low0=EquipmentResolver.ActiveTargets(gm,gm.luck.Plan(card.equipment,1)).Count;
-        int low1=EquipmentResolver.ActiveTargets(gm,gm.luck.Plan(card.equipment,19)).Count;
-        int mid0=EquipmentResolver.ActiveTargets(gm,gm.luck.Plan(card.equipment,20)).Count;
-        int mid1=EquipmentResolver.ActiveTargets(gm,gm.luck.Plan(card.equipment,59)).Count;
-        int after=gm.HeldCount(card.equipment,card.number)-1;
-        double before=gm.IsHandFull?gm.luck.rechargeBaseCost:gm.RechargeRequired;
-        ghostResult.text=(lucky?"Lucky match":"Normal cast")+" · Backlash "+weights.Chance(0).ToString("P0")+" · High power "+weights.Chance(3).ToString("P0")+
-            "\nPassive #"+card.number+" matches: "+previewTargets.Count+" foes (gold)"+
-            "\nLow: nearest 2-3, any number (now "+low0+"-"+low1+" foes)"+
-            "\nMid: nearest 4-8, any number (now "+mid0+"-"+mid1+" foes)"+
-            "\nHigh: all foes at cast time (now "+EquipmentResolver.Targets(gm).Count+" foes)"+
-            "\nAfter cast: #"+card.number+" "+card.Name+" "+gm.HeldCount(card.equipment,card.number)+" → "+after+" cards"+
-            "\n"+(after==0 ? "#"+card.number+" enchantment lost" : gm.EnchantmentSummary(card.equipment,after))+
-            "\nRequired charge: "+before.ToString("0.#")+" → "+gm.RechargeAfterPlay.ToString("0.#")+
-            "\nNext cast: required charge +"+gm.luck.rechargeCastCost.ToString("0.#");
+        ghost.gameObject.SetActive(selection.Count>0);
+        if(selection.Count==0)return;
+        ghostCard.text=selection.Count+" selected · #"+selection.Number;
+        var lines=new List<string>();
+        lines.Add("Group hit chance: "+DiceRules.HitChance(selection.Count).ToString("P1"));
+        lines.Add(selection.Count==1?"On match: Standard (up to 4 eligible foes)":"One match: Full Field · 2+ matches: Jackpot");
+        lines.Add("Currently eligible: "+previewTargets.Count+" unique foes");
+        for(int type=0;type<3;type++) {
+            int spent=0;foreach(var c in selection.Cards)if((int)c.equipment==type)spent++;
+            if(spent==0)continue;
+            var e=(Card.Equipment)type;int after=gm.HeldCount(e)-spent;
+            lines.Add(e+": held "+gm.HeldCount(e)+" → "+after);
+            lines.Add(gm.EnchantmentSummary(e,after));
+        }
+        lines.Add("Charge required: "+(gm.IsHandFull?gm.luck.rechargeBaseCost:gm.RechargeRequired).ToString("0.#")+" → "+gm.RechargeAfterBatch(selection.Count).ToString("0.#"));
+        ghostResult.text=string.Join("\n",lines);ghostResult.fontSize=15;
     }
 
     // Board callouts from the mockup, pinned to board positions.
@@ -270,9 +241,9 @@ public class Hud : MonoBehaviour
             l.healthFill.sizeDelta = new Vector2(56 * Mathf.Clamp01(e.hp / (float)e.maxHp), 6);
             l.healthFill.GetComponent<Image>().color = e.PreviewTarget ? Gold : Green;
             l.below.rectTransform.anchoredPosition = barPosition + new Vector2(0, -12);
-            l.number.text = e.Number.ToString();
+            l.number.text = Card.IconFor(e.Element);
             l.number.fontSize = 30;
-            l.number.color = e.PreviewTarget ? Gold : TextColor;
+            l.number.color = e.PreviewTarget ? Gold : Card.ColorFor(e.Element);
             l.below.text = e.hp + "/" + e.maxHp;
             l.status.rectTransform.anchoredPosition=ToCanvas(e.transform.position+up+forward)+new Vector2(0,12);
             l.status.text=(e.IsBurning?"Burning ":"")+(e.IsStunned?"Stunned":e.PassiveImmunityRemaining>0?"Stun immune":"");
@@ -349,14 +320,14 @@ public class Hud : MonoBehaviour
         timeText = Stat(topBar, "ACTIVE TIME", H.build.timeX, H.timeStat);
 
         SidePanel(H.build.leftHelpAnchor,H.build.leftHelpPosition,H.leftHelp,TextAnchor.UpperLeft,new[] {
-            ("HOLD = BALL ENCHANTMENTS",TextColor,new[] {("Any valid hit triggers held enchantments",Green),("Arc: 4 damage to matching foes in 3m",Dim),("Spark: matching foes burn for 3s",Dim),("Shockwave: 0.35s stun on matching foes",Dim),("Stacks combine by element + number",Dim)}),
-            ("CONTROLS",Yellow,new[] {("A / Left: left flipper; D / Right: right",Dim),("R: pause / restart",Dim),("Enemy number = passive target group",Dim)})
+            ("HOLD = BALL ENCHANTMENTS",TextColor,new[] {("Held cards combine by element",Green),("Enemy colors show their immunity",Dim),("Arc / Fire / Shock foes resist their own type",Dim),("Base ball hit: 4 neutral damage",Dim)}),
+            ("PLAY ONE OR COMBINE",Gold,new[] {("Play one card or combine cards",Dim),("of the same number. Roll one die per card.",Dim),("One match activates them all.",Gold),("A / D: flippers · R: pause / restart",Dim)})
         });
         SidePanel(H.build.rightHelpAnchor,H.build.rightHelpPosition,H.rightHelp,TextAnchor.UpperLeft,new[] {
-            ("CAST = RANDOM SKILL POWER",TextColor,new[] {("Arc: Thunderstorm / Spark: Inferno",Blue),("Shockwave: Impact",Blue),("Low: small groups, brief effects",Dim),("Mid: more foes, waves or duration",Dim),("High: all current foes, stronger effects",Orange),("Active skills ignore enemy numbers",Dim)}),
-            ("EVERY CAST HAS A COST",Gold,new[] {($"Recharge: {gm.luck.rechargeBaseCost:0.#} base, +{gm.luck.rechargeCastCost:0.#} per cast",Gold),($"Recover {gm.luck.rechargePerSecond:0.#}/s; hits +{gm.luck.rechargeHit:0.#} (+{gm.luck.rechargeHit+gm.luck.rechargeMatchBonus:0.#} MATCH)",Dim),($"All sources: rolling cap {gm.luck.rechargeRollingCap:0.#}/s",Dim),("Q < 0: that element is offline for 2-4s",Danger),("Q = 0: misfire. All casts pay full cost.",Dim)})
+            ("DICE RESULTS",TextColor,new[] {("No matching die: Miss",Dim),("One card + match: Hit (local)",Blue),("2+ cards, one match: Full Field",Blue),("2+ matching dice: Jackpot",Gold),("Repeated elements add waves or burn time",Dim)}),
+            ("RECHARGE",Gold,new[] {("100 base +50 required per card spent",Gold),("10/s recovery · +2.5 per eligible hit",Dim),("All sources share a rolling 16/s cap",Dim)})
         });
-        metricsText=Anchored(MakeText(root,"",17,Dim,TextAnchor.UpperLeft,Vector2.zero,new Vector2(390,140)),new Vector2(0,1),new Vector2(70,-650));
+        metricsText=Anchored(MakeText(root,"",16,Dim,TextAnchor.UpperLeft,Vector2.zero,new Vector2(400,150)),new Vector2(0,1),new Vector2(70,-830));
 
         // Board callouts.
         spawnLabel = Free(MakeText(labelLayer, "ENEMY SPAWN AREA", H.build.spawnLabelFontSize, Dim, TextAnchor.MiddleCenter, Vector2.zero, H.build.spawnLabelSize));
@@ -367,7 +338,7 @@ public class Hud : MonoBehaviour
         float handWidth = slots.Length * H.slotWidth + (slots.Length - 1) * H.slotSpacing;
         bottomBar = Panel(root, "BottomBar", H.build.bottomBarAnchor, H.build.bottomBarPosition, new Vector2(handWidth + H.build.bottomBarWidthPadding, H.build.bottomBarHeight), PanelEdge);
         float left = -(handWidth + H.build.bottomContentWidthPadding) / 2f + H.build.bottomContentInset;
-        LeftText(MakeText(bottomBar, "LUCKY", H.build.luckyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.luckyY), H.build.luckyLabelSize));
+        LeftText(MakeText(bottomBar, "CAST", H.build.luckyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.luckyY), H.build.luckyLabelSize));
         currentText = Bold(LeftText(MakeText(bottomBar, "", H.build.currentFontSize, Green, TextAnchor.MiddleLeft, new Vector2(left + H.build.currentX, H.build.currentY), H.build.currentLabelSize)));
         previewText = LeftText(MakeText(bottomBar, "", H.build.previewFontSize, Blue, TextAnchor.MiddleLeft, new Vector2(left + H.build.previewX, H.build.previewY), H.build.previewLabelSize));
         energyText = LeftText(MakeText(bottomBar, "", H.build.energyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.energyY), H.build.energyLabelSize));
@@ -391,11 +362,15 @@ public class Hud : MonoBehaviour
             slots[i] = s;
         }
 
-        // Dragged card ghost.
-        ghost = Panel(root, "Ghost", Vector2.zero, Vector2.zero, new Vector2(500, 335), Blue);
-        ghostCard = Bold(MakeText(ghost, "", H.refreshSlots.ghostNumberFontSize, Blue, TextAnchor.MiddleCenter, new Vector2(0, 140), new Vector2(480, 40)));
-        ghostResult = MakeText(ghost, "", 17, Blue, TextAnchor.MiddleCenter, new Vector2(0, -8), new Vector2(475, 265));
-        ghost.gameObject.SetActive(false);
+        castButton=Box(root,"CastBatch",new Vector2(.5f,0),new Vector2(0,16),new Vector2(340,32),ButtonColor);
+        castButtonText=MakeText(castButton,"Cast 0 · Roll 0 dice",20,Dim,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(330,30));
+        ghost=Panel(root,"GroupPreview",new Vector2(1,1),new Vector2(-280,-800),new Vector2(440,275),Blue);
+        ghostCard=Bold(MakeText(ghost,"",23,Blue,TextAnchor.MiddleCenter,new Vector2(0,115),new Vector2(425,35)));
+        ghostResult=MakeText(ghost,"",15,TextColor,TextAnchor.MiddleCenter,new Vector2(0,-10),new Vector2(425,230));ghost.gameObject.SetActive(false);
+        dicePanel=Panel(root,"DiceReveal",new Vector2(.5f,1),new Vector2(0,-265),new Vector2(700,140),Gold);
+        diceCards=MakeText(dicePanel,"",17,TextColor,TextAnchor.MiddleCenter,new Vector2(0,45),new Vector2(680,28));
+        diceFaces=Bold(MakeText(dicePanel,"",31,TextColor,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(680,50)));
+        diceResult=MakeText(dicePanel,"",21,Gold,TextAnchor.MiddleCenter,new Vector2(0,-45),new Vector2(680,30));dicePanel.gameObject.SetActive(false);
 
         countdownText = Bold(MakeText(root, "", H.build.countdownFontSize, TextColor, TextAnchor.MiddleCenter, H.build.countdownPosition, H.build.countdownSize));
 

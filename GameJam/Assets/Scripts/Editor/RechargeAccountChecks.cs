@@ -48,9 +48,9 @@ public static class RechargeAccountChecks
         for(int step=1;refills<spent && step<=10000;step++) {
             double now=step*.01;
             a.Earn(now,.1,16);
-            if(regular && step%100==0)a.Earn(now,(step/100)%2==0?3:2,16);
+            if(regular && step%100==0)a.Earn(now,2.5,16);
             while(a.Consume(100)) {
-                Check(Math.Abs(now-expected[refills])<=.011,"no-hit / half-match cadence matches design reference");
+                Check(Math.Abs(now-expected[refills])<=.011,"no-hit / unified-hit cadence matches design reference");
                 refills++;if(refills==spent){a.FullHand();break;}
             }
         }
