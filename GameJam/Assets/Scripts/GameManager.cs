@@ -221,7 +221,7 @@ public class GameManager : MonoBehaviour
 
     public void Restart()
     {
-        Debug.Log("Luck v0.5 run stats (before restart): "+Metrics.Summary());
+        Debug.Log("Luck v0.6 run stats (before restart): "+Metrics.Summary());
         Time.timeScale = 1f; // survives scene load
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
@@ -250,6 +250,7 @@ public class GameManager : MonoBehaviour
     public long Score=>score;
     public int Lives=>lives;
     public int Energy=>0;
+    public int EmpoweredHits {get;private set;}
     public bool CanSubmit=>IsPlaying && !resolving && PendingBatch==null;
     public int CardCount {get {int n=0;foreach(var c in hand)if(c!=null)n++;return n;}}
     public bool IsHandFull=>CardCount==HandSize;
@@ -278,6 +279,8 @@ public class GameManager : MonoBehaviour
             CompactHand();
             if(wasFull)Metrics.StartRechargeInterval(CombatTime);
             recharge.PlayBatch(wasFull,cards.Length,luck.rechargeBaseCost,luck.rechargeCastCost);
+            EmpoweredHits=(int)System.Math.Min(int.MaxValue,(long)EmpoweredHits+cards.Length);
+            Metrics.empoweredGranted+=cards.Length;
             RefreshBallEnchantments();
             PendingBatch=new DiceBatch(cards,RollDice(cards.Length),CombatTime+Mathf.Max(0,luck.diceRevealDelay),snapshot,luck);
             LastBatch=PendingBatch;Metrics.RecordBatch(cards.Length);BatchSubmitted?.Invoke(PendingBatch);
@@ -312,27 +315,39 @@ public class GameManager : MonoBehaviour
         if(type==Card.Equipment.Spark)return $"Ignite hit target + {luck.ExtraSparkTargets(count)} nearby non-immune foes";
         return $"Shockwave radius: {luck.ShockRadius(count):0.##}m";
     }
-    public void RegisterBallHit(Enemy direct,Vector3 point,bool missingAtStart,bool chargeEligible)
+    public void RegisterBallHit(Enemy direct,Vector3 point,bool damageAllowed)
     {
-        if(!IsPlaying || resolving)return;Metrics.validBallHits++;
-        if(missingAtStart)Metrics.RecordRechargeHit(chargeEligible);
+        if(!IsPlaying || resolving)return;
+        bool missing=!IsHandFull;Metrics.validBallHits++;
+        if(missing)Metrics.RecordRechargeHit(true);
         resolving=true;
         try {
-            var source = new AttackRecord("Ball collision and enchantments");
-            direct.TakeDamage(luck.collisionDamage, source);
-            EquipmentResolver.BallHit(this,direct,point,source);
-            if(missingAtStart && chargeEligible){
-                double actual=EarnRecharge(luck.rechargeHit,false);
-                double shown=System.Math.Floor(actual*100+1e-8)/100;
-                if(shown>0 && Hud.Instance)Hud.Instance.Popup(point-board.forward*1.2f,"+"+shown.ToString("0.##"),Hud.Blue);
-            }
-        }finally {resolving=false;}
+            if(damageAllowed) {
+                var source=new AttackRecord("Ball collision and enchantments");
+                int damage=EmpoweredHits>0?luck.empoweredCollisionDamage:luck.collisionDamage;
+                if(damage>0 && EmpoweredHits>0){EmpoweredHits--;Metrics.empoweredConsumed++;}
+                direct.TakeDamage(damage,source);
+                Metrics.physicalDamageHits++;
+                EquipmentResolver.BallHit(this,direct,point,source);
+            } else Metrics.cooldownContacts++;
+            // New cards never participate in this contact's damage/enchantments.
+            if(missing)EarnCombatRecharge(point,false);
+        }finally{resolving=false;}
+    }
+    public double EarnCombatRecharge(Vector3 point,bool burn)
+    {
+        double actual=EarnRecharge(luck.rechargeHit,false);
+        if(actual>0){if(burn){Metrics.burnChargeEvents++;Metrics.burnCharge+=actual;}else {Metrics.collisionChargeEvents++;Metrics.collisionCharge+=actual;}}
+        double shown=System.Math.Floor(actual*100+1e-8)/100;
+        if(shown>0 && Hud.Instance)Hud.Instance.Popup(point-board.forward*1.2f,"+"+shown.ToString("0.##")+(burn?" BURN":""),Hud.Blue);
+        return actual;
     }
     double EarnRecharge(double amount,bool natural)
     {
         if(!IsPlaying || IsHandFull)return 0;
         recharge.StartMissing(luck.rechargeBaseCost);
-        double actual=recharge.Earn(CombatTime,amount,luck.rechargeRollingCap);Metrics.RecordRecharge(amount,actual,natural);
+        double actual=natural?recharge.EarnNatural(amount):recharge.EarnCombat(CombatTime,amount,luck.rechargeCombatBudget,luck.rechargeCombatMinimum);
+        Metrics.RecordRecharge(amount,actual,natural);
         while(!IsHandFull && recharge.Consume(luck.rechargeBaseCost)){AddCard(Card.Random());Metrics.RecordRefill(CombatTime);}
         return actual;
     }
@@ -405,7 +420,7 @@ public class GameManager : MonoBehaviour
         if (lives > 0) return;
         state = RunState.GameOver;
         Metrics.deathCause=cause;
-        Debug.Log("Luck v0.3 run stats: "+Metrics.Summary());
+        Debug.Log("Luck v0.6 run stats: "+Metrics.Summary());
         Time.timeScale = 0f;
         foreach (var activeBall in balls) if (activeBall) activeBall.isKinematic = true;
     }

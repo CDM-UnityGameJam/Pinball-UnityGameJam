@@ -142,7 +142,7 @@ public class Hud : MonoBehaviour
     public void ShowBatch(DiceBatch batch)
     {
         if(castToast!=null){if(castToast.text)Destroy(castToast.text.gameObject);popups.Remove(castToast);}
-        Popup(gm.board.TransformPoint(new Vector3(0,0,2)),DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets",batch.Tier==CastTier.Miss?Dim:batch.Tier==CastTier.Jackpot?Gold:Blue);
+        Popup(gm.board.TransformPoint(new Vector3(0,0,2)),DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets",batch.Tier==CastTier.Base?Dim:batch.Tier==CastTier.Jackpot?Gold:Blue);
         castToast=popups[popups.Count-1];
     }
     void RefreshDice()
@@ -152,7 +152,7 @@ public class Hud : MonoBehaviour
         if(batch==null)return;
         var names=new List<string>();foreach(var c in batch.Cards)names.Add(c.ToString());
         diceCards.text=string.Join("   |   ",names);
-        diceCards.color=batch.Revealed && batch.Tier!=CastTier.Miss?Gold:TextColor;
+        diceCards.color=batch.Revealed && batch.Tier!=CastTier.Base?Gold:TextColor;
         var faces=new List<string>();
         foreach(int value in batch.Dice)faces.Add(!batch.Revealed?"[ ? ]":value==batch.Number?"<color=#FFD56A>[ "+value+" ]</color>":"[ "+value+" ]");
         diceFaces.text=string.Join("   ",faces);
@@ -176,12 +176,12 @@ public class Hud : MonoBehaviour
         var batch=gm.LastBatch;
         previewText.text=batch==null?"No cast yet":!batch.Revealed?"Revealing dice...":DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets · "+batch.Kills+" kills";
         previewText.fontSize=17;previewText.color=batch!=null && batch.Revealed && batch.Tier==CastTier.Jackpot?Gold:Blue;
-        effectText.text=ElementStatus(Card.Equipment.Arc)+" · "+ElementStatus(Card.Equipment.Spark)+" · "+ElementStatus(Card.Equipment.Shockwave);
+        effectText.text="BALLS "+gm.BallCount+" · POWER "+gm.EmpoweredHits+" · "+ElementStatus(Card.Equipment.Arc)+" · "+ElementStatus(Card.Equipment.Spark)+" · "+ElementStatus(Card.Equipment.Shockwave);
         effectText.fontSize=19;
         energyText.text=gm.IsHandFull?"Equipment full":"Recharge: "+gm.RechargeProgress.ToString("0.#")+" / "+gm.RechargeRequired.ToString("0.#");
         rechargeHintText.text="Per card cast: required charge +"+gm.luck.rechargeCastCost.ToString("0.#");
         energyFill.anchorMax=new Vector2(gm.RechargeRequired<=0?0:Mathf.Clamp01((float)(gm.RechargeProgress/gm.RechargeRequired)),1);
-        metricsText.text="RUN STATS\nBatches: "+gm.Metrics.batches+" · Cards: "+gm.Metrics.plays+"\nMean hand: "+gm.Metrics.AverageHand.ToString("0.00")+" · Low gear: "+gm.Metrics.lowEquipmentSeconds.ToString("0.0")+"s\nMiss / Hit / Full / Jackpot: "+gm.Metrics.missBatches+" / "+gm.Metrics.standardBatches+" / "+gm.Metrics.fullFieldBatches+" / "+gm.Metrics.jackpotBatches;
+        metricsText.text="RUN STATS\nBatches: "+gm.Metrics.batches+" · Cards: "+gm.Metrics.plays+" · Skills: "+gm.Metrics.skillReleases+" · Matches: "+gm.Metrics.diceMatches+"\nMean hand: "+gm.Metrics.AverageHand.ToString("0.00")+" · Low gear: "+gm.Metrics.lowEquipmentSeconds.ToString("0.0")+"s\nBase / Hit / Full / Jackpot: "+gm.Metrics.baseBatches+" / "+gm.Metrics.standardBatches+" / "+gm.Metrics.fullFieldBatches+" / "+gm.Metrics.jackpotBatches;
         castButtonText.text="Cast "+selection.Count+" · Roll "+selection.Count+(selection.Count==1?" die":" dice");
         castButton.GetComponent<Image>().color=selection.Count>0 && gm.CanSubmit?ButtonColor:PanelEdge;
         castButtonText.color=selection.Count>0 && gm.CanSubmit?TextColor:Dim;
@@ -205,9 +205,9 @@ public class Hud : MonoBehaviour
         if(selection.Count==0)return;
         ghostCard.text=selection.Count+" selected · #"+selection.Number;
         var lines=new List<string>();
-        lines.Add("Group hit chance: "+DiceRules.HitChance(selection.Count).ToString("P1"));
-        lines.Add(selection.Count==1?"On match: Standard (up to 4 eligible foes)":"One match: Full Field · 2+ matches: Jackpot");
-        lines.Add("Currently eligible: "+previewTargets.Count+" unique foes");
+        lines.Add("Upgrade chance: "+DiceRules.HitChance(selection.Count).ToString("P1"));
+        lines.Add(selection.Count==1?"Base: 1 foe · Match: Hit (up to 4 foes)":"Base: 1 foe/type · 1 match: Full · 2+: Jackpot");
+        lines.Add("Currently eligible: "+previewTargets.Count+" unique foes · Power +"+selection.Count);
         for(int type=0;type<3;type++) {
             int spent=0;foreach(var c in selection.Cards)if((int)c.equipment==type)spent++;
             if(spent==0)continue;
@@ -321,11 +321,11 @@ public class Hud : MonoBehaviour
 
         SidePanel(H.build.leftHelpAnchor,H.build.leftHelpPosition,H.leftHelp,TextAnchor.UpperLeft,new[] {
             ("HOLD = BALL ENCHANTMENTS",TextColor,new[] {("Held cards combine by element",Green),("Enemy colors show their immunity",Dim),("Arc / Fire / Shock foes resist their own type",Dim),("Base ball hit: 4 neutral damage",Dim)}),
-            ("PLAY ONE OR COMBINE",Gold,new[] {("Play one card or combine cards",Dim),("of the same number. Roll one die per card.",Dim),("One match activates them all.",Gold),("A / D: flippers · R: pause / restart",Dim)})
+            ("PLAY ONE OR COMBINE",Gold,new[] {("Play one card or combine cards",Dim),("of the same number. Roll one die per card.",Dim),("A match upgrades them all.",Gold),("A / D: flippers · R: pause / restart",Dim)})
         });
         SidePanel(H.build.rightHelpAnchor,H.build.rightHelpPosition,H.rightHelp,TextAnchor.UpperLeft,new[] {
-            ("DICE RESULTS",TextColor,new[] {("No matching die: Miss",Dim),("One card + match: Hit (local)",Blue),("2+ cards, one match: Full Field",Blue),("2+ matching dice: Jackpot",Gold),("Repeated elements add waves or burn time",Dim)}),
-            ("RECHARGE",Gold,new[] {("100 base +50 required per card spent",Gold),("10/s recovery · +2.5 per eligible hit",Dim),("All sources share a rolling 16/s cap",Dim)})
+            ("DICE RESULTS",TextColor,new[] {("No matching die: Base (skill guaranteed)",Dim),("One card + match: Hit (local)",Blue),("2+ cards, one match: Full Field",Blue),("2+ matching dice: Jackpot",Gold),("Repeated elements add waves or burn time",Dim)}),
+            ("RECHARGE",Gold,new[] {("100 base +50 required per card spent",Gold),("10/s natural · contacts / first burn tick +2.5",Dim),("Combat budget 6/s · minimum +0.25/event",Dim)})
         });
         metricsText=Anchored(MakeText(root,"",16,Dim,TextAnchor.UpperLeft,Vector2.zero,new Vector2(400,150)),new Vector2(0,1),new Vector2(70,-830));
 
@@ -504,3 +504,4 @@ public class Hud : MonoBehaviour
     static string FormatTime(float t) => Mathf.FloorToInt(t / 60f).ToString("00") + ":" + Mathf.FloorToInt(t % 60f).ToString("00");
 
 }
+

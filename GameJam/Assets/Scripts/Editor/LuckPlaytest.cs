@@ -48,10 +48,11 @@ public static class LuckPlaytest
                     rows.Add(gm.Metrics);
                 }
             }
-            var report=new StringBuilder("# v0.5 single versus combined scripted comparison\n\nFixed 1.2-second hit attempts, five seeds per policy, up to 180 effective seconds. Both start with the same five cards and choose the largest same-number group under the same pressure condition. One policy submits one card per batch; the other combines up to two. Actual charge, dice, immunity, waves, statuses and queue logic run. These are synthetic contacts, not real pinball or human playtest results.\n\n|Policy|Seed|Batches|Cards spent|Miss/Hit/Full/Jackpot|Coverage|Batch kills|Breaches|Low gear (0-1) seconds|End|\n|---|---:|---:|---:|---|---:|---:|---:|---:|---|\n");
-            int i=0;foreach(var m in rows)report.Append($"|{m.policy}|{i++%5+1}|{m.batches}|{m.plays}|{m.missBatches}/{m.standardBatches}/{m.fullFieldBatches}/{m.jackpotBatches}|{m.coveredTargets}|{m.batchKills}|{m.breaches}|{m.lowEquipmentSeconds:F1}|{m.deathCause}|\n");
-            Directory.CreateDirectory("Docs");File.WriteAllText("Docs/LuckNumberV05ScriptedBalance.md",report.ToString());
-            Debug.Log("v0.5 scripted comparison saved to Docs/LuckNumberV05ScriptedBalance.md");
+            var report=new StringBuilder("# v0.6 single versus combined scripted comparison\n\nFixed 1.2-second hit attempts, five seeds per policy, up to 180 effective seconds. Both start with the same five cards and choose the largest same-number group under the same pressure condition. One policy submits one card per batch; the other combines up to two. Actual charge, dice, immunity, waves, statuses and queue logic run. These are synthetic contacts, not real pinball or human playtest results.\n\n|Policy|Seed|Batches|Cards spent|Base/Hit/Full/Jackpot|Coverage|Batch kills|Breaches|Low gear (0-1) seconds|End|\n|---|---:|---:|---:|---|---:|---:|---:|---:|---|\n");
+            int i=0;foreach(var m in rows)report.Append($"|{m.policy}|{i++%5+1}|{m.batches}|{m.plays}|{m.baseBatches}/{m.standardBatches}/{m.fullFieldBatches}/{m.jackpotBatches}|{m.coveredTargets}|{m.batchKills}|{m.breaches}|{m.lowEquipmentSeconds:F1}|{m.deathCause}|\n");
+            Directory.CreateDirectory("Docs");File.WriteAllText("Docs/LuckNumberV06ScriptedBalance.md",report.ToString());
+            Debug.Log("v0.5 scripted comparison saved to Docs/LuckNumberV06ScriptedBalance.md");
         }finally{GameManager.Instance=original;Hud.Instance=hud;UnityEngine.Random.state=random;Physics.gravity=gravity;Time.timeScale=scale;Time.fixedDeltaTime=step;}
     }
 }
+

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-public enum CastTier { Miss, Standard, FullField, Jackpot }
+public enum CastTier { Base, Standard, FullField, Jackpot }
 
 // Pure rules shared by the battle entry point, selection UI and standalone checks.
 public static class DiceRules
@@ -14,7 +14,7 @@ public static class DiceRules
     {
         if(number<1 || number>6 || faces==null || !ValidFaces(faces,faces.Count))throw new ArgumentException("Invalid dice batch");
         int matches=Matches(number,faces);
-        return matches==0?CastTier.Miss:faces.Count==1?CastTier.Standard:matches==1?CastTier.FullField:CastTier.Jackpot;
+        return matches==0?CastTier.Base:faces.Count==1?CastTier.Standard:matches==1?CastTier.FullField:CastTier.Jackpot;
     }
     public static bool ValidSelection<T>(IList<T> cards,IList<T> hand,Func<T,int> number) where T:class
     {
@@ -29,6 +29,6 @@ public static class DiceRules
         }
         return true;
     }
-    public static string Label(CastTier tier) { return tier==CastTier.Miss?"Miss":tier==CastTier.Standard?"Hit":tier==CastTier.FullField?"Full Field":"Jackpot"; }
+    public static string Label(CastTier tier) { return tier==CastTier.Base?"Base":tier==CastTier.Standard?"Hit":tier==CastTier.FullField?"Full Field":"Jackpot"; }
 }
 

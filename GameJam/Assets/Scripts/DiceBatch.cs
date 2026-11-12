@@ -29,7 +29,6 @@ public sealed class DiceBatch : AttackRecord
     {
         this.cards=(Card[])cards.Clone();this.dice=(int[])dice.Clone();Number=cards[0].number;
         Tier=DiceRules.Tier(Number,dice);Matches=DiceRules.Matches(Number,dice);RevealAt=revealAt;
-        if(Tier==CastTier.Miss)return;
         for(int type=0;type<3;type++) {
             int count=0;foreach(var c in cards)if((int)c.equipment==type)count++;
             if(count==0)continue;

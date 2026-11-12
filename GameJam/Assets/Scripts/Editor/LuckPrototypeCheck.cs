@@ -9,7 +9,7 @@ using Object=UnityEngine.Object;
 public static class LuckPrototypeCheck
 {
     const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
-    static void Check(bool ok,string text){if(!ok)throw new Exception("v0.5: "+text);}
+    static void Check(bool ok,string text){if(!ok)throw new Exception("v0.6: "+text);}
     static void Near(double a,double b,string text)=>Check(Math.Abs(a-b)<.0002,text+$" ({a} != {b})");
     internal static void State(GameManager gm,string value){var f=typeof(GameManager).GetField("state",Private);f.SetValue(gm,Enum.Parse(f.FieldType,value));}
     internal sealed class Fixture:IDisposable
@@ -36,8 +36,8 @@ public static class LuckPrototypeCheck
             foreach(int face in new[]{3,6})using(var f=new Fixture()){
                 var gm=f.gm;var card=C(Card.Equipment.Arc);f.Hand(card);var target=f.Enemy();gm.DebugSetDice(new[]{face});Check(gm.UseCard(0),"single accepted");
                 Check(target.hp==100 && gm.PendingBatch!=null,"no damage before reveal");gm.TickGameplay(.449f);Check(target.hp==100,"reveal waits combat time");gm.TickGameplay(.001f);
-                Check(gm.LastBatch.Tier==(face==6?CastTier.Standard:CastTier.Miss),"one die determines miss or standard");
-                Check(target.hp==(face==6?88:100),"first wave only applies on match");gm.TickGameplay(.25f);Check(target.hp==(face==6?76:100),"standard is two timed 12-damage waves");
+                Check(gm.LastBatch.Tier==(face==6?CastTier.Standard:CastTier.Base),"one die determines Base or Hit");
+                Check(target.hp==88,"first wave always applies");gm.TickGameplay(.25f);Check(target.hp==(face==6?76:88),"standard is two timed 12-damage waves");
             }
             foreach(bool jackpot in new[]{false,true})using(var f=new Fixture()){
                 var gm=f.gm;var arc=C(Card.Equipment.Arc);var fire=C(Card.Equipment.Spark);var held=C(Card.Equipment.Shockwave);f.Hand(arc,fire,held);
@@ -52,7 +52,7 @@ public static class LuckPrototypeCheck
             }
             using(var f=new Fixture()){
                 var gm=f.gm;var fire2=C(Card.Equipment.Spark,2);var arc6=C(Card.Equipment.Arc);var fire6=C(Card.Equipment.Spark);f.Hand(fire2,arc6,fire6);
-                Account(gm).Earn(0,7,16);gm.DebugSetDice(new[]{1,6});var randomBefore=UnityEngine.Random.state;double p=gm.RechargeProgress,r=gm.RechargeRequired,w=gm.RechargeWindowUsed;
+                Account(gm).EarnNatural(7);gm.DebugSetDice(new[]{1,6});var randomBefore=UnityEngine.Random.state;double p=gm.RechargeProgress,r=gm.RechargeRequired,w=gm.RechargeWindowUsed;
                 Check(!gm.UseCards(new[]{fire2,arc6}) && !gm.UseCards(new[]{arc6,arc6}) && !gm.UseCards(new[]{C(Card.Equipment.Arc)}),"mixed, duplicate and foreign instances rejected");
                 Check(gm.CardCount==3 && gm.PendingBatch==null && gm.PendingCasts==0 && gm.FixedDice=="1, 6" && UnityEngine.Random.state.Equals(randomBefore),"rejected batch changes neither hand nor dice state");
                 Near(gm.RechargeProgress,p,"invalid progress unchanged");Near(gm.RechargeRequired,r,"invalid cost unchanged");Near(gm.RechargeWindowUsed,w,"invalid limiter history unchanged");
@@ -85,8 +85,8 @@ public static class LuckPrototypeCheck
                 gm.DebugSetDice(new[]{6});gm.UseCard(0);gm.TickGameplay(.45f);
                 Check(gm.LastBatch.Tier==CastTier.Standard && gm.LastBatch.CoverageCount==0 && gm.CardCount==0 && immune.hp==100,"a hit with no eligible targets still consumes cards and shows zero coverage");
             }
-            CheckPassives();CheckRecharge();
-            Debug.Log("v0.5 ACCEPTANCE PASSED: single/combined dice, immunity, merged elements, atomic rejection, locked targets, shared kills, pause, charge and passive rules.");
+            CheckPassives();CheckRecharge();V06Checks.Run();
+            Debug.Log("v0.6 ACCEPTANCE PASSED: single/combined dice, immunity, merged elements, atomic rejection, locked targets, shared kills, pause, charge and passive rules.");
         }finally{GameManager.Instance=original;Hud.Instance=hud;UnityEngine.Random.state=random;Physics.gravity=gravity;Time.timeScale=scale;Time.fixedDeltaTime=step;}
     }
     static void CheckPassives()
@@ -106,9 +106,7 @@ public static class LuckPrototypeCheck
             var gm=f.gm;var a=C(Card.Equipment.Arc);var b=C(Card.Equipment.Spark);var c=C(Card.Equipment.Shockwave);f.Hand(a,b,c,C(Card.Equipment.Arc,2),C(Card.Equipment.Spark,5));
             gm.DebugSetDice(hit?new[]{6,2,1}:new[]{1,2,3});gm.UseCards(new[]{a,b,c});Near(gm.RechargeRequired,250,"three cards, same batch cost on miss or hit");gm.TickGameplay(25);Check(gm.CardCount==3,"250 total refills first card");gm.TickGameplay(10);Check(gm.CardCount==4,"350 refills second");gm.TickGameplay(10);Check(gm.CardCount==5 && gm.RechargeProgress==0,"450 refills third, full clears excess");
         }
-        using(var f=new Fixture()){
-            var gm=f.gm;gm.DebugSetDice(new[]{1});gm.UseCard(0);var e=f.Enemy(Card.Equipment.Spark,hp:1000);e.TryBallHit(f.Ball());Near(gm.Metrics.hitCharge,2.5,"uniform hit reward regardless of hand number");gm.TickGameplay(.2f);e.TryBallHit(f.Ball());Near(gm.Metrics.hitCharge,2.5,"single-monster recharge cooldown unchanged");
-            for(int i=0;i<20;i++)f.Enemy(Card.Equipment.Arc,x:i*4,hp:1000).TryBallHit(f.Ball());Check(gm.RechargeWindowUsed<=16.000001,"multi-ball/all-source rolling cap");
-        }
+
     }
 }
+

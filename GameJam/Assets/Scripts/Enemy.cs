@@ -20,7 +20,7 @@ public class Enemy : MonoBehaviour
 
     float flashLeft;
     double lastHit = double.NegativeInfinity;
-    double lastRechargeHit = double.NegativeInfinity;
+    readonly System.Collections.Generic.Dictionary<Rigidbody,System.Collections.Generic.HashSet<Collider>> contacts=new System.Collections.Generic.Dictionary<Rigidbody,System.Collections.Generic.HashSet<Collider>>();
     Rigidbody body;
     Collider hitCollider;
     OuterRingSurface surface;
@@ -105,19 +105,29 @@ public class Enemy : MonoBehaviour
     {
         Bounce(c);
         NudgeSlowBall(c);
-        TryBallHit(c.rigidbody, c.contactCount>0 ? c.GetContact(0).point : transform.position);
+        BeginBallContact(c.rigidbody,c.collider,c.contactCount>0?c.GetContact(0).point:transform.position);
     }
-
-    public bool TryBallHit(Rigidbody ball) => TryBallHit(ball,transform.position);
-    public bool TryBallHit(Rigidbody ball,Vector3 collisionPoint)
+    public bool BeginBallContact(Rigidbody ball,Collider collider,Vector3 point)
     {
-        var gm = GameManager.Instance;
-        if (!gm || !gm.IsPlaying || !Alive || !ball || ball.isKinematic || !ball.CompareTag("Player") || gm.CombatTime - lastHit < settings.hitCooldown - .000001) return false;
-        lastHit = gm.CombatTime;
-        bool missing=!gm.IsHandFull;
-        bool chargeEligible=missing && gm.CombatTime-lastRechargeHit>=gm.luck.rechargeEnemyCooldown;
-        if(chargeEligible) lastRechargeHit=gm.CombatTime;
-        gm.RegisterBallHit(this,collisionPoint,missing,chargeEligible);
+        if(!ball || !collider)return false;
+        if(!contacts.TryGetValue(ball,out var colliders)){colliders=new System.Collections.Generic.HashSet<Collider>();contacts.Add(ball,colliders);}
+        bool first=colliders.Count==0;
+        if(!colliders.Add(collider) || !first)return false;
+        return TryBallHit(ball,point);
+    }
+    public void EndBallContact(Rigidbody ball,Collider collider)
+    {if(ball && contacts.TryGetValue(ball,out var colliders)){colliders.Remove(collider);if(colliders.Count==0)contacts.Remove(ball);}}
+    void OnCollisionExit(Collision c)=>EndBallContact(c.rigidbody,c.collider);
+    void OnDisable()=>contacts.Clear();
+    // One call represents a NEW contact, not a continuing contact/physics frame.
+    public bool TryBallHit(Rigidbody ball)=>TryBallHit(ball,transform.position);
+    public bool TryBallHit(Rigidbody ball,Vector3 point)
+    {
+        var gm=GameManager.Instance;
+        if(!gm || !gm.IsPlaying || !Alive || !ball || ball.isKinematic || !ball.CompareTag("Player"))return false;
+        bool damageAllowed=gm.CombatTime-lastHit>=settings.hitCooldown-.000001;
+        if(damageAllowed)lastHit=gm.CombatTime;
+        gm.RegisterBallHit(this,point,damageAllowed);
         return true;
     }
 
@@ -181,6 +191,7 @@ public class Enemy : MonoBehaviour
     double passiveBurnUntil=double.NegativeInfinity, activeBurnUntil=double.NegativeInfinity;
     double nextBurnTick=double.PositiveInfinity, stunUntil=double.NegativeInfinity, immuneUntil=double.NegativeInfinity;
     AttackRecord passiveBurnSource,activeBurnSource;
+    bool burnChargeUsed;
     public double NextBurnTickAt => Alive ? nextBurnTick : double.PositiveInfinity;
     double Now => GameManager.Instance.CombatTime;
     public bool IsBurning => Alive && (passiveBurnUntil>Now || activeBurnUntil>Now);
@@ -192,7 +203,7 @@ public class Enemy : MonoBehaviour
     public void Ignite(bool active,float duration,AttackRecord source)
     {
         if(!CanReceive(Card.Equipment.Spark) || !GameManager.Instance.IsPlaying || duration<=0) return;
-        if(!IsBurning) nextBurnTick=Now+Mathf.Max(.01f,GameManager.Instance.luck.burnTickInterval);
+        if(!IsBurning){nextBurnTick=Now+Mathf.Max(.01f,GameManager.Instance.luck.burnTickInterval);burnChargeUsed=false;}
         double until=Now+duration;
         if(active) {
             if(until>=activeBurnUntil) { activeBurnUntil=until; activeBurnSource=source; }
@@ -219,7 +230,9 @@ public class Enemy : MonoBehaviour
             int dps=useActive ? t.activeBurnDps : t.passiveBurnDps;
             var source=useActive ? activeBurnSource : passiveBurnSource;
             if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.BurnTick(transform.position,strong);
+            int before=hp;Vector3 point=transform.position;
             TakeElementDamage(Mathf.FloorToInt(dps*t.burnTickInterval+.5f),Card.Equipment.Spark,source);
+            if(!burnChargeUsed && hp<before){burnChargeUsed=true;GameManager.Instance.EarnCombatRecharge(point,true);}
         }
         double following=nextBurnTick+Mathf.Max(.01f,t.burnTickInterval);
         nextBurnTick=Alive && System.Math.Max(passiveBurnUntil,activeBurnUntil)>Now+.000001 ? following : double.PositiveInfinity;

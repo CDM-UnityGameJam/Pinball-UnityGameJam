@@ -4944,10 +4944,11 @@ MonoBehaviour:
     rechargeCastCost: 50
     rechargePerSecond: 10
     rechargeHit: 2.5
-    rechargeEnemyCooldown: 1
-    rechargeRollingCap: 16
+    rechargeCombatBudget: 6
+    rechargeCombatMinimum: 0.25
     diceRevealDelay: 0.45
     collisionDamage: 4
+    empoweredCollisionDamage: 8
     passiveArcDamage: 4
     passiveArcRadius: 3
     passiveSparkRadius: 2.5
@@ -4964,6 +4965,10 @@ MonoBehaviour:
     activeShockDamage: 8
     arcWaveInterval: 0.25
     shockWaveInterval: 0.35
+    baseTargets: 1
+    baseWaves: 1
+    baseBurn: 1
+    baseStun: 0.5
     standardTargets: 4
     standardArcWaves: 2
     fullArcWaves: 3

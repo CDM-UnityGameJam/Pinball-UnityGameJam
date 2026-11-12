@@ -41,8 +41,9 @@ public static class RechargeBatchCheck
     {
         EditorApplication.update-=WaitForPlay;
         Directory.CreateDirectory("tmp");
-        File.WriteAllText("tmp/v05-functional-result.txt",(passed?"PASS":"FAIL")+"\n"+detail);
-        Debug.Log("V05 FUNCTIONAL "+(passed?"PASS ":"FAIL ")+detail);
+        File.WriteAllText("tmp/v06-functional-result.txt",(passed?"PASS":"FAIL")+"\n"+detail);
+        Debug.Log("V06 FUNCTIONAL "+(passed?"PASS ":"FAIL ")+detail);
         EditorApplication.Exit(passed?0:1);
     }
 }
+

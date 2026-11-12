@@ -54,6 +54,7 @@ public class CombatVfx : MonoBehaviour
     }
     public void ActiveHit(Card.Equipment type,Vector3 target,CastTier tier)
     {
+        if(tier==CastTier.Base){if(type==Card.Equipment.Arc)Lightning(target+Gm.board.forward*.7f,target,false);else Ring(target,.55f,false);return;}
         if(type==Card.Equipment.Arc) Lightning(target+Gm.board.forward*(tier!=CastTier.Standard?3f:1.3f)+Gm.board.up*(tier!=CastTier.Standard?2f:.5f),target,true);
         else Ring(target,tier!=CastTier.Standard?1.6f:.9f,true);
     }

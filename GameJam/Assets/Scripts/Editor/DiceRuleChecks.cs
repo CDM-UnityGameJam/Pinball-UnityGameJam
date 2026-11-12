@@ -14,9 +14,9 @@ public static class DiceRuleChecks
         for(int n=1;n<=5;n++) {
             var counts=new int[4];Enumerate(new int[n],0,6,counts);
             int total=(int)Math.Pow(6,n),miss=(int)Math.Pow(5,n);
-            Check(counts[0]==miss,"miss probability");Check(Math.Abs((total-counts[0])/(double)total-DiceRules.HitChance(n))<1e-12,"group hit probability");
+            Check(counts[0]==miss,"base probability");Check(Math.Abs((total-counts[0])/(double)total-DiceRules.HitChance(n))<1e-12,"group hit probability");
             if(n==1)Check(counts[1]==1 && counts[2]==0 && counts[3]==0,"one die can never jackpot or full-field");
-            if(n==2)Check(counts[0]==25 && counts[2]==10 && counts[3]==1,"two dice: 25 miss / 10 full field / 1 jackpot");
+            if(n==2)Check(counts[0]==25 && counts[2]==10 && counts[3]==1,"two dice: 25 base / 10 full field / 1 jackpot");
         }
         var a=new Card(6,Card.Equipment.Arc);var b=new Card(6,Card.Equipment.Spark);var c=new Card(2,Card.Equipment.Shockwave);
         var hand=new Card[]{c,a,b};var selected=new CardSelection();
@@ -34,7 +34,7 @@ public static class DiceRuleChecks
         Check(!DiceRules.ValidSelection(new Card[]{null},hand,x=>x.number),"null rejected");
         Check(!DiceRules.ValidFaces(new int[]{6,0},2) && !DiceRules.ValidFaces(new int[]{6,7},2),"invalid dice rejected");
         var meter=new RechargeAccount();meter.PlayBatch(true,3,100,50);Check(meter.Required==250,"batch cost is applied once by actual card count");
-        meter.Earn(0,7,16);meter.PlayBatch(false,2,100,50);Check(meter.Required==350 && meter.Progress==7,"another batch preserves progress and adds 100");
+        meter.EarnNatural(7);meter.PlayBatch(false,2,100,50);Check(meter.Required==350 && meter.Progress==7,"another batch preserves progress and adds 100");
         return "Dice rules PASSED: exhaustive 1-5 dice outcomes, 25/10/1 two-dice tiers, instance validation, selection locking and batch costs.";
     }
 }
