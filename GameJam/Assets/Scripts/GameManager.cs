@@ -16,15 +16,25 @@ public class GameManager : MonoBehaviour
     public SfxCue pinballHitCreature;
     [Tooltip("Enemy reaction played alongside the ball contact sound. Defaults to SFX_ctr_getHit.")]
     public SfxCue creatureGetHit;
+    [Tooltip("Played once when a card batch is successfully cast. Defaults to SFX_ui_card_powerUp.")]
+    public SfxCue cardPowerUp;
+    [Tooltip("Played when score increases. Defaults to SFX_ui_score.")]
+    public SfxCue scoreIncrease;
 
     [Header("Run / Cards / Scoring")]
     [Min(1)] public int handSize = 5;
     [Min(0f)] public float launchWait = 3f;
     [Min(0)] public int normalKillPoints = 50;
     [Min(0)] public int breachLifeCost = 1;
-    [Min(0)] public int drainLifeCost = 1;
     [Min(0.001f)] public float physicsStep = 0.01f;
-    public LuckTuning luck = new LuckTuning();
+    public CardBalanceConfig cardBalanceConfig;
+    readonly LuckTuning safeCardDefaults=new LuckTuning();
+    bool warnedMissingCardConfig;
+    public LuckTuning luck {
+        get {if(cardBalanceConfig)return cardBalanceConfig.Effective;
+            if(!warnedMissingCardConfig){warnedMissingCardConfig=true;Debug.LogWarning("CardBalanceConfig missing; using safe defaults.",this);}return safeCardDefaults;}
+    }
+    public bool DevelopmentTools=>Application.isEditor||Debug.isDebugBuild;
     [Header("Spawn Layout / Probability / Targets")]
     public SpawnTuning spawning = new SpawnTuning();
     [Header("Normal Enemy")]
@@ -46,8 +56,9 @@ public class GameManager : MonoBehaviour
 
     public Transform board;
     public Rigidbody ball;
-    // Between and just below the flipper tips (tips sit near z -8.3, x ±0.6).
-    public Vector3 launchLocal = new Vector3(0f, 0.3f, -9f);
+    // Above the complete flipper sweep, with clearance over the lower entry ramp.
+    [Tooltip("Board-local launch point above the flippers, toward the playfield. Y must clear the ramp and ball radius.")]
+    public Vector3 launchLocal = new Vector3(0f, 0.555f, -5.5f);
     public float launchSpeed = 18f;
     public float launchBiasDegrees = 8f;
     public float gravity = 60f;
@@ -65,13 +76,21 @@ public class GameManager : MonoBehaviour
     public float extraBallDropSpeed = 4f;
     int pendingBalls; // earned but not yet created
     bool launchingBalls;
-    [Header("Enemy Timing")]
-    [Min(0.1f), Tooltip("Seconds between normal-enemy spawn attempts.")]
-    public float spawnInterval = 5f;
-    [Min(0.1f), Tooltip("Seconds for normal enemies to reach the danger line.")]
-    public float enemyDescendTime = 40f;
+    [Header("Difficulty")]
+    public DifficultyConfig difficultyConfig;
+    public readonly DifficultyClock DifficultyDebug=new DifficultyClock();
+    public readonly DifficultyTelemetry DifficultyStats=new DifficultyTelemetry();
+    public double DifficultyTime=>DifficultyDebug.Time(CombatTime);
+    public DifficultySample CurrentDifficulty=>difficultyConfig
+        ?difficultyConfig.Sample(DifficultyTime,spawning.normalSpawnZ-spawning.dangerZ,DifficultyDebug.SpawnOverride,DifficultyDebug.MoveOverride)
+        :DifficultyRules.Evaluate(DifficultyTime,2,40,1,1,null,spawning.normalSpawnZ-spawning.dangerZ,DifficultyDebug.SpawnOverride,DifficultyDebug.MoveOverride);
+    public float CurrentSpawnInterval=>(float)CurrentDifficulty.interval;
+    public float CurrentMoveSpeed=>(float)CurrentDifficulty.speed;
+    public int CurrentSpawnHealth=>CurrentDifficulty.spawnHealth;
+    Spawner difficultySpawner;
     RunState state;
     bool paused;
+    bool relaunchPending;
     float countdown, activeTime;
     int lives;
     long score;
@@ -88,8 +107,18 @@ public class GameManager : MonoBehaviour
         if (!pinballHit) pinballHit = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hit");
         if (!pinballHitCreature) pinballHitCreature = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hitCreature");
         if (!creatureGetHit) creatureGetHit = Resources.Load<SfxCue>("PinballAudio/SFX_ctr_getHit");
+        if (!cardPowerUp) cardPowerUp = Resources.Load<SfxCue>("PinballAudio/SFX_ui_card_powerUp");
+        if (!scoreIncrease) scoreIncrease = Resources.Load<SfxCue>("PinballAudio/SFX_ui_score");
+        DifficultyDebug.Reset();
+#if UNITY_EDITOR
+        // Consume a one-shot preview before opening enemies are initialized in Start.
+        float previewTime=UnityEditor.SessionState.GetFloat("Luck.NextDifficultyTime",-1);
+        if(previewTime>=0){DifficultyDebug.Specify(previewTime);UnityEditor.SessionState.EraseFloat("Luck.NextDifficultyTime");}
+#endif
         handSize = 5;
-        hand = new Card[] { new Card(6, Card.Equipment.Spark), new Card(6, Card.Equipment.Shockwave), new Card(2, Card.Equipment.Arc), new Card(4, Card.Equipment.Arc), new Card(5, Card.Equipment.Spark) };
+        hand = new Card[handSize];
+        recharge.StartMissing(luck.rechargeBaseCost);
+        Metrics.StartRechargeInterval(0);DifficultyStats.BeginRefill(0);
         Time.fixedDeltaTime = Mathf.Max(0.001f, physicsStep);
         Physics.gravity = Vector3.down * gravity;
     }
@@ -104,9 +133,12 @@ public class GameManager : MonoBehaviour
         Vfx = gameObject.AddComponent<CombatVfx>();
         AttachBallVisuals(ball);
         if (!ball.GetComponent<PinballCollisionAudio>()) ball.gameObject.AddComponent<PinballCollisionAudio>();
-        gameObject.AddComponent<Spawner>();
-        new GameObject("Hud").AddComponent<Hud>();
+        // Clear the authored ball pose from the spawn area before checking opening positions.
         BeginWaiting();
+        difficultySpawner=gameObject.AddComponent<Spawner>();
+        difficultySpawner.Initialize(this);
+        if(Application.isEditor||Debug.isDebugBuild)gameObject.AddComponent<DifficultyDebugPanel>();
+        new GameObject("Hud").AddComponent<Hud>();
     }
 
     void Update()
@@ -159,6 +191,18 @@ public class GameManager : MonoBehaviour
         if (pinballLaunch) pinballLaunch.Play(ball.position);
     }
 
+    // A lost last ball starts a combat-time countdown, without entering the opening wait state.
+    void TickRelaunch(double elapsed)
+    {
+        if(!relaunchPending || !IsPlaying)return;
+        if(balls.Count>0 || pendingBalls>0){relaunchPending=false;countdown=0;return;}
+        countdown=Mathf.Max(0,countdown-(float)elapsed);
+        if(countdown>.000001f)return;
+        relaunchPending=false;countdown=0;
+        ball=CreateBall();LaunchBall(ball);
+        if (pinballLaunch) pinballLaunch.Play(ball.position);
+    }
+
     Rigidbody CreateBall()
     {
         var added = Instantiate(ballTemplate);
@@ -167,6 +211,7 @@ public class GameManager : MonoBehaviour
         added.transform.position = added.position = board.TransformPoint(launchLocal);
         added.gameObject.SetActive(true);
         balls.Add(added);
+        if(!ball)ball=added;
         AttachBallVisuals(added);
         if (!added.GetComponent<PinballCollisionAudio>()) added.gameObject.AddComponent<PinballCollisionAudio>();
         return added;
@@ -261,6 +306,7 @@ public class GameManager : MonoBehaviour
     public int PendingCasts=>casts.Count;
     public bool IsPlaying=>state==RunState.Playing && !paused;
     public bool IsWaiting=>state==RunState.Waiting;
+    public bool IsRelaunching=>relaunchPending && !IsGameOver;
     public bool IsGameOver=>state==RunState.GameOver;
     public bool Paused=>paused;
     public float Countdown=>countdown;
@@ -286,30 +332,31 @@ public class GameManager : MonoBehaviour
     public bool UseCards(IList<Card> selected)
     {
         if(!CanSubmit || !DiceRules.ValidSelection(selected,hand,c=>c.number))return false;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        if(fixedDice!=null && fixedDice.Length!=selected.Count)return false;
-#endif
+        if(DevelopmentTools && fixedDice!=null && fixedDice.Length!=selected.Count)return false;
         var cards=new Card[selected.Count];selected.CopyTo(cards,0);
         var snapshot=EquipmentResolver.Snapshot(this);
+        var tuning=luck;
+        var prepared=new DiceBatch(cards,RollDice(cards.Length),CombatTime+tuning.diceRevealDelay,snapshot,tuning);
+        float baseCost=tuning.rechargeBaseCost,extraCost=tuning.rechargeCastCost;
+        int granted=(int)System.Math.Min(int.MaxValue,(long)cards.Length*tuning.empoweredHitsPerCard);
         bool wasFull=IsHandFull;resolving=true;
         try {
             for(int i=0;i<hand.Length;i++)foreach(var c in cards)if(ReferenceEquals(hand[i],c)){SlotReplaced?.Invoke(i);hand[i]=null;break;}
             CompactHand();
-            if(wasFull)Metrics.StartRechargeInterval(CombatTime);
-            recharge.PlayBatch(wasFull,cards.Length,luck.rechargeBaseCost,luck.rechargeCastCost);
-            EmpoweredHits=(int)System.Math.Min(int.MaxValue,(long)EmpoweredHits+cards.Length);
-            Metrics.empoweredGranted+=cards.Length;
+            if(wasFull){Metrics.StartRechargeInterval(CombatTime);DifficultyStats.BeginRefill(CombatTime);}
+            recharge.PlayBatch(wasFull,cards.Length,baseCost,extraCost);
+            EmpoweredHits=(int)System.Math.Min(int.MaxValue,(long)EmpoweredHits+granted);
+            Metrics.empoweredGranted+=granted;
             RefreshBallEnchantments();
-            PendingBatch=new DiceBatch(cards,RollDice(cards.Length),CombatTime+Mathf.Max(0,luck.diceRevealDelay),snapshot,luck);
+            PendingBatch=prepared;
+            if (cardPowerUp) cardPowerUp.Play(transform.position);
             LastBatch=PendingBatch;Metrics.RecordBatch(cards.Length);BatchSubmitted?.Invoke(PendingBatch);
         }finally {resolving=false;}
         return true;
     }
     int[] RollDice(int count)
     {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        if(fixedDice!=null){var result=(int[])fixedDice.Clone();fixedDice=null;return result;}
-#endif
+        if(DevelopmentTools && fixedDice!=null){var result=(int[])fixedDice.Clone();fixedDice=null;return result;}
         var resultDice=new int[count];for(int i=0;i<count;i++)resultDice[i]=Random.Range(1,7);return resultDice;
     }
     void RevealBatch()
@@ -328,10 +375,7 @@ public class GameManager : MonoBehaviour
     }
     public string EnchantmentSummary(Card.Equipment type,int count)
     {
-        if(count<=0)return "Enchantment lost";
-        if(type==Card.Equipment.Arc)return $"{luck.ArcTargets(count)} other non-immune foes in {luck.passiveArcRadius:0.#}m";
-        if(type==Card.Equipment.Spark)return $"Ignite hit target + {luck.ExtraSparkTargets(count)} nearby non-immune foes";
-        return $"Shockwave radius: {luck.ShockRadius(count):0.##}m";
+        return luck.HeldSummary(type,count);
     }
     public void RegisterBallHit(Enemy direct,Vector3 point,bool damageAllowed)
     {
@@ -351,26 +395,26 @@ public class GameManager : MonoBehaviour
                 EquipmentResolver.BallHit(this,direct,point,source);
             } else Metrics.cooldownContacts++;
             // New cards never participate in this contact's damage/enchantments.
-            if(missing)EarnCombatRecharge(point,false);
+            if(missing)EarnCollisionRecharge(point);
         }finally{resolving=false;}
     }
-    public double EarnCombatRecharge(Vector3 point,bool burn)
+    public double EarnCollisionRecharge(Vector3 point)
     {
         double actual=EarnRecharge(luck.rechargeHit,false);
-        if(actual>0){if(burn){Metrics.burnChargeEvents++;Metrics.burnCharge+=actual;}else {Metrics.collisionChargeEvents++;Metrics.collisionCharge+=actual;}}
-        double shown=System.Math.Floor(actual*100+1e-8)/100;
-        if(shown>0 && Hud.Instance)Hud.Instance.Popup(point-board.forward*1.2f,"+"+shown.ToString("0.##")+(burn?" BURN":""),Hud.Blue);
+        if(actual>0){Metrics.collisionChargeEvents++;Metrics.collisionCharge+=actual;}
+        if(actual>0 && Hud.Instance)Hud.Instance.Popup(point-board.forward*1.2f,"+"+actual.ToString("G6"),Hud.Blue);
         return actual;
     }
     double EarnRecharge(double amount,bool natural)
     {
         if(!IsPlaying || IsHandFull)return 0;
         recharge.StartMissing(luck.rechargeBaseCost);
-        double actual=natural?recharge.EarnNatural(amount):recharge.EarnCombat(CombatTime,amount,luck.rechargeCombatBudget,luck.rechargeCombatMinimum);
+        double actual=natural?recharge.EarnNatural(amount):recharge.EarnCombat(CombatTime,amount);
         Metrics.RecordRecharge(amount,actual,natural);
-        while(!IsHandFull && recharge.Consume(luck.rechargeBaseCost)){AddCard(Card.Random());Metrics.RecordRefill(CombatTime);}
+        ResolveRecharge();
         return actual;
     }
+    void ResolveRecharge(){while(!IsHandFull && recharge.Consume(luck.rechargeBaseCost)){AddCard(Card.Random());Metrics.RecordRefill(CombatTime);DifficultyStats.RefillCompleted(CombatTime);}}
     public void TickGameplay(float elapsed)
     {
         if(!IsPlaying || resolving || elapsed<=0 || float.IsNaN(elapsed) || float.IsInfinity(elapsed))return;
@@ -384,10 +428,13 @@ public class GameManager : MonoBehaviour
             next=System.Math.Max(combatTime,next);Metrics.Tick((float)(next-combatTime),CardCount);
             if(missing)Metrics.TickRecharge((float)(next-combatTime),enemies.Count);
             combatTime=next;activeTime=(float)combatTime;
+            DifficultyStats.Trim(combatTime);
+            if(difficultySpawner && difficultySpawner.enabled)difficultySpawner.TickCombat(combatTime-before);
             foreach(var e in enemies)if(e.Alive)e.TickStatus();
             if(PendingBatch!=null && PendingBatch.RevealAt<=combatTime+epsilon)RevealBatch();
             for(int i=casts.Count-1;i>=0;i--){var cast=casts[i];if(cast.NextWaveAt<=combatTime+epsilon)cast.FireWave(this);if(cast.Complete)casts.RemoveAt(i);}
             if(missing)EarnRecharge(luck.rechargePerSecond*(combatTime-before),true);
+            TickRelaunch(combatTime-before);
         }
         RefreshBallEnchantments();
     }
@@ -401,23 +448,26 @@ public class GameManager : MonoBehaviour
         }
         return false;
     }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
     int[] fixedDice;
     public string FixedDice=>fixedDice==null?"Random":string.Join(", ",fixedDice);
     public bool DebugSetDice(int[] dice)
     {
-        if(dice==null || !DiceRules.ValidFaces(dice,dice.Length))return false;
+        if(!DevelopmentTools || dice==null || !DiceRules.ValidFaces(dice,dice.Length))return false;
         fixedDice=(int[])dice.Clone();return true;
     }
-    public void DebugClearDice()=>fixedDice=null;
-    public bool DebugAddCard(int number,Card.Equipment equipment)=>!IsGameOver && AddCard(new Card(number,equipment));
-#endif
-    public Enemy SpawnEnemy(Card.Equipment element,Vector3 local)=>Enemy.Create(board,Enemy.Kind.Normal,element,local);
+    public void DebugClearDice(){if(DevelopmentTools)fixedDice=null;}
+    public bool DebugAddCard(int number,Card.Equipment equipment)=>DevelopmentTools && !IsGameOver && number>=1 && number<=6 && (int)equipment>=0 && (int)equipment<3 && AddCard(new Card(number,equipment));
+    public void DebugClearEmpowered(){if(DevelopmentTools)EmpoweredHits=0;}
+    public bool DebugFillRecharge(){if(!DevelopmentTools||!IsPlaying||resolving||IsHandFull)return false;recharge.StartMissing(luck.rechargeBaseCost);recharge.EarnNatural(System.Math.Max(0,recharge.Required-recharge.Progress));ResolveRecharge();return true;}
+    public Enemy SpawnEnemy(Card.Equipment element,Vector3 local){var enemy=Enemy.Create(board,Enemy.Kind.Normal,element,local);if(enemy)DifficultyStats.Spawn(CombatTime);return enemy;}
     public long OnNormalKill(AttackRecord source = null)
     {
         long reward = Mathf.Max(0, normalKillPoints);
         if(IsPlaying) {
-            score=AddClamped(score,reward); Metrics.kills++;
+            long previousScore = score;
+            score=AddClamped(score,reward);
+            if (score > previousScore && scoreIncrease) scoreIncrease.Play(transform.position);
+            Metrics.kills++;DifficultyStats.Kill(CombatTime);
             if(source!=null) {
                 source.Kills++; LastEventKills=source.Kills;
                 if(source is DiceBatch)Metrics.batchKills++;
@@ -439,6 +489,7 @@ public class GameManager : MonoBehaviour
         lives -= Mathf.Max(0, amount);
         if (lives > 0) return;
         state = RunState.GameOver;
+        relaunchPending=false;countdown=0;
         Metrics.deathCause=cause;
         Debug.Log("Luck v0.6 run stats: "+Metrics.Summary());
         Time.timeScale = 0f;
@@ -453,7 +504,9 @@ public class GameManager : MonoBehaviour
         if (balls.Count > 0) { ball = balls[0]; return; }
         ball = null;
         Metrics.drains++;
-        LoseLives(drainLifeCost,"Ball drain");
-        if (state == RunState.Playing) BeginWaiting();
+        // Only enemy breaches cost lives. Remain in Playing so all combat systems continue.
+        if(pendingBalls>0){relaunchPending=false;countdown=0;return;}
+        relaunchPending=true;countdown=Mathf.Max(0,launchWait);
+        TickRelaunch(0);
     }
 }
