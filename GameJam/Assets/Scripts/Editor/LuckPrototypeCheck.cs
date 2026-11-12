@@ -15,7 +15,7 @@ public static class LuckPrototypeCheck
     internal sealed class Fixture:IDisposable
     {
         public readonly GameObject root,board;public readonly GameManager gm;
-        public Fixture(){root=new GameObject("Dice test fixture");gm=root.AddComponent<GameManager>();gm.enabled=false;board=GameObject.CreatePrimitive(PrimitiveType.Cube);board.transform.SetParent(root.transform);board.transform.position=new Vector3(1000,1000,1000);board.GetComponent<Collider>().enabled=false;gm.board=board.transform;typeof(GameManager).GetField("lives",Private).SetValue(gm,3);State(gm,"Playing");}
+        public Fixture(){root=new GameObject("Dice test fixture");gm=root.AddComponent<GameManager>();gm.enabled=false;gm.ballOnMultiKill=false;board=GameObject.CreatePrimitive(PrimitiveType.Cube);board.transform.SetParent(root.transform);board.transform.position=new Vector3(1000,1000,1000);board.GetComponent<Collider>().enabled=false;gm.board=board.transform;typeof(GameManager).GetField("lives",Private).SetValue(gm,3);State(gm,"Playing");}
         public Enemy Enemy(Card.Equipment element=Card.Equipment.Shockwave,float x=0,float z=4,int hp=100){var e=gm.SpawnEnemy(element,new Vector3(x,0,z));e.maxHp=Math.Max(hp,40);e.hp=hp;return e;}
         public Rigidbody Ball(){var go=GameObject.CreatePrimitive(PrimitiveType.Sphere);go.transform.SetParent(root.transform);go.tag="Player";go.transform.localScale=Vector3.one*.5f;var b=go.AddComponent<Rigidbody>();b.useGravity=false;return b;}
         public void Hand(params Card[] cards){var h=new Card[5];Array.Copy(cards,h,cards.Length);typeof(GameManager).GetField("hand",Private).SetValue(gm,h);var account=Account(gm);account.FullHand();if(cards.Length<5)account.StartMissing(100);}

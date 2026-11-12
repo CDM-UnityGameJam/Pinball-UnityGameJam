@@ -1566,7 +1566,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &661526931
 Transform:
   m_ObjectHideFlags: 0
@@ -3089,6 +3089,7 @@ GameObject:
   - component: {fileID: 1286784665}
   - component: {fileID: 1286784664}
   - component: {fileID: 1286784663}
+  - component: {fileID: 1286784666}
   m_Layer: 0
   m_Name: WallL
   m_TagString: Untagged
@@ -3105,8 +3106,8 @@ Transform:
   m_GameObject: {fileID: 1286784661}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -8.15, y: 0.5, z: 1.75}
-  m_LocalScale: {x: 0.3, y: 1, z: 10.5}
+  m_LocalPosition: {x: -8.15, y: 0.5, z: 1.1500003}
+  m_LocalScale: {x: 0.3, y: 1, z: 11.699999}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2126269041}
@@ -3136,7 +3137,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e75db3e895965c44bbc95d1220924b43, type: 2}
+  - {fileID: 2100000, guid: 464150ad2e714294eaa3d6229f061b96, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -3189,6 +3190,23 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1286784661}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1286784666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1286784661}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61761618c8e48dc4dbeb780afdc3435f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Slingshot
+  kickSpeed: 28
+  speedMultiplier: 1.3
+  upwardBias: 2.5
+  innerFreeFraction: 0
+  cooldown: 0.1
 --- !u!1 &1296887118
 GameObject:
   m_ObjectHideFlags: 0
@@ -3431,7 +3449,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1434993156
 Transform:
   m_ObjectHideFlags: 0
@@ -4180,6 +4198,7 @@ GameObject:
   - component: {fileID: 1715364229}
   - component: {fileID: 1715364228}
   - component: {fileID: 1715364227}
+  - component: {fileID: 1715364230}
   m_Layer: 0
   m_Name: WallR
   m_TagString: Untagged
@@ -4196,8 +4215,8 @@ Transform:
   m_GameObject: {fileID: 1715364225}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8.15, y: 0.5, z: 1.75}
-  m_LocalScale: {x: 0.3, y: 1, z: 10.5}
+  m_LocalPosition: {x: 8.15, y: 0.5, z: 1.1500003}
+  m_LocalScale: {x: 0.3, y: 1, z: 11.699999}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2126269041}
@@ -4227,7 +4246,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e75db3e895965c44bbc95d1220924b43, type: 2}
+  - {fileID: 2100000, guid: 464150ad2e714294eaa3d6229f061b96, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4280,6 +4299,23 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1715364225}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1715364230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1715364225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61761618c8e48dc4dbeb780afdc3435f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Slingshot
+  kickSpeed: 28
+  speedMultiplier: 1.3
+  upwardBias: 2.5
+  innerFreeFraction: 0
+  cooldown: 0.1
 --- !u!1 &1716753845
 GameObject:
   m_ObjectHideFlags: 0
@@ -4996,6 +5032,7 @@ MonoBehaviour:
     hitDamage: 1
     pulseDamage: 1
     kickSpeed: 20
+    hitBounceSpeed: 14
     unstickSpeed: 5
     unstickAcceleration: 20
     unstickForwardBias: 0.35
@@ -5026,6 +5063,7 @@ MonoBehaviour:
     hitDamage: 1
     pulseDamage: 1
     kickSpeed: 20
+    hitBounceSpeed: 14
     unstickSpeed: 2
     unstickAcceleration: 3
     unstickForwardBias: 0.35
@@ -5056,6 +5094,7 @@ MonoBehaviour:
     hitDamage: 1
     pulseDamage: 1
     kickSpeed: 20
+    hitBounceSpeed: 14
     unstickSpeed: 2
     unstickAcceleration: 3
     unstickForwardBias: 0.35
@@ -5270,6 +5309,11 @@ MonoBehaviour:
   launchBiasDegrees: 8
   gravity: 180
   maxLives: 3
+  maxBalls: 3
+  ballOnMultiKill: 1
+  extraBallHold: 1
+  extraBallLocal: {x: 0, y: 0, z: 11}
+  extraBallDropSpeed: 4
   spawnInterval: 2
   enemyDescendTime: 40
 --- !u!4 &2021540453

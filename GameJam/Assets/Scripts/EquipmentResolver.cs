@@ -29,9 +29,8 @@ public static class EquipmentResolver
         return targets;
     }
     // Only the accepted physical-collision path calls this. Damage/status APIs never call back here.
-    public static void BallHit(GameManager gm, Enemy direct, Vector3 point)
+    public static void BallHit(GameManager gm, Enemy direct, Vector3 point, AttackRecord source)
     {
-        var source=new AttackRecord("Ball enchantments");
         int arcs=gm.HeldCount(Card.Equipment.Arc);
         if(arcs>0) {
             var targets=Nearby(gm,point,gm.luck.passiveArcRadius,Card.Equipment.Arc,direct);

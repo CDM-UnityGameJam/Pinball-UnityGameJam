@@ -42,6 +42,19 @@ public class GameManager : MonoBehaviour
     public float launchBiasDegrees = 8f;
     public float gravity = 60f;
     [Min(1)] public int maxLives = 3;
+    [Header("Multiball")]
+    [Min(1), Tooltip("Most balls on the table at once, capped at three including pending rewards.")]
+    public int maxBalls = 3;
+    [Tooltip("One attack killing two or more enemies launches an extra ball.")]
+    public bool ballOnMultiKill = true;
+    [Min(0f), Tooltip("Seconds an extra ball is held at its entry point before it drops in.")]
+    public float extraBallHold = 1f;
+    [Tooltip("Board-local entry point for extra balls: top centre, above the enemies. Y is replaced by the floor height.")]
+    public Vector3 extraBallLocal = new Vector3(0f, 0f, 11f);
+    [Min(0f), Tooltip("Speed an extra ball drops in at, down the table.")]
+    public float extraBallDropSpeed = 4f;
+    int pendingBalls; // earned but not yet created
+    bool launchingBalls;
     [Header("Enemy Timing")]
     [Min(0.1f), Tooltip("Seconds between normal-enemy spawn attempts.")]
     public float spawnInterval = 5f;
@@ -134,11 +147,57 @@ public class GameManager : MonoBehaviour
     {
         var added = Instantiate(ballTemplate);
         added.name = "Ball";
-        added.position = board.TransformPoint(launchLocal);
+        // Transform too: activation re-reads the body pose from the transform (the template's scene position).
+        added.transform.position = added.position = board.TransformPoint(launchLocal);
         added.gameObject.SetActive(true);
         balls.Add(added);
         AttachBallVisuals(added);
         return added;
+    }
+
+    // Queues an extra ball, up to maxBalls including queued ones. Drained extras cost no life (see OnDrain).
+    public bool AddBall()
+    {
+        if (!IsPlaying || balls.Count + pendingBalls >= Mathf.Clamp(maxBalls, 1, 3)) return false;
+        pendingBalls++;
+        if (!launchingBalls) StartCoroutine(LaunchPendingBalls());
+        return true;
+    }
+
+    // Extra balls drop in from the top: a bottom launch only reaches mid-table and falls straight back
+    // between the flippers while the player is busy with another ball. Dropping from the top passes through
+    // the enemies and reaches the flippers with time to react. One at a time so balls never start overlapped.
+    System.Collections.IEnumerator LaunchPendingBalls()
+    {
+        launchingBalls = true;
+        var surface = board.GetComponentInChildren<OuterRingSurface>();
+        var entry = extraBallLocal;
+        entry.y = (surface ? surface.HeightAt(entry.x, entry.z) : 0f) + spawning.ballRadius + .02f;
+        var entryWorld = board.TransformPoint(entry);
+        while (pendingBalls > 0)
+        {
+            var held = CreateBall();
+            pendingBalls--; // now counted in balls
+            held.isKinematic = true;
+            held.transform.position = held.position = entryWorld;
+            if (Hud.Instance) Hud.Instance.Popup(entryWorld, "+BALL", Hud.Gold);
+            // Scaled time: the hold freezes with pause and the launch wait.
+            yield return new WaitForSeconds(extraBallHold);
+            while (held && (!IsPlaying || !SpotClear(entryWorld, held))) { if (IsGameOver) yield break; yield return new WaitForSeconds(.1f); }
+            if (!held) continue;
+            LaunchBall(held); // shared launch bookkeeping, then replace pose and velocity
+            held.position = entryWorld;
+            var dir = Quaternion.Euler(0f, Random.Range(-launchBiasDegrees, launchBiasDegrees), 0f) * Vector3.back;
+            held.linearVelocity = board.TransformDirection(dir) * extraBallDropSpeed;
+        }
+        launchingBalls = false;
+    }
+
+    bool SpotClear(Vector3 world, Rigidbody self)
+    {
+        foreach (var hit in Physics.OverlapSphere(world, spawning.ballRadius * 2f + .1f, ~0, QueryTriggerInteraction.Ignore))
+            if (hit.attachedRigidbody && hit.attachedRigidbody != self && hit.CompareTag("Player")) return false;
+        return true;
     }
 
     void LaunchBall(Rigidbody launched)
@@ -259,7 +318,9 @@ public class GameManager : MonoBehaviour
         if(missingAtStart)Metrics.RecordRechargeHit(chargeEligible);
         resolving=true;
         try {
-            EquipmentResolver.BallHit(this,direct,point);
+            var source = new AttackRecord("Ball collision and enchantments");
+            direct.TakeDamage(luck.collisionDamage, source);
+            EquipmentResolver.BallHit(this,direct,point,source);
             if(missingAtStart && chargeEligible){
                 double actual=EarnRecharge(luck.rechargeHit,false);
                 double shown=System.Math.Floor(actual*100+1e-8)/100;
@@ -279,7 +340,7 @@ public class GameManager : MonoBehaviour
     {
         if(!IsPlaying || resolving || elapsed<=0 || float.IsNaN(elapsed) || float.IsInfinity(elapsed))return;
         double end=combatTime+elapsed;const double epsilon=.000001;
-        while(combatTime+epsilon<end && IsPlaying){
+        while(combatTime<end && IsPlaying){
             var enemies=EquipmentResolver.Targets(this);double next=System.Math.Min(end,combatTime+.01);
             bool missing=!IsHandFull;double before=combatTime;
             if(PendingBatch!=null)next=System.Math.Min(next,PendingBatch.RevealAt);
@@ -326,6 +387,7 @@ public class GameManager : MonoBehaviour
                 source.Kills++; LastEventKills=source.Kills;
                 if(source is DiceBatch)Metrics.batchKills++;
                 if(source.Kills>=2 && Hud.Instance) Hud.Instance.ShowMultiKill(source);
+                if(source.Kills==2 && ballOnMultiKill) AddBall(); // ==2: once per attack, not per extra kill
             }
         }
         return reward;

@@ -35,3 +35,7 @@ Thumbs.db
 # Local tool config
 .codex/
 .claude/
+
+# Local validation output and middleware logs
+GameJam/tmp/
+*.log

@@ -103,6 +103,7 @@ public class Enemy : MonoBehaviour
 
     void OnCollisionEnter(Collision c)
     {
+        Bounce(c);
         NudgeSlowBall(c);
         TryBallHit(c.rigidbody, c.contactCount>0 ? c.GetContact(0).point : transform.position);
     }
@@ -116,9 +117,27 @@ public class Enemy : MonoBehaviour
         bool missing=!gm.IsHandFull;
         bool chargeEligible=missing && gm.CombatTime-lastRechargeHit>=gm.luck.rechargeEnemyCooldown;
         if(chargeEligible) lastRechargeHit=gm.CombatTime;
-        TakeDamage(gm.luck.collisionDamage);
         gm.RegisterBallHit(this,collisionPoint,missing,chargeEligible);
         return true;
+    }
+
+    // Pop-bumper push so balls don't lose speed and drop between tightly packed enemies.
+    void Bounce(Collision c)
+    {
+        var gm = GameManager.Instance;
+        var ball = c.rigidbody;
+        if (!gm || !gm.IsPlaying || !Alive || settings.hitBounceSpeed <= 0f || !ball || ball.isKinematic || !c.collider.CompareTag("Player")) return;
+        var up = gm.board.up;
+        var away = Vector3.ProjectOnPlane(ball.position - transform.position, up).normalized;
+        if (away.sqrMagnitude < .01f) away = gm.board.forward;
+        var velocity = Vector3.ProjectOnPlane(ball.linearVelocity, up);
+        // Fast balls keep their incoming speed (no energy lost to the hit); slow ones get the minimum.
+        float incoming = Vector3.ProjectOnPlane(c.relativeVelocity, up).magnitude;
+        float speed = Mathf.Max(velocity.magnitude, incoming, settings.hitBounceSpeed);
+        // Keep the natural rebound's direction but never let it point back into the enemy.
+        var direction = (velocity.normalized + away).normalized;
+        if (direction.sqrMagnitude < .01f) direction = away;
+        ball.linearVelocity = direction * speed;
     }
 
     // Persistent contacts need their own push: OnCollisionEnter only runs once.
@@ -153,7 +172,8 @@ public class Enemy : MonoBehaviour
         if (Hud.Instance) Hud.Instance.Popup(transform.position, "-" + Mathf.Max(0, damage), settings.hitPopupColor);
         if (hp > 0) return;
         hitCollider.enabled = false;
-        long reward = GameManager.Instance.OnNormalKill(source);
+        var gm = GameManager.Instance;
+        long reward = gm.OnNormalKill(source);
         if (Hud.Instance) Hud.Instance.Popup(transform.position, "+" + reward, settings.killPopupColor);
         gameObject.SetActive(false);
         Destroy(gameObject);
