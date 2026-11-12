@@ -17,6 +17,12 @@
       },
       "hash": "81542a7e86292b5c4c21b1782c5af23b567f45ce"
     },
+    "com.kybernetik.ultevents": {
+      "version": "file:com.kybernetik.ultevents",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 1,
@@ -63,7 +69,7 @@
     },
     "com.unity.ext.nunit": {
       "version": "2.1.0",
-      "depth": 2,
+      "depth": 1,
       "source": "builtin",
       "dependencies": {}
     },
@@ -173,7 +179,7 @@
     },
     "com.unity.test-framework": {
       "version": "1.8.0",
-      "depth": 1,
+      "depth": 0,
       "source": "builtin",
       "dependencies": {
         "com.unity.ext.nunit": "2.1.0",
