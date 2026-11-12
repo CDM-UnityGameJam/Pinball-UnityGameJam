@@ -1,3 +1,5 @@
+> **Archived (outdated).** Describes an older version of the game, not Luck Number v0.3. The sources of truth are the live code and `Docs/LuckNumberPrototype.md`; see `Docs/ArchitecturePlan.md`.
+
 # Lucky Pinball – Prototype Brief
 
 ## Context

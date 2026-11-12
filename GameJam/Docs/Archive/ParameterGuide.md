@@ -1,3 +1,5 @@
+> **Archived (outdated).** Describes an older version of the game, not Luck Number v0.3. The sources of truth are the live code and `Docs/LuckNumberPrototype.md`; see `Docs/ArchitecturePlan.md`.
+
 # 参数修改入口
 
 在 `Assets/Scenes/Pinball.unity` 中选择 **GameManager**，在 Inspector 修改参数并保存场景。
