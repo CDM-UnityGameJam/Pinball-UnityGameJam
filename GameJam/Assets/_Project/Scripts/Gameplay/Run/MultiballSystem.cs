@@ -1,0 +1,102 @@
+using System;
+using UnityEngine;
+
+namespace Pinball.Gameplay
+{
+    // Extra balls (port of the multiball-side-kickers branch):
+    // - A kill of an enemy carrying the lucky number, or the second kill of one attack, earns a ball,
+    //   up to GameConfig.multiball.maxBalls on the table (balls waiting to enter count).
+    // - Earned balls enter one at a time at the board's ExtraBallEntry (top centre, above the enemies):
+    //   held still for `entryHold` gameplay seconds, then, once no other ball sits on the entry, dropped
+    //   down the table. A bottom launch would only reach mid-table while the player is busy with another ball.
+    // - A drain only costs a life when no ball is left (GameContext.OnDrained), so drained extras are free.
+    public sealed class MultiballSystem
+    {
+        readonly GameContext context;
+        MultiballRules Rules => context.config.multiball;
+
+        int pending;   // earned, not spawned yet
+        Ball held;     // spawned and waiting at the entry
+        float holdLeft;
+        readonly Collider[] overlap = new Collider[8];
+
+        public int Pending => pending;
+        public Ball Held => held;
+
+        // A ball was earned and appeared at the entry (world position). For "+BALL" popups and sounds.
+        public event Action<Ball> BallEarned;
+
+        public MultiballSystem(GameContext context)
+        {
+            this.context = context;
+            context.Score.Killed += OnKilled;
+            context.Score.MultiKill += OnMultiKill;
+            context.Run.StateChanged += state => { if (state == RunState.GameOver) pending = 0; };
+        }
+
+        void OnKilled(Enemy enemy, long reward, AttackRecord source)
+        {
+            if (Rules.ballOnLuckyKill && enemy.Number == context.Luck.Current) AddBall();
+        }
+
+        // MultiKill is raised on every kill from the second on: only the second earns a ball.
+        void OnMultiKill(AttackRecord source)
+        {
+            if (Rules.ballOnMultiKill && source.Kills == 2) AddBall();
+        }
+
+        // Queue an extra ball. False when the run isn't playing or the table is full.
+        public bool AddBall()
+        {
+            if (!context.Run.IsPlaying || context.Balls.Count + pending >= Rules.maxBalls) return false;
+            pending++;
+            return true;
+        }
+
+        public bool IsHeld(Ball ball) => ball && ball == held;
+
+        // Advance by gameplay time (0 while paused or counting down). GameContext calls it every frame.
+        public void Tick(float deltaTime)
+        {
+            if (!context.Run.IsPlaying) return;
+            if (held && !held.isActiveAndEnabled) held = null;
+            if (!held)
+            {
+                if (pending == 0) return;
+                pending--;
+                held = context.Balls.Spawn(context.Board.extraBallEntry.Position);
+                holdLeft = Rules.entryHold;
+                BallEarned?.Invoke(held);
+            }
+            holdLeft -= deltaTime;
+            if (holdLeft > 0f || !EntryClear()) return;
+
+            var entry = context.Board.extraBallEntry;
+            var ball = held;
+            held = null;
+            var direction = entry.Direction(context.config.launchSpreadDegrees, context.Random.Value());
+            ball.Launch(entry.Position, direction * Rules.entrySpeed);
+        }
+
+        // No other ball overlapping the entry, so a dropped ball never starts inside another.
+        bool EntryClear()
+        {
+            float radius = BallRadius(held) * 2f + Rules.entryClearance;
+            int count = Physics.OverlapSphereNonAlloc(context.Board.extraBallEntry.Position, radius, overlap, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                var other = overlap[i].attachedRigidbody ? overlap[i].attachedRigidbody.GetComponent<Ball>() : null;
+                if (other && other != held) return false;
+            }
+            return true;
+        }
+
+        static float BallRadius(Ball ball)
+        {
+            var sphere = ball.GetComponent<SphereCollider>();
+            if (!sphere) return 0.375f;
+            var s = ball.transform.lossyScale;
+            return sphere.radius * Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+        }
+    }
+}

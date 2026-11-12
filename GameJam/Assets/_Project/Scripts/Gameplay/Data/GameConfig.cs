@@ -24,6 +24,10 @@ namespace Pinball.Gameplay
         [MinValue(0), SuffixLabel("deg"), Tooltip("The launch direction is randomised by up to this angle either side.")]
         public float launchSpreadDegrees = 8f;
 
+        [Title("Multiball")]
+        [InfoBox("Extra balls enter at the board's ExtraBallEntry anchor. A drain only costs a life when it was the last ball.")]
+        public MultiballRules multiball = new MultiballRules();
+
         [Title("Combat")]
         [MinValue(0), Tooltip("Damage a valid ball hit deals to the enemy it touched, before any enchantment.")]
         public int ballHitDamage = 4;
@@ -35,6 +39,24 @@ namespace Pinball.Gameplay
         [Required] public SpawnProfile spawnProfile;
         [Required, Tooltip("Every element in play, in display order.")]
         public List<ElementDefinition> elements = new List<ElementDefinition>();
+    }
+
+    // When extra balls are earned and how they enter.
+    [Serializable]
+    public sealed class MultiballRules
+    {
+        [MinValue(1), Tooltip("Most balls on the table at once, counting balls waiting to enter.")]
+        public int maxBalls = 3;
+        [Tooltip("Killing an enemy whose number equals the lucky number earns an extra ball.")]
+        public bool ballOnLuckyKill = true;
+        [Tooltip("One attack killing two or more enemies earns an extra ball (once per attack).")]
+        public bool ballOnMultiKill = true;
+        [MinValue(0), SuffixLabel("s"), Tooltip("Gameplay seconds an extra ball is held at the entry before it drops in.")]
+        public float entryHold = 1f;
+        [MinValue(0), SuffixLabel("m/s"), Tooltip("Speed an extra ball drops in at, along the entry's forward.")]
+        public float entrySpeed = 4f;
+        [MinValue(0), SuffixLabel("m"), Tooltip("Free space needed around the entry (beyond two ball radii) before a held ball drops.")]
+        public float entryClearance = 0.1f;
     }
 
     // Shared burn/stun timing. Per-effect strength (DPS, durations) lives on the element's effect modules.

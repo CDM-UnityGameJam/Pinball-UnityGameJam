@@ -9,6 +9,8 @@ namespace Pinball.Gameplay
     public sealed class BoardRoot : MonoBehaviour
     {
         [Required] public BallLaunchPoint launchPoint;
+        [Required, Tooltip("Where extra balls (multiball) wait and drop in from. Its forward points down the table.")]
+        public BallLaunchPoint extraBallEntry;
         [Required] public SpawnZone spawnZone;
         [Required] public DangerLine dangerLine;
         [Required] public DrainZone drain;

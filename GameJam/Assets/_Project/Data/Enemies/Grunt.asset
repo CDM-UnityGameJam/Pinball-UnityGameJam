@@ -18,6 +18,7 @@ MonoBehaviour:
   radius: 0.75
   hitCooldown: 0.2
   scoreValue: 50
+  hitBounceSpeed: 14
   numberRule: 0
   fixedNumber: 1
   descendSeconds: 40

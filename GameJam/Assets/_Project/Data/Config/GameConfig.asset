@@ -18,6 +18,13 @@ MonoBehaviour:
   launchCountdown: 3
   launchSpeed: 32
   launchSpreadDegrees: 8
+  multiball:
+    maxBalls: 3
+    ballOnLuckyKill: 1
+    ballOnMultiKill: 1
+    entryHold: 1
+    entrySpeed: 4
+    entryClearance: 0.1
   ballHitDamage: 4
   status:
     burnTickInterval: 0.5

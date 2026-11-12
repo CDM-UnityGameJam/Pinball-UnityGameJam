@@ -43,6 +43,9 @@ namespace Pinball.Gameplay
             context.Hand.Grant(new CardSpec(element, cardNumber));
         }
 
+        [Button, EnableIf(nameof(Ready)), Tooltip("Queue an extra ball (respects the multiball cap).")]
+        void AddBall() => context.Multiball.AddBall();
+
         [Button, EnableIf(nameof(Ready))]
         void SpawnEnemy()
         {

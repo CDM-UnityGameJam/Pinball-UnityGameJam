@@ -182,7 +182,9 @@ namespace Pinball.Tests.PlayMode
         [Test]
         public void ReturnLaneOutletsBlockSpawnsAboveThem()
         {
-            var blockers = context.Board.GetComponentsInChildren<SpawnBlocker>();
+            // The return lanes are switched off (side-wall kickers replaced them); the spawner skips inactive
+            // blockers, but the outlets keep theirs for when the lanes are switched back on.
+            var blockers = context.Board.GetComponentsInChildren<SpawnBlocker>(true);
             Assert.That(blockers.Length, Is.EqualTo(2), "one per return lane outlet");
             float danger = context.Board.dangerLine.BoardZ, row = context.Board.spawnZone.RowZ;
             float reach = grunt.radius + grunt.wallClearance;

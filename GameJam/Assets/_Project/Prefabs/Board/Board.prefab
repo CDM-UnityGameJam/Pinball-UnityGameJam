@@ -742,6 +742,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4167505239313092796}
   - component: {fileID: 5728532875710942063}
+  - component: {fileID: 158966054121640948}
   m_Layer: 7
   m_Name: WallL
   m_TagString: Untagged
@@ -758,7 +759,7 @@ Transform:
   m_GameObject: {fileID: 1387703585614867881}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -8.15, y: 0.5, z: 1.75}
+  m_LocalPosition: {x: -8.15, y: 0.5, z: 1.1500003}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -784,8 +785,27 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.3, y: 1, z: 10.5}
+  m_Size: {x: 0.3, y: 1, z: 11.699999}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &158966054121640948
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1387703585614867881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12807797d8719dc43a2a263b44c7575f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.Kicker
+  kickSpeed: 28
+  speedMultiplier: 1.3
+  upwardBias: 2.5
+  plainInnerFraction: 0
+  cooldown: 0.1
+  onKick:
+    _PersistentCalls: []
 --- !u!1 &2013018564382933323
 GameObject:
   m_ObjectHideFlags: 0
@@ -976,6 +996,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5177778623667484673}
   - component: {fileID: 6609196988284199617}
+  - component: {fileID: 2973117875471128977}
   m_Layer: 7
   m_Name: WallR
   m_TagString: Untagged
@@ -992,7 +1013,7 @@ Transform:
   m_GameObject: {fileID: 2021079104078802062}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8.15, y: 0.5, z: 1.75}
+  m_LocalPosition: {x: 8.15, y: 0.5, z: 1.1500003}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1018,8 +1039,27 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.3, y: 1, z: 10.5}
+  m_Size: {x: 0.3, y: 1, z: 11.699999}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &2973117875471128977
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2021079104078802062}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12807797d8719dc43a2a263b44c7575f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.Kicker
+  kickSpeed: 28
+  speedMultiplier: 1.3
+  upwardBias: 2.5
+  plainInnerFraction: 0
+  cooldown: 0.1
+  onKick:
+    _PersistentCalls: []
 --- !u!1 &2153601672553532320
 GameObject:
   m_ObjectHideFlags: 0
@@ -1940,7 +1980,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.3, y: 1, z: 10.5}
+  m_LocalScale: {x: 0.3, y: 1, z: 11.699999}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4167505239313092796}
@@ -1978,7 +2018,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 768b642687062a94b80e457d2c7b8580, type: 2}
+  - {fileID: 2100000, guid: b8767722efb9bc340b3c6241063055dd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2317,6 +2357,51 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &4491402202327074060
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1294089284728457831}
+  - component: {fileID: 34528207571331742}
+  m_Layer: 0
+  m_Name: ExtraBallEntry
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1294089284728457831
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4491402202327074060}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalPosition: {x: 0, y: 0.7149999, z: 11}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7995616261929496092}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &34528207571331742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4491402202327074060}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07bbad2d877985e4f807813d55e9aee2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.BallLaunchPoint
+  previewSpreadDegrees: 8
 --- !u!1 &4706415940556204449
 GameObject:
   m_ObjectHideFlags: 0
@@ -2685,7 +2770,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.3, y: 1, z: 10.5}
+  m_LocalScale: {x: 0.3, y: 1, z: 11.699999}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5177778623667484673}
@@ -2723,7 +2808,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 768b642687062a94b80e457d2c7b8580, type: 2}
+  - {fileID: 2100000, guid: b8767722efb9bc340b3c6241063055dd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2784,6 +2869,7 @@ Transform:
   - {fileID: 8368047730035149760}
   - {fileID: 8136238323939524682}
   - {fileID: 5503316434520332117}
+  - {fileID: 1294089284728457831}
   - {fileID: 3241371717801595255}
   - {fileID: 3711249914726656819}
   - {fileID: 4755369600904015870}
@@ -2803,6 +2889,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.BoardRoot
   launchPoint: {fileID: 8572714883711110857}
+  extraBallEntry: {fileID: 34528207571331742}
   spawnZone: {fileID: 2871010173990826812}
   dangerLine: {fileID: 1351856652475124187}
   drain: {fileID: 4470333937198170396}
@@ -4296,6 +4383,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: ReturnLaneL
       objectReference: {fileID: 0}
+    - target: {fileID: 2389324958335920679, guid: 8ecda6b3405267e438ece82d6a5e3649, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3066156404087280915, guid: 8ecda6b3405267e438ece82d6a5e3649, type: 3}
       propertyPath: m_LocalPosition.x
       value: -5.2
@@ -4380,6 +4471,10 @@ PrefabInstance:
     - target: {fileID: 2389324958335920679, guid: 8ecda6b3405267e438ece82d6a5e3649, type: 3}
       propertyPath: m_Name
       value: ReturnLaneR
+      objectReference: {fileID: 0}
+    - target: {fileID: 2389324958335920679, guid: 8ecda6b3405267e438ece82d6a5e3649, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2685396591484663696, guid: 8ecda6b3405267e438ece82d6a5e3649, type: 3}
       propertyPath: m_LocalPosition.x

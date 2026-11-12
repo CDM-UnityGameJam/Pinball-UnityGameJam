@@ -33,6 +33,7 @@ namespace Pinball.Gameplay
         public HandSystem Hand { get; private set; }
         public CastScheduler Casts { get; private set; }
         public CombatResolver Combat { get; private set; }
+        public MultiballSystem Multiball { get; private set; }
         public CombatFeedback Feedback { get; } = new CombatFeedback();
         public IRandom Random { get; private set; } = UnityRandom.Shared;
         public BoardRoot Board => board;
@@ -57,6 +58,7 @@ namespace Pinball.Gameplay
             Luck = new LuckSystem(this);
             Hand = new HandSystem(this);
             Combat = new CombatResolver(this);
+            Multiball = new MultiballSystem(this);
 
             // When several deadlines fall on the same moment they fire in this order (old TickGameplay):
             // enemy statuses (front first), cast waves, lucky number, hand refill.
@@ -91,7 +93,11 @@ namespace Pinball.Gameplay
             if (Pressed(pauseAction)) Run.TogglePause();
             // Clamp load hitches so they can't eat the whole launch countdown.
             Run.Tick(Mathf.Min(Time.unscaledDeltaTime, Time.maximumDeltaTime));
-            if (!DriveTimeManually) Spawner.Tick(Time.deltaTime);
+            if (!DriveTimeManually)
+            {
+                Spawner.Tick(Time.deltaTime);
+                Multiball.Tick(Time.deltaTime);
+            }
         }
 
         // Combat clock first, then enemy movement (the old FixedUpdate order).
@@ -131,7 +137,7 @@ namespace Pinball.Gameplay
         {
             foreach (var ball in Balls.Active)
             {
-                if (!ball.Body.isKinematic || ball.InReturnLane) continue;
+                if (!ball.Body.isKinematic || ball.InReturnLane || Multiball.IsHeld(ball)) continue;
                 var direction = board.launchPoint.Direction(config.launchSpreadDegrees, Random.Value());
                 ball.Launch(board.launchPoint.Position, direction * config.launchSpeed);
             }

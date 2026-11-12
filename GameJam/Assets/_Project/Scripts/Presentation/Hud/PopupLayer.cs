@@ -8,7 +8,7 @@ using UnityEngine.Pool;
 
 namespace Pinball.Presentation
 {
-    // Floating text: damage and kill numbers on enemies, the result of each played card, and multi-kills.
+    // Floating text: damage and kill numbers on enemies, the result of each played card, multi-kills and extra balls.
     // Popups rise and fade over `lifetime` of real time, so they finish even when the game stops.
     public sealed class PopupLayer : HudPresenter
     {
@@ -21,6 +21,7 @@ namespace Pinball.Presentation
         [Tooltip("Board-space point for card results.")] public Vector3 castResultAt = new Vector3(0f, 0f, 2f);
         [Tooltip("Board-space point for multi-kills.")] public Vector3 multiKillAt = new Vector3(0f, 0f, 1f);
         public Color hitColor = Color.white;
+        [Tooltip("Shown where an extra ball appears.")] public string extraBallText = "+BALL";
 
         sealed class Popup
         {
@@ -49,6 +50,7 @@ namespace Pinball.Presentation
             Context.Score.Killed += (enemy, reward, source) => Show(enemy.transform.position, "+" + reward, Theme.green);
             Context.Score.MultiKill += OnMultiKill;
             Context.Hand.CardPlayed += OnCardPlayed;
+            Context.Multiball.BallEarned += ball => Show(ball.transform.position, extraBallText, Theme.gold);
         }
 
         void Watch(Enemy enemy)

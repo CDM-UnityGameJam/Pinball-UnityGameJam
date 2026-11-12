@@ -37,6 +37,14 @@ namespace Pinball.Tests.PlayMode
             // The reference paths were recorded with enemies switched off; compare the board alone.
             foreach (var enemy in context.Enemies.FrontFirst(new System.Collections.Generic.List<Enemy>()))
                 enemy.gameObject.SetActive(false);
+            // The old scene still had its side return lanes; the side-wall kickers replaced them (they are
+            // disabled in Board.prefab). Switch them back on so the comparison covers the same pieces. The
+            // extended kicker walls stay in and don't touch these paths.
+            foreach (var lane in context.Board.returnLanes)
+            {
+                lane.gameObject.SetActive(true);
+                lane.Initialize(context);
+            }
             var board = context.Board.transform;
             var ball = context.Balls.Active[0].Body;
             var previousMode = Physics.simulationMode;

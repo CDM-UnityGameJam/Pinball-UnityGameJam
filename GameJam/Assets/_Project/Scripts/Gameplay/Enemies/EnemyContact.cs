@@ -8,6 +8,8 @@ namespace Pinball.Gameplay
     //   reports, with the contact point.
     // - A ball touching the enemy slower than the unstick speed is pushed away every physics step,
     //   so it can't come to rest against it. That push never counts as a hit.
+    // - A ball striking a live enemy is pushed away like a pop bumper: it keeps its speed (at least the
+    //   definition's hitBounceSpeed) and its rebound never points back into the enemy.
     public sealed class EnemyContact : MonoBehaviour
     {
         Enemy enemy;
@@ -24,6 +26,7 @@ namespace Pinball.Gameplay
 
         void OnCollisionEnter(Collision collision)
         {
+            Bounce(collision);
             Nudge(collision);
             var ball = BallOf(collision);
             if (ball) TryBallHit(ball, collision.contactCount > 0 ? collision.GetContact(0).point : transform.position);
@@ -43,6 +46,26 @@ namespace Pinball.Gameplay
             BallHit?.Invoke(ball, point);
             context.Enemies.ReportBallHit(enemy, ball, point);
             return true;
+        }
+
+        void Bounce(Collision collision)
+        {
+            var context = enemy ? enemy.Context : null;
+            var ball = BallOf(collision);
+            float minSpeed = enemy ? enemy.Definition.hitBounceSpeed : 0f;
+            if (context == null || !context.Run.IsPlaying || !enemy.Alive || minSpeed <= 0f || !ball || ball.Body.isKinematic) return;
+
+            var up = context.Board.Up;
+            var away = Vector3.ProjectOnPlane(ball.Body.position - transform.position, up).normalized;
+            if (away.sqrMagnitude < 0.01f) away = context.Board.Forward;
+            var velocity = Vector3.ProjectOnPlane(ball.Body.linearVelocity, up);
+            // Fast balls keep their incoming speed (no energy lost to the hit); slow ones get the minimum.
+            float incoming = Vector3.ProjectOnPlane(collision.relativeVelocity, up).magnitude;
+            float speed = Mathf.Max(velocity.magnitude, incoming, minSpeed);
+            // Keep the natural rebound's direction, but never let it point back into the enemy.
+            var direction = (velocity.normalized + away).normalized;
+            if (direction.sqrMagnitude < 0.01f) direction = away;
+            ball.Body.linearVelocity = direction * speed;
         }
 
         void Nudge(Collision collision)

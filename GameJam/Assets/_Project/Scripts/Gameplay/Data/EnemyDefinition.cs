@@ -20,6 +20,8 @@ namespace Pinball.Gameplay
         [MinValue(0), SuffixLabel("s"), Tooltip("Minimum time between two ball hits counting on this enemy.")]
         public float hitCooldown = 0.2f;
         [MinValue(0)] public int scoreValue = 50;
+        [MinValue(0), SuffixLabel("m/s"), Tooltip("A ball hitting this enemy leaves at least this fast, pushed away like a pop bumper, so balls don't stall between packed enemies. 0 = plain bounce.")]
+        public float hitBounceSpeed = 14f;
 
         [Title("Number")]
         public NumberRule numberRule = NumberRule.RandomInLuckRange;
