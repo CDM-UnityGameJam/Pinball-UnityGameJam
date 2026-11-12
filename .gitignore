@@ -35,3 +35,8 @@ Thumbs.db
 # Local tool config
 .codex/
 .claude/
+
+# FMOD: editor log, and banks copied in at build time (sources live in GameJam/FMOD)
+GameJam/fmod_editor.log
+GameJam/Assets/StreamingAssets/
+GameJam/Assets/StreamingAssets.meta

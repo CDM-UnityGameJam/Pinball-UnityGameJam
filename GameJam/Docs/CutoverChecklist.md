@@ -33,7 +33,7 @@ side by side with the old one **and the team explicitly approves the deletion** 
 | `Assets/InputSystem_Actions.inputactions` | The new game's input (flippers, pause, restart); also the project-wide actions asset. |
 | `Assets/Settings/` | URP pipeline, renderers and global settings, referenced by Graphics and Quality settings. |
 | `Assets/WebGLTemplates/LuckyPinball` | The web build template (used by name; Unity requires this folder location). |
-| `Assets/StreamingAssets`, `Assets/Plugins`, `Assets/TextMesh Pro` | FMOD, Odin, TMP. |
+| `Assets/Plugins`, `Assets/TextMesh Pro` | FMOD, Odin, TMP. (`Assets/StreamingAssets` holds FMOD banks copied in at build time; git-ignored.) |
 | `Docs/LuckNumberPrototype.md`, `Docs/LuckNumberV03Balance.md`, `Docs/TuningMigration.md`, `Docs/ArchitecturePlan.md` | Design source and migration record. |
 
 ## Not part of the old game (decide separately)
