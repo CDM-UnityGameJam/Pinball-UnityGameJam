@@ -7,6 +7,16 @@ public class GameManager : MonoBehaviour
 {
     enum RunState { Waiting, Playing, GameOver }
 
+    [Header("Pinball Audio")]
+    [Tooltip("Defaults to Resources/PinballAudio/SFX_pnb_launch when unassigned.")]
+    public SfxCue pinballLaunch;
+    [Tooltip("Defaults to Resources/PinballAudio/SFX_pnb_hit when unassigned.")]
+    public SfxCue pinballHit;
+    [Tooltip("Defaults to Resources/PinballAudio/SFX_pnb_hitCreature when unassigned.")]
+    public SfxCue pinballHitCreature;
+    [Tooltip("Enemy reaction played alongside the ball contact sound. Defaults to SFX_ctr_getHit.")]
+    public SfxCue creatureGetHit;
+
     [Header("Run / Cards / Scoring")]
     [Min(1)] public int handSize = 5;
     [Min(0f)] public float launchWait = 3f;
@@ -74,6 +84,10 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        if (!pinballLaunch) pinballLaunch = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_launch");
+        if (!pinballHit) pinballHit = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hit");
+        if (!pinballHitCreature) pinballHitCreature = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hitCreature");
+        if (!creatureGetHit) creatureGetHit = Resources.Load<SfxCue>("PinballAudio/SFX_ctr_getHit");
         handSize = 5;
         hand = new Card[] { new Card(6, Card.Equipment.Spark), new Card(6, Card.Equipment.Shockwave), new Card(2, Card.Equipment.Arc), new Card(4, Card.Equipment.Arc), new Card(5, Card.Equipment.Spark) };
         Time.fixedDeltaTime = Mathf.Max(0.001f, physicsStep);
@@ -89,6 +103,7 @@ public class GameManager : MonoBehaviour
         balls.Add(ball);
         Vfx = gameObject.AddComponent<CombatVfx>();
         AttachBallVisuals(ball);
+        if (!ball.GetComponent<PinballCollisionAudio>()) ball.gameObject.AddComponent<PinballCollisionAudio>();
         gameObject.AddComponent<Spawner>();
         new GameObject("Hud").AddComponent<Hud>();
         BeginWaiting();
@@ -141,6 +156,7 @@ public class GameManager : MonoBehaviour
         state = RunState.Playing;
         Time.timeScale = 1f;
         LaunchBall(ball);
+        if (pinballLaunch) pinballLaunch.Play(ball.position);
     }
 
     Rigidbody CreateBall()
@@ -152,6 +168,7 @@ public class GameManager : MonoBehaviour
         added.gameObject.SetActive(true);
         balls.Add(added);
         AttachBallVisuals(added);
+        if (!added.GetComponent<PinballCollisionAudio>()) added.gameObject.AddComponent<PinballCollisionAudio>();
         return added;
     }
 
@@ -189,6 +206,7 @@ public class GameManager : MonoBehaviour
             held.position = entryWorld;
             var dir = Quaternion.Euler(0f, Random.Range(-launchBiasDegrees, launchBiasDegrees), 0f) * Vector3.back;
             held.linearVelocity = board.TransformDirection(dir) * extraBallDropSpeed;
+            if (pinballLaunch) pinballLaunch.Play(entryWorld);
         }
         launchingBalls = false;
     }
@@ -318,6 +336,8 @@ public class GameManager : MonoBehaviour
     public void RegisterBallHit(Enemy direct,Vector3 point,bool damageAllowed)
     {
         if(!IsPlaying || resolving)return;
+        if (pinballHitCreature) pinballHitCreature.Play(point);
+        if (creatureGetHit && direct) creatureGetHit.Play(direct.transform.position);
         bool missing=!IsHandFull;Metrics.validBallHits++;
         if(missing)Metrics.RecordRechargeHit(true);
         resolving=true;
