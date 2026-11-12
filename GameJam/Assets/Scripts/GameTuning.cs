@@ -5,7 +5,8 @@ using UnityEngine;
 [Serializable]
 public class EnemyTuning
 {
-    [Min(1)] public int health = 40;
+    // Legacy non-normal health; ordinary spawn health belongs to DifficultyConfig.
+    [HideInInspector,Min(1)] public int health = 40;
     [Min(0.01f)] public float radius = 0.75f;
     [Min(0.01f)] public float halfHeight = 0.25f;
     public float centerHeight = 0.25f;
@@ -56,7 +57,7 @@ public class SpawnTuning
     public float normalSpawnZ = 9.5f;
     public float bumperSpawnZ = 9.5f;
     public float dangerZ = -5f;
-    [Min(0)] public int openingNormalCount = 3;
+    [Min(0)] public int openingNormalCount = 1;
     [Min(0f)] public float openingColumnSpacing = 2f;
     [Min(1)] public int normalAttempts = 30;
     [Min(1)] public int bumperAttempts = 30;
@@ -118,61 +119,4 @@ public class CardTuning
     [Range(0f, 1f)] public float matchWinsTieChance = 0.5f;
 }
 
-public struct SkillPlan
-{
-    public bool allTargets;
-    public int targetCount, waves;
-    public float burnDuration, stunDuration, waveInterval;
-    public string Summary(Card.Equipment type) => type == Card.Equipment.Spark ? $"Burn {burnDuration:0.#}s" : $"{waves} waves" + (type == Card.Equipment.Shockwave ? $" · Stun {stunDuration:0.#}s" : "");
-}
 
-[Serializable]
-public class LuckTuning
-{
-    [Header("Recharge")]
-    [Min(1)] public float rechargeBaseCost = 100f;
-    [Min(0)] public float rechargeCastCost = 50f;
-    [Min(0)] public float rechargePerSecond = 10f;
-    [Min(0)] public float rechargeHit = 2.5f;
-    [Min(0)] public float rechargeCombatBudget = 6f;
-    [Min(0)] public float rechargeCombatMinimum = 0.25f;
-    [Min(0)] public float diceRevealDelay = 0.45f;
-    [Min(0)] public int collisionDamage = 4;
-    [Min(0)] public int empoweredCollisionDamage = 8;
-    [Header("Ball enchantments")]
-    [Min(0)] public int passiveArcDamage = 4;
-    [Min(0)] public float passiveArcRadius = 3f, passiveSparkRadius = 2.5f;
-    [Min(0)] public int passiveBurnDps = 4;
-    [Min(0)] public float passiveBurnDuration = 3f;
-    [Min(0)] public float passiveStunDuration = 0.35f, shockRadius = 1.2f, shockRadiusPerCard = 0.25f;
-    [Min(0)] public float passiveStunImmunity = 2f;
-    [Min(0)] public float enemyQueueGap = 0.1f;
-    [Min(0.01f)] public float burnTickInterval = 0.5f;
-    [Header("Active skills")]
-    [Min(0)] public int activeArcDamage = 12, activeBurnDps = 6, activeShockDamage = 8;
-    [Min(0.01f)] public float arcWaveInterval = 0.25f, shockWaveInterval = 0.35f;
-    [Min(1)] public int baseTargets=1,standardTargets=4;
-    [Min(1)] public int baseWaves=1;
-    [Min(0)] public float baseBurn=1,baseStun=0.5f;
-    [Min(1)] public int standardArcWaves=2,fullArcWaves=3,jackpotArcWaves=4;
-    [Min(1)] public int standardShockWaves=1,fullShockWaves=2,jackpotShockWaves=3;
-    [Min(0)] public float standardBurn=4,fullBurn=6,jackpotBurn=8;
-    [Min(0)] public float standardStun=1.5f,fullStun=2,jackpotStun=3;
-    [Min(0)] public float extraBurnPerCard=2;
-    public int ArcTargets(int count) => count <= 0 ? 0 : Mathf.Min(count + 1, 5);
-    public int ExtraSparkTargets(int count) => Mathf.Clamp(count - 1, 0, 3);
-    public float ShockRadius(int count) => count <= 0 ? 0 : shockRadius + shockRadiusPerCard * (count - 1);
-    public SkillPlan Plan(Card.Equipment type,CastTier tier,int copies)
-    {
-        if(copies<1)return default;
-        int arc=tier==CastTier.Base?baseWaves:tier==CastTier.Standard?standardArcWaves:tier==CastTier.FullField?fullArcWaves:jackpotArcWaves;
-        int shock=tier==CastTier.Base?baseWaves:tier==CastTier.Standard?standardShockWaves:tier==CastTier.FullField?fullShockWaves:jackpotShockWaves;
-        return new SkillPlan {
-            allTargets=tier==CastTier.FullField || tier==CastTier.Jackpot,targetCount=tier==CastTier.Base?baseTargets:standardTargets,
-            waves=type==Card.Equipment.Spark?1:(type==Card.Equipment.Arc?arc:shock)+copies-1,
-            burnDuration=(tier==CastTier.Base?baseBurn:tier==CastTier.Standard?standardBurn:tier==CastTier.FullField?fullBurn:jackpotBurn)+(copies-1)*extraBurnPerCard,
-            stunDuration=tier==CastTier.Base?baseStun:tier==CastTier.Standard?standardStun:tier==CastTier.FullField?fullStun:jackpotStun,
-            waveInterval=type==Card.Equipment.Arc?arcWaveInterval:shockWaveInterval
-        };
-    }
-}

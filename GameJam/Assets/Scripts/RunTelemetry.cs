@@ -34,7 +34,7 @@ public class RunTelemetry
     public void RecordRefill(double now) { refills++;refillIntervalTotal+=now-lastRefillAt;lastRefillAt=now; }
     public string RechargeSummary() => $"Missing-time={missingSeconds:0.0}s, Physical hits/s={MissingHitRate:0.00}, Eligible hits/s={EligibleHitRate:0.00}, Charge/s={RechargeRate:0.00}, Mean enemies={AverageEnemyCount:0.00}, Refills={refills}, Mean refill interval={AverageRefillInterval:0.00}s";
     public string deathCause = "Alive";
-    public float AverageHand => elapsed>0 ? handTimeIntegral/elapsed : 5;
+    public float AverageHand => elapsed>0 ? handTimeIntegral/elapsed : 0;
     public void Tick(float delta,int cards) {
         elapsed+=delta; handTimeIntegral+=delta*cards;
         if(cards<=1) lowEquipmentSeconds+=delta;

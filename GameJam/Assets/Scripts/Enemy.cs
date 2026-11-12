@@ -66,7 +66,8 @@ public class Enemy : MonoBehaviour
         surface = transform.parent.GetComponentInChildren<OuterRingSurface>();
         Element=element;
         hitCollider = GetComponent<MeshCollider>();
-        maxHp = hp = Mathf.Max(1, settings.health);
+        // Ordinary HP is sampled once at birth. Existing enemies never heal when difficulty rises.
+        maxHp = hp = k==Kind.Normal?GameManager.Instance.CurrentSpawnHealth:Mathf.Max(1, settings.health);
         ring = GetComponent<Renderer>().material;
         cap = capMaterial;
         ringColor=Card.ColorFor(Element);
@@ -191,7 +192,7 @@ public class Enemy : MonoBehaviour
     double passiveBurnUntil=double.NegativeInfinity, activeBurnUntil=double.NegativeInfinity;
     double nextBurnTick=double.PositiveInfinity, stunUntil=double.NegativeInfinity, immuneUntil=double.NegativeInfinity;
     AttackRecord passiveBurnSource,activeBurnSource;
-    bool burnChargeUsed;
+    float passiveDps,activeDps,passiveInterval,activeInterval;
     public double NextBurnTickAt => Alive ? nextBurnTick : double.PositiveInfinity;
     double Now => GameManager.Instance.CombatTime;
     public bool IsBurning => Alive && (passiveBurnUntil>Now || activeBurnUntil>Now);
@@ -202,39 +203,44 @@ public class Enemy : MonoBehaviour
     public float ActiveBurnRemaining => (float)System.Math.Max(0,activeBurnUntil-Now);
     public void Ignite(bool active,float duration,AttackRecord source)
     {
+        var t=GameManager.Instance.luck;
+        Ignite(active,duration,source,active?t.activeBurnDps:t.passiveBurnDps,t.burnTickInterval);
+    }
+    public void Ignite(bool active,float duration,AttackRecord source,float dps,float interval)
+    {
         if(!CanReceive(Card.Equipment.Spark) || !GameManager.Instance.IsPlaying || duration<=0) return;
-        if(!IsBurning){nextBurnTick=Now+Mathf.Max(.01f,GameManager.Instance.luck.burnTickInterval);burnChargeUsed=false;}
+        if(!IsBurning)nextBurnTick=Now+System.Math.Max(.000001,interval);
         double until=Now+duration;
         if(active) {
-            if(until>=activeBurnUntil) { activeBurnUntil=until; activeBurnSource=source; }
-        } else if(until>=passiveBurnUntil) { passiveBurnUntil=until; passiveBurnSource=source; }
+            if(until>=activeBurnUntil){activeBurnUntil=until;activeBurnSource=source;activeDps=dps;activeInterval=interval;}
+        } else if(until>=passiveBurnUntil){passiveBurnUntil=until;passiveBurnSource=source;passiveDps=dps;passiveInterval=interval;}
         if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.Ignite(transform.position,active);
     }
     public bool Stun(float duration,bool active)
+    {return Stun(duration,active,GameManager.Instance.luck.passiveStunImmunity);}
+    public bool Stun(float duration,bool active,float immunity)
     {
         if(!CanReceive(Card.Equipment.Shockwave) || !GameManager.Instance.IsPlaying || duration<=0) return false;
         // Agreed rule: passive stun cannot refresh an ongoing stun; active stun may extend it.
         if(!active && (IsStunned || Now<immuneUntil-.000001)) return false;
         stunUntil=System.Math.Max(stunUntil,Now+duration);
-        immuneUntil=System.Math.Max(immuneUntil,stunUntil+GameManager.Instance.luck.passiveStunImmunity);
+        immuneUntil=System.Math.Max(immuneUntil,stunUntil+immunity);
         return true;
     }
     public void TickStatus()
     {
         if(!Alive || !GameManager.Instance.IsPlaying || nextBurnTick>Now+.000001) return;
-        var t=GameManager.Instance.luck;
         bool strong=activeBurnUntil>=nextBurnTick-.000001;
         bool weak=passiveBurnUntil>=nextBurnTick-.000001;
+        bool useActive=strong && (!weak || activeDps>=passiveDps);
+        float interval=useActive?activeInterval:passiveInterval;
         if(strong || weak) {
-            bool useActive=strong && (!weak || t.activeBurnDps>=t.passiveBurnDps);
-            int dps=useActive ? t.activeBurnDps : t.passiveBurnDps;
+            float dps=useActive ? activeDps : passiveDps;
             var source=useActive ? activeBurnSource : passiveBurnSource;
             if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.BurnTick(transform.position,strong);
-            int before=hp;Vector3 point=transform.position;
-            TakeElementDamage(Mathf.FloorToInt(dps*t.burnTickInterval+.5f),Card.Equipment.Spark,source);
-            if(!burnChargeUsed && hp<before){burnChargeUsed=true;GameManager.Instance.EarnCombatRecharge(point,true);}
+            TakeElementDamage(LuckTuning.BurnDamage(dps,interval),Card.Equipment.Spark,source);
         }
-        double following=nextBurnTick+Mathf.Max(.01f,t.burnTickInterval);
+        double following=nextBurnTick+System.Math.Max(.000001,interval);
         nextBurnTick=Alive && System.Math.Max(passiveBurnUntil,activeBurnUntil)>Now+.000001 ? following : double.PositiveInfinity;
     }
     void OnDestroy() { if (ring) Destroy(ring); if (cap) Destroy(cap); }

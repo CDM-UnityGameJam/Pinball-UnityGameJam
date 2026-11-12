@@ -33,6 +33,11 @@ public static class EquipmentResolver
     {
         int arcs=gm.HeldCount(Card.Equipment.Arc);
         if(arcs>0) {
+            // The direct hit receives Arc damage separately and does not consume a nearby-target slot.
+            if(direct && direct.CanReceive(Card.Equipment.Arc)){
+                if(gm.Vfx)gm.Vfx.Lightning(point,direct.transform.position,false);
+                direct.TakeElementDamage(gm.luck.passiveArcDamage,Card.Equipment.Arc,source);
+            }
             var targets=Nearby(gm,point,gm.luck.passiveArcRadius,Card.Equipment.Arc,direct);
             for(int i=0;i<Mathf.Min(gm.luck.ArcTargets(arcs),targets.Count);i++) {
                 var e=targets[i];if(gm.Vfx)gm.Vfx.Lightning(point,e.transform.position,false);

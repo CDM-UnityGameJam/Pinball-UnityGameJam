@@ -1,17 +1,21 @@
 using UnityEngine;
 
-// Only ordinary enemies spawn; existing placement, chance and descent settings are retained.
+// Only ordinary enemies spawn; placement/chance rules are retained, cadence uses combat time.
 public class Spawner : MonoBehaviour
 {
     GameManager gm;
     SpawnTuning S => gm.spawning;
-    float normalTimer;
+    readonly SpawnProgress progress=new SpawnProgress();
+    public double GenerationProgress=>progress.Value;
+    public int PeriodicAttempts {get;private set;}
     SpringBumper[] springs;
     SideReturnLane[] returnLanes;
 
-    void Start()
+    void Start()=>Initialize(GameManager.Instance);
+    public void Initialize(GameManager manager)
     {
-        gm = GameManager.Instance;
+        if(gm)return;
+        gm = manager;
         springs = gm.board.GetComponentsInChildren<SpringBumper>();
         returnLanes = gm.board.GetComponentsInChildren<SideReturnLane>();
         MakeRedLine();
@@ -26,15 +30,13 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    void Update()
+    public void TickCombat(double elapsed)
     {
-        if (!gm.IsPlaying) return;
-        normalTimer += Time.deltaTime;
-        float interval = Mathf.Max(0.01f, gm.spawnInterval);
-        while (normalTimer >= interval) {
-            normalTimer -= interval;
+        if (!gm || !gm.IsPlaying) return;
+        progress.Advance(elapsed,gm.CurrentDifficulty.interval,()=>{
+            PeriodicAttempts++;
             if (Random.value < S.normalChancePercent / 100f) TrySpawnDescending(Enemy.Kind.Normal);
-        }
+        });
     }
 
     void TrySpawnDescending(Enemy.Kind kind, float? fixedX = null)

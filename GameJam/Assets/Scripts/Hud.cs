@@ -104,8 +104,8 @@ public class Hud : MonoBehaviour
     {
         bool over = gm.IsGameOver, pause = gm.Paused && !over;
         dialog.gameObject.SetActive(over || pause);
-        countdownText.gameObject.SetActive(gm.IsWaiting && !gm.Paused);
-        countdownText.text = Mathf.CeilToInt(gm.Countdown).ToString();
+        countdownText.gameObject.SetActive((gm.IsWaiting || gm.IsRelaunching) && !gm.Paused);
+        countdownText.text = (gm.IsRelaunching?"<size=24>RELAUNCH</size>\n":"")+Mathf.CeilToInt(gm.Countdown).ToString();
         if (!over && !pause) return;
 
         dialogText.text = over
@@ -131,10 +131,15 @@ public class Hud : MonoBehaviour
         previewTargets.Clear();
         if(selection.Count==0)return;
         foreach(var card in selection.Cards) {
+            int copies=0;foreach(var selected in selection.Cards)if(selected.equipment==card.equipment)copies++;
+            int limit=0;bool all=false;
+            foreach(var tier in selection.Count==1?new[]{CastTier.Base,CastTier.Standard}:new[]{CastTier.Base,CastTier.FullField,CastTier.Jackpot}){
+                var plan=gm.luck.Plan(card.equipment,tier,copies);all|=plan.allTargets;limit=Mathf.Max(limit,plan.targetCount);
+            }
             int count=0;
             foreach(var e in EquipmentResolver.Targets(gm)) {
                 if(!e.CanReceive(card.equipment))continue;
-                if(selection.Count==1 && count>=gm.luck.standardTargets)break;
+                if(!all && count>=limit)break;
                 count++;previewTargets.Add(e);e.PreviewTarget=true;
             }
         }
@@ -171,6 +176,7 @@ public class Hud : MonoBehaviour
     {return (type==Card.Equipment.Arc?"Arc":type==Card.Equipment.Spark?"Spark":"Shockwave")+" ×"+gm.HeldCount(type);}
     void RefreshBars()
     {
+        foreach(var line in balanceHelp)if(line.Key)line.Key.text=BalanceHelp(line.Value);
         scoreText.text=gm.Score.ToString("N0");livesText.text=gm.Lives+" / "+gm.maxLives;timeText.text=FormatTime(gm.ActiveTime);
         currentText.fontSize=22;currentText.text=gm.PendingBatch!=null?"Rolling "+gm.PendingBatch.Dice.Count+" dice":selection.Count==0?"Select cards":"Match #"+selection.Number+" · "+selection.Count+" selected";
         var batch=gm.LastBatch;
@@ -206,17 +212,19 @@ public class Hud : MonoBehaviour
         ghostCard.text=selection.Count+" selected · #"+selection.Number;
         var lines=new List<string>();
         lines.Add("Upgrade chance: "+DiceRules.HitChance(selection.Count).ToString("P1"));
-        lines.Add(selection.Count==1?"Base: 1 foe · Match: Hit (up to 4 foes)":"Base: 1 foe/type · 1 match: Full · 2+: Jackpot");
-        lines.Add("Currently eligible: "+previewTargets.Count+" unique foes · Power +"+selection.Count);
+        lines.Add("Possible targets: "+previewTargets.Count+" · Power +"+((long)selection.Count*gm.luck.empoweredHitsPerCard));
         for(int type=0;type<3;type++) {
             int spent=0;foreach(var c in selection.Cards)if((int)c.equipment==type)spent++;
             if(spent==0)continue;
             var e=(Card.Equipment)type;int after=gm.HeldCount(e)-spent;
+            var tiers=selection.Count==1?new[]{CastTier.Base,CastTier.Standard}:new[]{CastTier.Base,CastTier.FullField,CastTier.Jackpot};
+            var plans=new List<string>();foreach(var tier in tiers){var p=gm.luck.Plan(e,tier,spent);plans.Add(DiceRules.Label(tier)+":"+(p.allTargets?"All":p.targetCount.ToString())+"/"+(e==Card.Equipment.Spark?p.burnDuration.ToString("0.##")+"s":p.waves+"w"));}
+            lines.Add(e+" "+string.Join(" · ",plans));
             lines.Add(e+": held "+gm.HeldCount(e)+" → "+after);
             lines.Add(gm.EnchantmentSummary(e,after));
         }
         lines.Add("Charge required: "+(gm.IsHandFull?gm.luck.rechargeBaseCost:gm.RechargeRequired).ToString("0.#")+" → "+gm.RechargeAfterBatch(selection.Count).ToString("0.#"));
-        ghostResult.text=string.Join("\n",lines);ghostResult.fontSize=15;
+        ghostResult.text=string.Join("\n",lines);ghostResult.fontSize=13;
     }
 
     // Board callouts from the mockup, pinned to board positions.
@@ -320,12 +328,12 @@ public class Hud : MonoBehaviour
         timeText = Stat(topBar, "ACTIVE TIME", H.build.timeX, H.timeStat);
 
         SidePanel(H.build.leftHelpAnchor,H.build.leftHelpPosition,H.leftHelp,TextAnchor.UpperLeft,new[] {
-            ("HOLD = BALL ENCHANTMENTS",TextColor,new[] {("Held cards combine by element",Green),("Enemy colors show their immunity",Dim),("Arc / Fire / Shock foes resist their own type",Dim),("Base ball hit: 4 neutral damage",Dim)}),
+            ("HOLD = BALL ENCHANTMENTS",TextColor,new[] {("Held cards combine by element",Green),("Enemy colors show their immunity",Dim),("Arc / Fire / Shock foes resist their own type",Dim),("$BallDamage",Dim)}),
             ("PLAY ONE OR COMBINE",Gold,new[] {("Play one card or combine cards",Dim),("of the same number. Roll one die per card.",Dim),("A match upgrades them all.",Gold),("A / D: flippers · R: pause / restart",Dim)})
         });
         SidePanel(H.build.rightHelpAnchor,H.build.rightHelpPosition,H.rightHelp,TextAnchor.UpperLeft,new[] {
-            ("DICE RESULTS",TextColor,new[] {("No matching die: Base (skill guaranteed)",Dim),("One card + match: Hit (local)",Blue),("2+ cards, one match: Full Field",Blue),("2+ matching dice: Jackpot",Gold),("Repeated elements add waves or burn time",Dim)}),
-            ("RECHARGE",Gold,new[] {("100 base +50 required per card spent",Gold),("10/s natural · contacts / first burn tick +2.5",Dim),("Combat budget 6/s · minimum +0.25/event",Dim)})
+            ("DICE RESULTS",TextColor,new[] {("No matching die: Base (skill guaranteed)",Dim),("One card + match: Hit",Blue),("2+ cards, one match: Full Field",Blue),("2+ matching dice: Jackpot",Gold),("$Stacking",Dim)}),
+            ("RECHARGE",Gold,new[] {("$RechargeCost",Gold),("$RechargeSources",Dim),("$RechargeBudget",Dim)})
         });
         metricsText=Anchored(MakeText(root,"",16,Dim,TextAnchor.UpperLeft,Vector2.zero,new Vector2(400,150)),new Vector2(0,1),new Vector2(70,-830));
 
@@ -403,12 +411,23 @@ public class Hud : MonoBehaviour
             y -= style.titleSpacing;
             foreach (var (text, c) in lines)
             {
-                TopLeft(MakeText(rt, text, Mathf.Min(style.lineFontSize, 17), c, align, Vector2.zero, style.lineSize), y);
+                var line=TopLeft(MakeText(rt, text.StartsWith("$")?BalanceHelp(text):text, Mathf.Min(style.lineFontSize, 17), c, align, Vector2.zero, style.lineSize), y);
+                if(text.StartsWith("$"))balanceHelp.Add(new KeyValuePair<Text,string>(line,text));
                 y -= style.lineSpacing;
             }
             y -= style.sectionSpacing;
         }
     }
+
+    readonly List<KeyValuePair<Text,string>> balanceHelp=new List<KeyValuePair<Text,string>>();
+    string BalanceHelp(string key){var t=gm.luck;switch(key){
+        case "$BallDamage":return $"Ball: {t.collisionDamage} · Empowered total: {t.empoweredCollisionDamage}";
+        case "$Stacking":return $"Extra card: Arc +{t.extraArcWaves}w · Fire +{t.extraBurnPerCard:0.##}s · Shock fixed 1w";
+        case "$RechargeCost":return $"{t.rechargeBaseCost:0.##} base +{t.rechargeCastCost:0.##} required / card";
+        case "$RechargeSources":return $"Natural {t.rechargePerSecond:0.##}/s · Ball contact +{t.rechargeHit:0.##}";
+        case "$RechargeBudget":return "No recharge rate cap · Skills / burns grant 0";
+        default:return key;
+    }}
 
     // ---- UI helpers ----
 

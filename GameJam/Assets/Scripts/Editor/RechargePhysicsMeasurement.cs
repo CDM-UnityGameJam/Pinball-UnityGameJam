@@ -18,7 +18,7 @@ public class RechargePhysicsMeasurement : MonoBehaviour
     GameManager manager,previous;
     Flipper[] flippers;
     int episode;
-    float baseSpawnInterval,oldCapture;
+    float oldCapture;
     bool configured,oldBackground;
     Action completed;
     const int Seeds=3;
@@ -32,7 +32,6 @@ public class RechargePhysicsMeasurement : MonoBehaviour
         var go=new GameObject("Real physics recharge measurement");
         DontDestroyOnLoad(go);
         var driver=go.AddComponent<RechargePhysicsMeasurement>();
-        driver.baseSpawnInterval=GameManager.Instance.spawnInterval;
         driver.oldCapture=Time.captureDeltaTime;driver.oldBackground=Application.runInBackground;driver.completed=onComplete;
         Time.captureDeltaTime=.05f;Application.runInBackground=true;
         driver.NextScene();
@@ -48,7 +47,8 @@ public class RechargePhysicsMeasurement : MonoBehaviour
         if(!configured) {
             var gm=GameManager.Instance;
             if(!gm || gm==previous || gm.Lives==0 || !Hud.Instance || !gm.ball)return;
-            manager=gm;manager.spawnInterval=baseSpawnInterval/(episode<Seeds?1:2);
+            manager=gm;
+            manager.DifficultyDebug.SetMultipliers((gm.difficultyConfig?gm.difficultyConfig.spawnSpeedMultiplier:1)*(episode<Seeds?1:2),gm.difficultyConfig?gm.difficultyConfig.moveSpeedMultiplier:1);
             manager.Metrics.policy=episode<Seeds?"Regular density / physical controller":"High density / physical controller";
             flippers=gm.board.GetComponentsInChildren<Flipper>();foreach(var f in flippers)f.enabled=false;
             typeof(GameManager).GetMethod("Launch",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(gm,null);
