@@ -1,0 +1,3 @@
+# FMOD rewrites the mac bundle Info.plist files with LF endings. Keep them LF on checkout so
+# core.autocrlf doesn't turn them into CRLF and trigger FMOD's "repair" prompt.
+*.plist text eol=lf

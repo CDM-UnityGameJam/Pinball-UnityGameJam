@@ -40,3 +40,6 @@ Thumbs.db
 GameJam/fmod_editor.log
 GameJam/Assets/StreamingAssets/
 GameJam/Assets/StreamingAssets.meta
+# FMOD's editor cache of the locally built banks (timestamps change on every machine); FMOD regenerates it.
+GameJam/Assets/Plugins/FMOD/Cache/Editor/FMODStudioCache.asset
+GameJam/Assets/Plugins/FMOD/Cache/Editor/FMODStudioCache.asset.meta
