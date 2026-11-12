@@ -17,7 +17,7 @@ public sealed class SkillCast
     public readonly List<Enemy> Targets;
     public int WavesFired {get;private set;}
     public double NextWaveAt {get;private set;}=double.PositiveInfinity;
-    public bool Complete => WavesFired>=Plan.waves;
+    public bool Complete => WavesFired>=(Element==Card.Equipment.Shockwave?1:Plan.waves);
     public SkillCast(DiceBatch batch,Card.Equipment element,int copies,SkillPlan plan,List<Enemy> targets)
     {Batch=batch;Element=element;Copies=copies;Plan=plan;Targets=targets;}
     public void FireWave(GameManager gm)
@@ -27,14 +27,14 @@ public sealed class SkillCast
         foreach(var e in Targets) {
             if(!e || !e.CanReceive(Element))continue;
             Batch.Cover(e);
-            if(Element==Card.Equipment.Spark)e.Ignite(true,Plan.burnDuration,Batch);
+            if(Element==Card.Equipment.Spark)e.Ignite(true,Plan.burnDuration,Batch,Plan.burnDps,Plan.burnTickInterval);
             else {
-                if(Element==Card.Equipment.Shockwave && first)e.Stun(Plan.stunDuration,true);
+                if(Element==Card.Equipment.Shockwave && first)e.Stun(Plan.stunDuration,true,Plan.stunImmunity);
                 if(gm.Vfx)gm.Vfx.ActiveHit(Element,e.transform.position,Batch.Tier);
-                e.TakeElementDamage(Element==Card.Equipment.Arc?gm.luck.activeArcDamage:gm.luck.activeShockDamage,Element,Batch);
+                e.TakeElementDamage(Plan.damage,Element,Batch);
             }
         }
         WavesFired++;
-        NextWaveAt=Complete?double.PositiveInfinity:gm.CombatTime+Mathf.Max(.01f,Plan.waveInterval);
+        NextWaveAt=Complete?double.PositiveInfinity:gm.CombatTime+System.Math.Max(.000001,Plan.waveInterval);
     }
 }

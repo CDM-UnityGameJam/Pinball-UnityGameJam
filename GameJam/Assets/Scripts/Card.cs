@@ -16,9 +16,9 @@ public sealed class Card
     public string Name => equipment == Equipment.Arc ? "Arc" : equipment == Equipment.Spark ? "Spark" : "Shockwave";
     public static Color ColorFor(Equipment type) => type==Equipment.Arc?new Color(.12f,.55f,1):type==Equipment.Spark?new Color(1,.24f,.15f):new Color(.73f,.4f,1);
     public static string IconFor(Equipment type) => type==Equipment.Arc?"ϟ":type==Equipment.Spark?"▲":"◎";
-    public string Description(LuckTuning t) => equipment==Equipment.Arc?$"Arc: {t.passiveArcDamage} dmg in {t.passiveArcRadius:0.#}m\nLightning foes immune"
-        :equipment==Equipment.Spark?$"Burn: {t.passiveBurnDps} DPS / {t.passiveBurnDuration:0.#}s\nFire foes immune"
-        :$"Area stun: {t.passiveStunDuration:0.##}s\nShockwave foes immune";
+    public string Description(LuckTuning t) => equipment==Equipment.Arc?$"Arc: {t.passiveArcDamage} dmg · Hit + nearby\n{t.passiveArcRadius:0.##}m · Lightning foes immune"
+        :equipment==Equipment.Spark?$"Burn: {LuckTuning.BurnDamage(t.passiveBurnDps,t.burnTickInterval)} / {t.burnTickInterval:0.###}s · {t.passiveBurnDuration:0.###}s\nFire foes immune"
+        :$"Area stun: {t.passiveStunDuration:0.###}s\nShockwave foes immune";
     public string SkillName => equipment == Equipment.Arc ? "Thunderstorm" : equipment == Equipment.Spark ? "Inferno" : "Impact";
     public override string ToString() => number + " · " + Name;
 }

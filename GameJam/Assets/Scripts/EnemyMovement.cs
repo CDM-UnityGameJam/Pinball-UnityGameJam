@@ -9,10 +9,11 @@ public static class EnemyMovement
     {
         var result=new List<Move>();
         if(!gm.IsPlaying) return result;
+        float speed=gm.CurrentMoveSpeed;
         foreach(var e in EquipmentResolver.Targets(gm)) {
             var current=e.LocalPosition;
             var next=current;
-            if(!e.IsStunned) next.z-=(gm.spawning.normalSpawnZ-gm.spawning.dangerZ)/Mathf.Max(.01f,gm.enemyDescendTime)*delta;
+            if(!e.IsStunned) next.z-=speed*delta;
             foreach(var front in result) {
                 float dx=Mathf.Abs(current.x-front.local.x);
                 float spacing=e.Radius+front.enemy.Radius+gm.luck.enemyQueueGap;

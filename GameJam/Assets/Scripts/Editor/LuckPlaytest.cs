@@ -21,14 +21,14 @@ public static class LuckPlaytest
                 UnityEngine.Random.InitState(5050+seed);
                 using(var f=new LuckPrototypeCheck.Fixture()) {
                     var gm=f.gm;gm.Metrics.policy=combined?"Combine same-number pairs":"Split into single casts";
-                    gm.spawnInterval=original.spawnInterval;gm.enemyDescendTime=original.enemyDescendTime;
+                    gm.difficultyConfig=original.difficultyConfig;
                     var ball=f.Ball();float nextSpawn=0,nextHit=.6f,nextDecision=0;int spawn=0;
                     while(gm.IsPlaying && gm.ActiveTime<180) {
                         float now=gm.ActiveTime;
                         if(now>=nextSpawn) {
                             float x=(spawn%3-1)*2.4f;var element=(Card.Equipment)((spawn+seed)%3);
                             bool clear=EquipmentResolver.Targets(gm).All(e=>Vector2.Distance(new Vector2(x,gm.spawning.normalSpawnZ),new Vector2(e.LocalPosition.x,e.LocalPosition.z))>=e.Radius+gm.normalEnemy.radius+.1f);
-                            if(clear)f.Enemy(element,x,gm.spawning.normalSpawnZ,40);spawn++;nextSpawn+=gm.spawnInterval;
+                            if(clear)f.Enemy(element,x,gm.spawning.normalSpawnZ,40);spawn++;nextSpawn+=gm.CurrentSpawnInterval;
                         }
                         if(now>=nextHit){var enemies=EquipmentResolver.Targets(gm);if(enemies.Count>0)enemies[0].TryBallHit(ball);nextHit+=1.2f;}
                         if(now>=nextDecision && gm.CanSubmit) {
