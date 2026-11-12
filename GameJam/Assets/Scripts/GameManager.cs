@@ -7,6 +7,20 @@ public class GameManager : MonoBehaviour
 {
     enum RunState { Waiting, Playing, GameOver }
 
+    [Header("Pinball Audio")]
+    [Tooltip("Defaults to Resources/PinballAudio/SFX_pnb_launch when unassigned.")]
+    public SfxCue pinballLaunch;
+    [Tooltip("Defaults to Resources/PinballAudio/SFX_pnb_hit when unassigned.")]
+    public SfxCue pinballHit;
+    [Tooltip("Defaults to Resources/PinballAudio/SFX_pnb_hitCreature when unassigned.")]
+    public SfxCue pinballHitCreature;
+    [Tooltip("Enemy reaction played alongside the ball contact sound. Defaults to SFX_ctr_getHit.")]
+    public SfxCue creatureGetHit;
+    [Tooltip("Played once when a card batch is successfully cast. Defaults to SFX_ui_card_powerUp.")]
+    public SfxCue cardPowerUp;
+    [Tooltip("Played when score increases. Defaults to SFX_ui_score.")]
+    public SfxCue scoreIncrease;
+
     [Header("Run / Cards / Scoring")]
     [Min(1)] public int handSize = 5;
     [Min(0f)] public float launchWait = 3f;
@@ -89,6 +103,12 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        if (!pinballLaunch) pinballLaunch = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_launch");
+        if (!pinballHit) pinballHit = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hit");
+        if (!pinballHitCreature) pinballHitCreature = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hitCreature");
+        if (!creatureGetHit) creatureGetHit = Resources.Load<SfxCue>("PinballAudio/SFX_ctr_getHit");
+        if (!cardPowerUp) cardPowerUp = Resources.Load<SfxCue>("PinballAudio/SFX_ui_card_powerUp");
+        if (!scoreIncrease) scoreIncrease = Resources.Load<SfxCue>("PinballAudio/SFX_ui_score");
         DifficultyDebug.Reset();
 #if UNITY_EDITOR
         // Consume a one-shot preview before opening enemies are initialized in Start.
@@ -112,6 +132,7 @@ public class GameManager : MonoBehaviour
         balls.Add(ball);
         Vfx = gameObject.AddComponent<CombatVfx>();
         AttachBallVisuals(ball);
+        if (!ball.GetComponent<PinballCollisionAudio>()) ball.gameObject.AddComponent<PinballCollisionAudio>();
         // Clear the authored ball pose from the spawn area before checking opening positions.
         BeginWaiting();
         difficultySpawner=gameObject.AddComponent<Spawner>();
@@ -167,6 +188,7 @@ public class GameManager : MonoBehaviour
         state = RunState.Playing;
         Time.timeScale = 1f;
         LaunchBall(ball);
+        if (pinballLaunch) pinballLaunch.Play(ball.position);
     }
 
     // A lost last ball starts a combat-time countdown, without entering the opening wait state.
@@ -178,6 +200,7 @@ public class GameManager : MonoBehaviour
         if(countdown>.000001f)return;
         relaunchPending=false;countdown=0;
         ball=CreateBall();LaunchBall(ball);
+        if (pinballLaunch) pinballLaunch.Play(ball.position);
     }
 
     Rigidbody CreateBall()
@@ -190,6 +213,7 @@ public class GameManager : MonoBehaviour
         balls.Add(added);
         if(!ball)ball=added;
         AttachBallVisuals(added);
+        if (!added.GetComponent<PinballCollisionAudio>()) added.gameObject.AddComponent<PinballCollisionAudio>();
         return added;
     }
 
@@ -227,6 +251,7 @@ public class GameManager : MonoBehaviour
             held.position = entryWorld;
             var dir = Quaternion.Euler(0f, Random.Range(-launchBiasDegrees, launchBiasDegrees), 0f) * Vector3.back;
             held.linearVelocity = board.TransformDirection(dir) * extraBallDropSpeed;
+            if (pinballLaunch) pinballLaunch.Play(entryWorld);
         }
         launchingBalls = false;
     }
@@ -324,6 +349,7 @@ public class GameManager : MonoBehaviour
             Metrics.empoweredGranted+=granted;
             RefreshBallEnchantments();
             PendingBatch=prepared;
+            if (cardPowerUp) cardPowerUp.Play(transform.position);
             LastBatch=PendingBatch;Metrics.RecordBatch(cards.Length);BatchSubmitted?.Invoke(PendingBatch);
         }finally {resolving=false;}
         return true;
@@ -354,6 +380,8 @@ public class GameManager : MonoBehaviour
     public void RegisterBallHit(Enemy direct,Vector3 point,bool damageAllowed)
     {
         if(!IsPlaying || resolving)return;
+        if (pinballHitCreature) pinballHitCreature.Play(point);
+        if (creatureGetHit && direct) creatureGetHit.Play(direct.transform.position);
         bool missing=!IsHandFull;Metrics.validBallHits++;
         if(missing)Metrics.RecordRechargeHit(true);
         resolving=true;
@@ -436,7 +464,10 @@ public class GameManager : MonoBehaviour
     {
         long reward = Mathf.Max(0, normalKillPoints);
         if(IsPlaying) {
-            score=AddClamped(score,reward); Metrics.kills++;DifficultyStats.Kill(CombatTime);
+            long previousScore = score;
+            score=AddClamped(score,reward);
+            if (score > previousScore && scoreIncrease) scoreIncrease.Play(transform.position);
+            Metrics.kills++;DifficultyStats.Kill(CombatTime);
             if(source!=null) {
                 source.Kills++; LastEventKills=source.Kills;
                 if(source is DiceBatch)Metrics.batchKills++;
