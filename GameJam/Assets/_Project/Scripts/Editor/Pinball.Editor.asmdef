@@ -1,0 +1,22 @@
+{
+    "name": "Pinball.Editor",
+    "rootNamespace": "Pinball.Editor",
+    "references": [
+        "Pinball.Core",
+        "Pinball.Feedback",
+        "Pinball.Gameplay",
+        "Pinball.Presentation",
+        "Kybernetik.UltEvents"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

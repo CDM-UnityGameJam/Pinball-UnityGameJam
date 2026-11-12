@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb6d1954e1dbc6543b54a2c31a0483f8, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.GameConfig
+  lives: 3
+  drainLifeCost: 1
+  breachLifeCost: 1
+  launchCountdown: 3
+  launchSpeed: 32
+  launchSpreadDegrees: 8
+  ballHitDamage: 4
+  status:
+    burnTickInterval: 0.5
+    passiveStunImmunity: 2
+  luck: {fileID: 11400000, guid: ff5d4c4099951d74384514b98a59904e, type: 2}
+  deck: {fileID: 11400000, guid: 8d4b5e20b9ddcfe41aec9ec2498f6a2b, type: 2}
+  spawnProfile: {fileID: 11400000, guid: ea28d091171fc5d4abfe86cb49d9207e, type: 2}
+  elements:
+  - {fileID: 11400000, guid: 1e4cbf00310caf24bb5f7f43800cc915, type: 2}
+  - {fileID: 11400000, guid: 7597dc487d579dd459f7a34c527bc4d5, type: 2}
+  - {fileID: 11400000, guid: 2e800a3fb504d104f8d39801c072083f, type: 2}

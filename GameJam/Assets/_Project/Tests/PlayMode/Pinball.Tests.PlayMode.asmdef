@@ -1,0 +1,27 @@
+{
+    "name": "Pinball.Tests.PlayMode",
+    "rootNamespace": "Pinball.Tests.PlayMode",
+    "references": [
+        "Pinball.Core",
+        "Pinball.Gameplay",
+        "Pinball.Presentation",
+        "UnityEngine.TestRunner",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "Pinball.Feedback",
+        "Kybernetik.UltEvents"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

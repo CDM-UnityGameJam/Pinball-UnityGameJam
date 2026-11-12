@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b48a68fa1516d8458bb212e2fb67e59, type: 3}
+  m_Name: LuckConfig
+  m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.LuckConfig
+  minNumber: 1
+  maxNumber: 6
+  luckyRefreshInterval: 10
+  bands:
+  - id: Backlash
+    minQ: -10
+    maxQ: -1
+    normalWeight: 25
+    luckyWeight: 10
+  - id: Low
+    minQ: 0
+    maxQ: 19
+    normalWeight: 45
+    luckyWeight: 25
+  - id: Medium
+    minQ: 20
+    maxQ: 59
+    normalWeight: 25
+    luckyWeight: 40
+  - id: High
+    minQ: 60
+    maxQ: 100
+    normalWeight: 5
+    luckyWeight: 25
+  shortCircuitMinSeconds: 2
+  shortCircuitMaxSeconds: 4

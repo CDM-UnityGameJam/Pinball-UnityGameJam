@@ -1,0 +1,99 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6eede0268d8ab044b2a9a3d3bc9b344, type: 3}
+  m_Name: Arc
+  m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.ElementDefinition
+  displayName: Arc
+  skillName: Thunderstorm
+  color: {r: 0.1, g: 0.55, b: 1, a: 1}
+  icon: {fileID: 0}
+  passiveDescription: '#{number} foes in {radius}m
+
+    {damage} dmg; excludes hit foe'
+  activeDescription: 
+  passive:
+    rid: 1859406348216172980
+  active:
+    rid: 1859406348216172981
+  bandScaling:
+  - bandId: Low
+    allTargets: 0
+    targets:
+      min: 2
+      max: 3
+    waves:
+      min: 1
+      max: 1
+    burnSeconds:
+      min: 1
+      max: 2
+      step: 0.5
+    stunSeconds:
+      min: 0.4
+      max: 0.8
+      step: 0.1
+  - bandId: Medium
+    allTargets: 0
+    targets:
+      min: 4
+      max: 8
+    waves:
+      min: 1
+      max: 2
+    burnSeconds:
+      min: 3
+      max: 5
+      step: 0.5
+    stunSeconds:
+      min: 1
+      max: 1.8
+      step: 0.1
+  - bandId: High
+    allTargets: 1
+    targets:
+      min: 0
+      max: 0
+    waves:
+      min: 3
+      max: 4
+    burnSeconds:
+      min: 6
+      max: 8
+      step: 0.5
+    stunSeconds:
+      min: 2
+      max: 3
+      step: 0.1
+  ballAuraPrefab: {fileID: 970350062076337266, guid: ed4b6c27aa0c0fe459f901f76f9fa7d6, type: 3}
+  passiveHitVfx: {fileID: 11400000, guid: e1c59c443a0c21c4684dd01489ca9be5, type: 2}
+  activeHitVfx: {fileID: 11400000, guid: bdb7ebaadd8eadc40b69e89ba98c53fc, type: 2}
+  passiveHitSfx: {fileID: 0}
+  activeHitSfx: {fileID: 0}
+  castSfx: {fileID: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1859406348216172980
+      type: {class: ChainDamagePassive, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
+      data:
+        radius: 3
+        damage: 4
+        maxTargets:
+          baseValue: 2
+          perExtraCard: 1
+          min: 0
+          max: 5
+    - rid: 1859406348216172981
+      type: {class: WaveDamageSkill, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
+      data:
+        damagePerWave: 12
+        waveInterval: 0.25

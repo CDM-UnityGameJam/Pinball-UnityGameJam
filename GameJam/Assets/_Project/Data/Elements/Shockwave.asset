@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6eede0268d8ab044b2a9a3d3bc9b344, type: 3}
+  m_Name: Shockwave
+  m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.ElementDefinition
+  displayName: Shockwave
+  skillName: Impact
+  color: {r: 0.35, g: 0.9, b: 1, a: 1}
+  icon: {fileID: 0}
+  passiveDescription: '#{number} stun: {seconds}s
+
+    More #{number} cards: wider area'
+  activeDescription: 
+  passive:
+    rid: 1859406348216172984
+  active:
+    rid: 1859406348216172985
+  bandScaling:
+  - bandId: Low
+    allTargets: 0
+    targets:
+      min: 2
+      max: 3
+    waves:
+      min: 1
+      max: 1
+    burnSeconds:
+      min: 1
+      max: 2
+      step: 0.5
+    stunSeconds:
+      min: 0.4
+      max: 0.8
+      step: 0.1
+  - bandId: Medium
+    allTargets: 0
+    targets:
+      min: 4
+      max: 8
+    waves:
+      min: 1
+      max: 2
+    burnSeconds:
+      min: 3
+      max: 5
+      step: 0.5
+    stunSeconds:
+      min: 1
+      max: 1.8
+      step: 0.1
+  - bandId: High
+    allTargets: 1
+    targets:
+      min: 0
+      max: 0
+    waves:
+      min: 2
+      max: 3
+    burnSeconds:
+      min: 6
+      max: 8
+      step: 0.5
+    stunSeconds:
+      min: 2
+      max: 3
+      step: 0.1
+  ballAuraPrefab: {fileID: 4038151492101809808, guid: f096c84dd1d6a004e9636cd47c58cc2b, type: 3}
+  passiveHitVfx: {fileID: 11400000, guid: 82d4d0adf2de2204ba5da8b265dbde16, type: 2}
+  activeHitVfx: {fileID: 11400000, guid: a21cf9960ef0a774b921c0dd4029265b, type: 2}
+  passiveHitSfx: {fileID: 0}
+  activeHitSfx: {fileID: 0}
+  castSfx: {fileID: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1859406348216172984
+      type: {class: StunPulsePassive, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
+      data:
+        radius:
+          baseValue: 1.2
+          perExtraCard: 0.25
+        stunSeconds: 0.35
+    - rid: 1859406348216172985
+      type: {class: StunWaveSkill, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
+      data:
+        damagePerWave: 8
+        waveInterval: 0.35
+        stunOnFirstWave: 1

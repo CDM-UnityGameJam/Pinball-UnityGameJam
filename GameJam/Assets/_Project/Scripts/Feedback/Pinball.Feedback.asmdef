@@ -1,0 +1,16 @@
+{
+    "name": "Pinball.Feedback",
+    "rootNamespace": "Pinball.Feedback",
+    "references": [
+        "FMODUnity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

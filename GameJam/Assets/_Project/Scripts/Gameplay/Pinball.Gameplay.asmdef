@@ -1,0 +1,19 @@
+{
+    "name": "Pinball.Gameplay",
+    "rootNamespace": "Pinball.Gameplay",
+    "references": [
+        "Pinball.Core",
+        "Pinball.Feedback",
+        "Unity.InputSystem",
+        "Kybernetik.UltEvents"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
