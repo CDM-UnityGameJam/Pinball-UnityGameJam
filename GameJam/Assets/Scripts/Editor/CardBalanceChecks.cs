@@ -40,6 +40,19 @@ public static class CardBalanceChecks
                 var gm=f.gm;gm.cardBalanceConfig=config;f.Hand();var target=f.Enemy(Card.Equipment.Arc);target.Ignite(false,3,new AttackRecord("old burn"));gm.TickGameplay(.5f);Check(target.hp==98,"old burn first tick");config.settings.passiveBurnDps=20;config.settings.burnTickInterval=.25f;gm.TickGameplay(.5f);Check(target.hp==96,"existing burn parameters retained");
                 target.Ignite(false,3,new AttackRecord("refreshed burn"));gm.TickGameplay(.5f);Check(target.hp==91,"refresh reads new parameters without resetting pending tick");gm.TickGameplay(.25f);Check(target.hp==86,"new cadence after refresh");Check(gm.Metrics.burnChargeEvents==0,"burn and refresh never grant charge");
             }
+            config.settings=new LuckTuning();config.settings.passiveBurnDps=.5f;
+            using(var f=new LuckPrototypeCheck.Fixture()){
+                var gm=f.gm;gm.cardBalanceConfig=config;f.Hand();var target=f.Enemy(Card.Equipment.Arc);
+                target.Ignite(false,6,new AttackRecord("fractional burn"));gm.TickGameplay(1.5f);Check(target.hp==100,"fractional ticks do not deduct or display sub-point damage");
+                gm.TickGameplay(.5f);Check(target.hp==99,"four quarter-point ticks deduct one HP");gm.TickGameplay(4);Check(target.hp==97,"six-second half-DPS burn totals three HP");
+                Check(gm.Metrics.burnChargeEvents==0,"fractional burn does not grant energy");
+            }
+            config.settings=new LuckTuning();config.settings.passiveBurnDps=.5f;
+            using(var f=new LuckPrototypeCheck.Fixture()){
+                var gm=f.gm;gm.cardBalanceConfig=config;f.Hand(C(Card.Equipment.Spark),C(Card.Equipment.Spark),C(Card.Equipment.Spark));var target=f.Enemy(Card.Equipment.Arc);var ball=f.Ball();
+                target.TryBallHit(ball);Check(target.hp==96,"fire hit keeps base collision damage");gm.TickGameplay(2);Check(target.hp==93,"three held fire cards burn at 1.5 DPS");
+                Check(gm.GetCard(0).Description(gm.luck,3).Contains("1.5 DPS"),"card description shows combined held DPS");
+            }
             config.settings=new LuckTuning();
             using(var f=new LuckPrototypeCheck.Fixture()){
                 var gm=f.gm;gm.cardBalanceConfig=config;var target=f.Enemy(Card.Equipment.Arc);target.Stun(.35f,false);config.settings.passiveStunImmunity=0;gm.TickGameplay(.35f);Near(target.PassiveImmunityRemaining,2,"existing immunity retained");

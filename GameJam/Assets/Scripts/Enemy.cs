@@ -89,8 +89,13 @@ public class Enemy : MonoBehaviour
     public void Breach()
     {
         if(!Alive || !GameManager.Instance.IsPlaying) return;
-        hp=0;
+        RemoveFromField();
         GameManager.Instance.LoseLife();
+    }
+    public void RemoveFromField()
+    {
+        hp=0;
+        if(hitCollider)hitCollider.enabled=false;
         gameObject.SetActive(false);
         Destroy(gameObject);
     }
@@ -193,6 +198,7 @@ public class Enemy : MonoBehaviour
     double nextBurnTick=double.PositiveInfinity, stunUntil=double.NegativeInfinity, immuneUntil=double.NegativeInfinity;
     AttackRecord passiveBurnSource,activeBurnSource;
     float passiveDps,activeDps,passiveInterval,activeInterval;
+    readonly BurnDamageAccumulator burnDamage=new BurnDamageAccumulator();
     public double NextBurnTickAt => Alive ? nextBurnTick : double.PositiveInfinity;
     double Now => GameManager.Instance.CombatTime;
     public bool IsBurning => Alive && (passiveBurnUntil>Now || activeBurnUntil>Now);
@@ -209,7 +215,7 @@ public class Enemy : MonoBehaviour
     public void Ignite(bool active,float duration,AttackRecord source,float dps,float interval)
     {
         if(!CanReceive(Card.Equipment.Spark) || !GameManager.Instance.IsPlaying || duration<=0) return;
-        if(!IsBurning)nextBurnTick=Now+System.Math.Max(.000001,interval);
+        if(!IsBurning){nextBurnTick=Now+System.Math.Max(.000001,interval);burnDamage.Reset();}
         double until=Now+duration;
         if(active) {
             if(until>=activeBurnUntil){activeBurnUntil=until;activeBurnSource=source;activeDps=dps;activeInterval=interval;}
@@ -237,8 +243,11 @@ public class Enemy : MonoBehaviour
         if(strong || weak) {
             float dps=useActive ? activeDps : passiveDps;
             var source=useActive ? activeBurnSource : passiveBurnSource;
-            if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.BurnTick(transform.position,strong);
-            TakeElementDamage(LuckTuning.BurnDamage(dps,interval),Card.Equipment.Spark,source);
+            int damage=burnDamage.Add(LuckTuning.BurnDamage(dps,interval));
+            if(damage>0){
+                if(GameManager.Instance.Vfx)GameManager.Instance.Vfx.BurnTick(transform.position,strong);
+                TakeElementDamage(damage,Card.Equipment.Spark,source);
+            }
         }
         double following=nextBurnTick+System.Math.Max(.000001,interval);
         nextBurnTick=Alive && System.Math.Max(passiveBurnUntil,activeBurnUntil)>Now+.000001 ? following : double.PositiveInfinity;

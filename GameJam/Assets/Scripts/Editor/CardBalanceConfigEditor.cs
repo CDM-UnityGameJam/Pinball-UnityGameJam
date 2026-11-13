@@ -15,11 +15,12 @@ public sealed class CardBalanceConfigEditor : Editor
         if(asset.settings==null){EditorGUILayout.HelpBox("Settings missing. Safe defaults active.",MessageType.Error);if(GUILayout.Button("Create default settings")){Undo.RecordObject(asset,"Reset card settings");asset.settings=new LuckTuning();EditorUtility.SetDirty(asset);}return;}
         serializedObject.Update();data=serializedObject.FindProperty("settings");
         Fields("Recharge & charge","rechargeBaseCost","rechargeCastCost","rechargePerSecond","rechargeHit");
+        EditorGUILayout.Space();EditorGUILayout.LabelField("Time score & physical-hit combo",EditorStyles.boldLabel);EditorGUILayout.PropertyField(data.FindPropertyRelative("scoring"),true);
         EditorGUILayout.HelpBox("Natural recovery is retained. Each qualifying physical ball contact grants the full hit amount, with no rate cap. Burning, skills and kills grant no charge. Full hands stop charging.",MessageType.Info);
         Fields("Ball damage & empowered hits","collisionDamage","empoweredCollisionDamage","empoweredHitsPerCard");
         EditorGUILayout.HelpBox("Empowered collision damage is TOTAL damage, not bonus damage. All balls share the stock.",MessageType.None);
         Fields("Held Arc","passiveArcDamage","passiveArcRadius");HeldTable("arcTargetCounts","Nearby targets (direct hit receives Arc separately)");
-        Fields("Held Spark","passiveBurnDps","passiveBurnDuration","passiveSparkRadius");HeldTable("sparkTargetCounts","Nearby targets (direct hit separate)");
+        Fields("Held Spark","passiveBurnDps","passiveBurnDuration","passiveSparkRadius");HeldTable("sparkTargetCounts","Nearby targets (direct hit separate)");HeldTable("sparkDpsMultipliers","Burn DPS multiplier");
         Fields("Held Shockwave (stun only)","passiveStunDuration","passiveStunImmunity");HeldTable("shockRadii","Radius (m)");
         Fields("Shared flame timing","burnTickInterval");
         Fields("Active Arc","activeArcDamage","arcWaveInterval");Tiers("arcTiers",Card.Equipment.Arc);
@@ -35,9 +36,9 @@ public sealed class CardBalanceConfigEditor : Editor
         var t=valid?config.settings:new LuckTuning();
         EditorGUILayout.Space();EditorGUILayout.LabelField("Actual calculation preview",EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Charge per physical contact",t.rechargeHit.ToString("0.###")+" (no rate cap)");
-        EditorGUILayout.LabelField("Held fire damage per tick",LuckTuning.BurnDamage(t.passiveBurnDps,t.burnTickInterval).ToString());
-        EditorGUILayout.LabelField("Active fire damage per tick",LuckTuning.BurnDamage(t.activeBurnDps,t.burnTickInterval).ToString());
-        EditorGUILayout.HelpBox("Tick damage = floor(DPS × tick interval + 0.5). Battle and preview use this same rule. A small positive DPS can round to zero.",MessageType.Info);
+        EditorGUILayout.LabelField("Held fire accumulation per tick",LuckTuning.BurnDamage(t.HeldSparkDps(held),t.burnTickInterval).ToString("0.###"));
+        EditorGUILayout.LabelField("Active fire accumulation per tick",LuckTuning.BurnDamage(t.activeBurnDps,t.burnTickInterval).ToString("0.###"));
+        EditorGUILayout.HelpBox("Each tick adds DPS × tick interval to the enemy's burn remainder. Only whole points reduce HP and show damage numbers. Refreshing or switching burn sources preserves the remainder; fully extinguishing then reigniting starts a new accumulator.",MessageType.Info);
         element=(Card.Equipment)EditorGUILayout.EnumPopup("Element",element);held=EditorGUILayout.IntSlider("Held cards of this element",held,1,5);copies=EditorGUILayout.IntSlider("Cast cards of this element",copies,1,5);tier=(CastTier)EditorGUILayout.EnumPopup("Tier",tier);
         EditorGUILayout.HelpBox(t.HeldSummary(element,held),MessageType.None);
         var p=t.Plan(element,tier,copies);EditorGUILayout.HelpBox(p.Summary(element),MessageType.None);

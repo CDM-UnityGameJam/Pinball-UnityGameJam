@@ -30,6 +30,7 @@ public static class EnemyMovement
     {
         foreach(var move in Plan(gm,delta)) {
             if(!gm.IsPlaying) break;
+            if(!move.enemy || !move.enemy.Alive)continue;
             if(move.local.z<=gm.spawning.dangerZ) move.enemy.Breach();
             else move.enemy.MoveToLocal(move.local);
         }

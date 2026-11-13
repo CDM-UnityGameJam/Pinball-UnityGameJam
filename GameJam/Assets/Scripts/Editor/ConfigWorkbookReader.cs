@@ -99,6 +99,8 @@ public static class ConfigWorkbookReader
             if(held.Input("B"+row).Length==0&&held.Input("C"+row).Length==0&&held.Input("D"+row).Length==0&&held.Input("E"+row).Length==0)continue;
             int n=held.Int("B"+row);if(n<1||n>5||!counts.Add(n))throw new FormatException("Held-count table requires unique rows for 1–5 cards.");
             result.cards.arcTargetCounts[n-1]=held.Int("C"+row);result.cards.sparkTargetCounts[n-1]=held.Int("D"+row);result.cards.shockRadii[n-1]=held.Float("E"+row);
+            // Older workbooks without this column retain the default linear scaling.
+            if(held.Input("F7").Length>0||held.Input("F"+row).Length>0)result.cards.sparkDpsMultipliers[n-1]=held.Float("F"+row);
         }
         if(counts.Count!=5)throw new FormatException("Held-count table must cover 1–5 cards.");
         string Label(string key){for(int row=7;row<=labels.lastRow;row++)if(labels.Input("A"+row)==key)return labels.Input("B"+row);throw new FormatException("Label missing: "+key);}
@@ -113,6 +115,15 @@ public static class ConfigWorkbookReader
             else{target.waves=active.Int("G"+row);active.Blank("H"+row);if(element==Card.Equipment.Shockwave){if(target.waves!=1)throw new FormatException(key+": Shockwave is fixed at one wave; enter 1.");target.stunDuration=active.Float("I"+row);}else active.Blank("I"+row);}
         }
         if(tierRows.Count!=12)throw new FormatException("Active skills require all twelve element/tier rows.");
+        if(sheets.TryGetValue(Prefix+"scoring.v1",out var scoring)){
+            result.cards.scoring.timeInterval=scoring.Float("D7");result.cards.scoring.timePoints=scoring.Int("D8");result.cards.scoring.comboTimeout=scoring.Float("D9");
+            var rewards=new List<ComboRewardTier>();
+            for(int row=14;row<=scoring.lastRow;row++){
+                if(scoring.Input("B"+row).Length==0&&scoring.Input("C"+row).Length==0)break;
+                rewards.Add(new ComboRewardTier(scoring.Int("B"+row),scoring.Int("C"+row)));
+            }
+            result.cards.scoring.comboTiers=rewards.ToArray();
+        }
         if(!result.cards.Valid())throw new FormatException("Card balance: "+string.Join(" ",result.cards.Errors()));
         return result;
     }

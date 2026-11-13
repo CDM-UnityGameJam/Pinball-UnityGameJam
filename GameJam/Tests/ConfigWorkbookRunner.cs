@@ -50,6 +50,10 @@ class ConfigWorkbookRunner
             }
             }
             for(int tier=0;tier<4;tier++)for(int n=1;n<=5;n++)Check(data.cards.Plan(Card.Equipment.Shockwave,(CastTier)tier,n).waves==1,"Shockwave is fixed at one wave");
+            Near(data.cards.scoring.timeInterval,10,"time score interval");Check(data.cards.scoring.timePoints==1&&data.cards.scoring.Reward(50)==10,"score rewards imported");Near(Change(bytes,8,"D9","5").cards.scoring.comboTimeout,5,"combo timeout edit imported");Check(Change(bytes,8,"C15","30").cards.scoring.Reward(50)==30,"combo reward edit imported");Reject(bytes,8,"D7","0");Reject(bytes,8,"D8","1.5");Reject(bytes,8,"B15","10");Reject(bytes,8,"C14","-1");Reject(bytes,8,"C14","2",true);
+            for(int n=1;n<=5;n++)Near(data.cards.HeldSparkDps(n),data.cards.passiveBurnDps*data.cards.sparkDpsMultipliers[n-1],"configured fire multiplier import");
+            var fireScaling=Change(bytes,3,"F10","7.5");Near(fireScaling.cards.HeldSparkDps(3),data.cards.passiveBurnDps*7.5,"custom fire multiplier import");Near(fireScaling.cards.HeldSparkDps(2),data.cards.HeldSparkDps(2),"other fire row unchanged");
+            Reject(bytes,3,"F8","-1");Reject(bytes,3,"F8",null);Reject(bytes,3,"F8","2",true);
             Near(Change(bytes,1,"C7","2.5").baseSpawnInterval,2.5,"difficulty edit imported");Check(Change(bytes,2,"D16","9").cards.passiveArcDamage==9,"card edit imported");var independent=Change(bytes,4,"F11","2");Check(independent.cards.sparkTiers[0].targetCount==2&&independent.cards.arcTiers[0].targetCount==data.cards.arcTiers[0].targetCount,"independent fire scope");
             Reject(bytes,1,"B17","0");Reject(bytes,2,"D16",null);Reject(bytes,2,"A17","passiveArcDamage");Reject(bytes,2,"D16","NaN");Reject(bytes,2,"D16","9",true);Reject(bytes,3,"B12",null);Reject(bytes,4,"A18",null);Reject(bytes,4,"A7","Arc.0");Reject(bytes,4,"G11","3");Reject(bytes,1,"B22","600");Reject(bytes,7,"A1",null);Reject(bytes,2,"D13","-1");
             Reject(bytes,4,"G17","2");

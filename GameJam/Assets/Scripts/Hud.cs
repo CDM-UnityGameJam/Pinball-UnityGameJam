@@ -51,7 +51,7 @@ public class Hud : MonoBehaviour
     public bool SubmitSelection()=>gm.UseCards(new List<Card>(selection.Cards));
     void OnHandChanged()=>selection.KeepOnly(gm.HandSnapshot);
     void OnBatchSubmitted(DiceBatch batch)=>selection.Clear();
-    Text effectText, metricsText, rechargeHintText;
+    Text effectText, metricsText, rechargeHintText,comboText;
     FloatingText castToast;
 
     readonly HashSet<Enemy> previewTargets = new HashSet<Enemy>();
@@ -178,6 +178,7 @@ public class Hud : MonoBehaviour
     {
         foreach(var line in balanceHelp)if(line.Key)line.Key.text=BalanceHelp(line.Value);
         scoreText.text=gm.Score.ToString("N0");livesText.text=gm.Lives+" / "+gm.maxLives;timeText.text=FormatTime(gm.ActiveTime);
+        comboText.text=gm.ComboHits>0?$"COMBO {gm.ComboHits} · {gm.ComboRemaining:0.0}s · Pending +{gm.luck.scoring.Reward(gm.ComboHits)}":"";
         currentText.fontSize=22;currentText.text=gm.PendingBatch!=null?"Rolling "+gm.PendingBatch.Dice.Count+" dice":selection.Count==0?"Select cards":"Match #"+selection.Number+" · "+selection.Count+" selected";
         var batch=gm.LastBatch;
         previewText.text=batch==null?"No cast yet":!batch.Revealed?"Revealing dice...":DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets · "+batch.Kills+" kills";
@@ -204,7 +205,7 @@ public class Hud : MonoBehaviour
             v.card.text=c==null?"Empty":c.ToString();
             v.cooldown.text=c==null?"":(picked?"SELECTED · ":"")+Card.IconFor(c.equipment)+(gm.NumberCount(c.number)>=2?"  PAIR":"");
             v.cooldown.color=picked?Gold:blocked?Dim:TextColor;
-            v.result.text=c==null?"Awaiting charge":c.Description(gm.luck);v.result.fontSize=14;v.result.color=blocked?Dim:TextColor;
+            v.result.text=c==null?"Awaiting charge":c.Description(gm.luck,gm.HeldCount(c.equipment));v.result.fontSize=14;v.result.color=blocked?Dim:TextColor;
             v.result.rectTransform.sizeDelta=new Vector2(H.slotWidth-6,58);v.result.rectTransform.anchoredPosition=new Vector2(0,-34);
         }
         ghost.gameObject.SetActive(selection.Count>0);
@@ -326,6 +327,7 @@ public class Hud : MonoBehaviour
         scoreText = Stat(topBar, "SCORE", H.build.scoreX, H.scoreStat);
         livesText = Stat(topBar, "LIVES", H.build.livesX, H.livesStat);
         timeText = Stat(topBar, "ACTIVE TIME", H.build.timeX, H.timeStat);
+        comboText=Anchored(MakeText(root,"",18,Gold,TextAnchor.UpperLeft,Vector2.zero,new Vector2(430,28)),new Vector2(0,1),new Vector2(70,-785));
 
         SidePanel(H.build.leftHelpAnchor,H.build.leftHelpPosition,H.leftHelp,TextAnchor.UpperLeft,new[] {
             ("HOLD = BALL ENCHANTMENTS",TextColor,new[] {("Held cards combine by element",Green),("Enemy colors show their immunity",Dim),("Arc / Fire / Shock foes resist their own type",Dim),("$BallDamage",Dim)}),

@@ -94,6 +94,9 @@ public class GameManager : MonoBehaviour
     float countdown, activeTime;
     int lives;
     long score;
+    readonly ScoreAccount scoreAccount=new ScoreAccount();
+    public int ComboHits=>scoreAccount.Combo;
+    public double ComboRemaining=>scoreAccount.Remaining(CombatTime,luck.scoring);
     Card[] hand; // null = empty slot
     readonly List<Rigidbody> balls = new List<Rigidbody>();
     Rigidbody ballTemplate;
@@ -387,6 +390,7 @@ public class GameManager : MonoBehaviour
         resolving=true;
         try {
             if(damageAllowed) {
+                AwardCombo(scoreAccount.Hit(CombatTime,luck.scoring));
                 var source=new AttackRecord("Ball collision and enchantments");
                 int damage=EmpoweredHits>0?luck.empoweredCollisionDamage:luck.collisionDamage;
                 if(damage>0 && EmpoweredHits>0){EmpoweredHits--;Metrics.empoweredConsumed++;}
@@ -428,6 +432,7 @@ public class GameManager : MonoBehaviour
             next=System.Math.Max(combatTime,next);Metrics.Tick((float)(next-combatTime),CardCount);
             if(missing)Metrics.TickRecharge((float)(next-combatTime),enemies.Count);
             combatTime=next;activeTime=(float)combatTime;
+            int comboReward;AddScore(scoreAccount.Tick(combatTime-before,combatTime,luck.scoring,out comboReward));AwardCombo(comboReward);
             DifficultyStats.Trim(combatTime);
             if(difficultySpawner && difficultySpawner.enabled)difficultySpawner.TickCombat(combatTime-before);
             foreach(var e in enemies)if(e.Alive)e.TickStatus();
@@ -464,9 +469,7 @@ public class GameManager : MonoBehaviour
     {
         long reward = Mathf.Max(0, normalKillPoints);
         if(IsPlaying) {
-            long previousScore = score;
-            score=AddClamped(score,reward);
-            if (score > previousScore && scoreIncrease) scoreIncrease.Play(transform.position);
+            AddScore(reward);
             Metrics.kills++;DifficultyStats.Kill(CombatTime);
             if(source!=null) {
                 source.Kills++; LastEventKills=source.Kills;
@@ -477,6 +480,16 @@ public class GameManager : MonoBehaviour
         }
         return reward;
     }
+    void AddScore(long points)
+    {
+        if(points<=0)return;long before=score;score=AddClamped(score,points);
+        if(score>before&&scoreIncrease)scoreIncrease.Play(transform.position);
+    }
+    void AwardCombo(int points)
+    {
+        AddScore(points);
+        if(points>0&&Hud.Instance)Hud.Instance.Popup(board.TransformPoint(new Vector3(0,0,1)),"COMBO +"+points,Hud.Gold);
+    }
 
     public static long AddClamped(long a, long b) => a > long.MaxValue - b ? long.MaxValue : a + b;
     public static long MultiplyClamped(long a, int m) => m <= 0 ? 0 : a > long.MaxValue / m ? long.MaxValue : a * m;
@@ -486,14 +499,26 @@ public class GameManager : MonoBehaviour
     void LoseLives(int amount,string cause)
     {
         if (!IsPlaying) return;
-        lives -= Mathf.Max(0, amount);
+        int loss=Mathf.Max(0,amount);
+        if(loss==0)return;
+        lives=Mathf.Max(0,lives-loss);
+        ClearFieldEnemies();
         if (lives > 0) return;
+        AwardCombo(scoreAccount.Finish(luck.scoring));
         state = RunState.GameOver;
         relaunchPending=false;countdown=0;
         Metrics.deathCause=cause;
         Debug.Log("Luck v0.6 run stats: "+Metrics.Summary());
         Time.timeScale = 0f;
         foreach (var activeBall in balls) if (activeBall) activeBall.isKinematic = true;
+    }
+
+    void ClearFieldEnemies()
+    {
+        if(!board)return;
+        // Despawn directly: no kills, score, energy, multikill or extra-ball rewards.
+        // Spawner phase and difficulty/combat clocks are deliberately untouched.
+        foreach(var enemy in board.GetComponentsInChildren<Enemy>())enemy.RemoveFromField();
     }
 
     public void OnDrain(Rigidbody drained)

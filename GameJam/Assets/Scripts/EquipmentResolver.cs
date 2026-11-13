@@ -46,9 +46,10 @@ public static class EquipmentResolver
         }
         int sparks=gm.HeldCount(Card.Equipment.Spark);
         if(sparks>0) {
-            if(direct && direct.CanReceive(Card.Equipment.Spark))direct.Ignite(false,gm.luck.passiveBurnDuration,source);
+            float dps=gm.luck.HeldSparkDps(sparks);
+            if(direct && direct.CanReceive(Card.Equipment.Spark))direct.Ignite(false,gm.luck.passiveBurnDuration,source,dps,gm.luck.burnTickInterval);
             var targets=Nearby(gm,point,gm.luck.passiveSparkRadius,Card.Equipment.Spark,direct);
-            for(int i=0;i<Mathf.Min(gm.luck.ExtraSparkTargets(sparks),targets.Count);i++)targets[i].Ignite(false,gm.luck.passiveBurnDuration,source);
+            for(int i=0;i<Mathf.Min(gm.luck.ExtraSparkTargets(sparks),targets.Count);i++)targets[i].Ignite(false,gm.luck.passiveBurnDuration,source,dps,gm.luck.burnTickInterval);
         }
         int shocks=gm.HeldCount(Card.Equipment.Shockwave);
         if(shocks>0) {

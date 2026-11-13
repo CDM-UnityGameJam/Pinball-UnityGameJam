@@ -13,41 +13,64 @@ MonoBehaviour:
   m_Name: DefaultCardBalance
   m_EditorClassIdentifier: 
   settings:
+    scoring:
+      timeInterval: 5
+      comboTimeout: 3
+      timePoints: 5
+      comboTiers:
+      - hits: 5
+        points: 50
+      - hits: 10
+        points: 100
+      - hits: 20
+        points: 500
+      - hits: 25
+        points: 750
+      - hits: 30
+        points: 1000
+      - hits: 50
+        points: 9999
     rechargeBaseCost: 100
-    rechargeCastCost: 50
-    rechargePerSecond: 1.5
-    rechargeHit: 6
+    rechargeCastCost: 0
+    rechargePerSecond: 2
+    rechargeHit: 13
     collisionDamage: 4
     empoweredCollisionDamage: 8
     empoweredHitsPerCard: 1
-    passiveArcDamage: 10
+    passiveArcDamage: 4
     passiveArcRadius: 5
-    passiveBurnDps: 2
+    passiveBurnDps: 0.5
     passiveBurnDuration: 6
     passiveSparkRadius: 5
-    passiveStunDuration: 1
-    passiveStunImmunity: 2
+    passiveStunDuration: 0.8
+    passiveStunImmunity: 1
     burnTickInterval: 0.5
     arcTargetCounts: 030000000400000006000000080000000d000000i
-    sparkTargetCounts: 010000000200000005000000070000000b000000i
+    sparkTargetCounts: 0200000003000000040000000500000006000000i
     shockRadii:
     - 3
     - 4
     - 6
     - 8
     - 10
-    activeArcDamage: 30
-    activeShockDamage: 10
-    activeBurnDps: 6
+    sparkDpsMultipliers:
+    - 1
+    - 1.5
+    - 3
+    - 8
+    - 20
+    activeArcDamage: 20
+    activeShockDamage: 15
+    activeBurnDps: 4
     arcWaveInterval: 0.25
     arcTiers:
     - targetMode: 0
-      targetCount: 3
+      targetCount: 4
       waves: 1
       burnDuration: 0
       stunDuration: 0
     - targetMode: 0
-      targetCount: 5
+      targetCount: 6
       waves: 2
       burnDuration: 0
       stunDuration: 0
@@ -63,14 +86,14 @@ MonoBehaviour:
       stunDuration: 0
     sparkTiers:
     - targetMode: 0
-      targetCount: 1
+      targetCount: 3
       waves: 1
-      burnDuration: 1
+      burnDuration: 6
       stunDuration: 0
     - targetMode: 0
-      targetCount: 4
+      targetCount: 5
       waves: 1
-      burnDuration: 4
+      burnDuration: 6
       stunDuration: 0
     - targetMode: 1
       targetCount: 4
@@ -80,16 +103,16 @@ MonoBehaviour:
     - targetMode: 1
       targetCount: 4
       waves: 1
-      burnDuration: 8
+      burnDuration: 6
       stunDuration: 0
     shockTiers:
     - targetMode: 0
-      targetCount: 3
+      targetCount: 5
       waves: 1
       burnDuration: 0
       stunDuration: 5
     - targetMode: 0
-      targetCount: 5
+      targetCount: 7
       waves: 1
       burnDuration: 0
       stunDuration: 10
