@@ -26,15 +26,15 @@ public class Hud : MonoBehaviour
     public static Color ButtonHoverColor => GameManager.Instance ? GameManager.Instance.hud.buttonHoverColor : new HudTuning().buttonHoverColor;
 
     class SlotView { public RectTransform rect; public Image edge; public Text card; }
-    class EnemyLabel { public Text number, below, status; public RectTransform healthBack, healthFill; }
+    class EnemyLabel { public Text number, below; public RectTransform healthBack, healthFill; }
     class FloatingText { public Text text; public Vector3 world; public float age; }
 
     GameManager gm;
     Camera cam;
     Canvas canvas;
     Font font;
-    RectTransform root, labelLayer, popupLayer, topBar, bottomBar, handArea, energyFill, ghost, dialog;
-    Text scoreText, livesText, timeText, energyText, countdownText, ghostCard, ghostResult, dialogText, spawnLabel;
+    RectTransform root, labelLayer, popupLayer, topBar, bottomBar, handArea, energyFill, dialog;
+    Text scoreText, livesText, timeText, energyText, countdownText, dialogText;
     readonly RectTransform[] buttons = new RectTransform[2];
     readonly Text[] buttonTexts = new Text[2];
     SlotView[] slots;
@@ -88,7 +88,6 @@ public class Hud : MonoBehaviour
         RefreshPreview();
         RefreshBars();
         RefreshSlots(pointer);
-        RefreshBoardLabels();
         RefreshEnemyLabels();
         RefreshPopups();
     }
@@ -180,8 +179,8 @@ public class Hud : MonoBehaviour
     void RefreshBars()
     {
         scoreText.text=gm.Score.ToString("N0");livesText.text=gm.Lives+" / "+gm.maxLives;timeText.text=FormatTime(gm.ActiveTime);
-        comboText.text=gm.ComboHits>0?$"COMBO {gm.ComboHits} · {gm.ComboRemaining:0.0}s · Pending +{gm.luck.scoring.Reward(gm.ComboHits)}":"";
-        energyText.text=gm.IsHandFull?"Equipment full":"Recharge: "+gm.RechargeProgress.ToString("0.#")+" / "+gm.RechargeRequired.ToString("0.#")+" · Refill "+(gm.HandSize-gm.CardCount);
+        comboText.text=gm.ComboHits>0?gm.ComboHits.ToString():"";
+        energyText.text=gm.RechargeRequired.ToString("0.#");
         energyFill.anchorMax=new Vector2(gm.RechargeRequired<=0?0:Mathf.Clamp01((float)(gm.RechargeProgress/gm.RechargeRequired)),1);
         keyboardHint.gameObject.SetActive(keyboardSelection&&selection.Count>0&&gm.CanSubmit&&!pointerHeld);
         keyboardHintText.text=$"Double-tap {selection.Number} to cast";
@@ -201,26 +200,6 @@ public class Hud : MonoBehaviour
             v.card.text=c==null?"":c.number.ToString();
         }
         if(dragging)for(int i=0;i<slots.Length;i++)if(selection.Contains(gm.GetCard(i)))slots[i].rect.SetAsLastSibling();
-        ghost.gameObject.SetActive(selection.Count>0);
-        if(selection.Count==0)return;
-        ghostCard.text=selection.Count+" selected · #"+selection.Number;
-        var lines=new List<string>();
-        lines.Add((selection.Number==gm.LuckyNumber?"Lucky":"Normal")+" · Targets: "+previewTargets.Count);
-        for(int type=0;type<3;type++) {
-            int spent=0;foreach(var c in selection.Cards)if((int)c.equipment==type)spent++;
-            if(spent==0)continue;
-            var e=(Card.Equipment)type;
-            var tiers=new[]{selection.Number==gm.LuckyNumber?CastTier.Lucky:CastTier.Normal};
-            var plans=new List<string>();foreach(var tier in tiers){var p=gm.luck.Plan(e,tier,spent);plans.Add(DiceRules.Label(tier)+":"+(p.allTargets?"All":p.targetCount.ToString())+"/"+(e==Card.Equipment.Spark?p.burnDuration.ToString("0.##")+"s":p.waves+"w"));}
-            lines.Add(e+" "+string.Join(" · ",plans));
-        }
-        ghostResult.text=string.Join("\n",lines);ghostResult.fontSize=13;
-    }
-
-    // Board callouts from the mockup, pinned to board positions.
-    void RefreshBoardLabels()
-    {
-        spawnLabel.rectTransform.anchoredPosition = ToCanvas(gm.board.TransformPoint(H.refreshBoardLabels.spawnLabelPosition));
     }
 
     void RefreshEnemyLabels()
@@ -241,14 +220,12 @@ public class Hud : MonoBehaviour
             l.number.fontSize = 30;
             l.number.color = e.PreviewTarget ? Gold : Card.ColorFor(e.Element);
             l.below.text = e.hp + "/" + e.maxHp;
-            l.status.rectTransform.anchoredPosition=ToCanvas(e.transform.position+up+forward)+new Vector2(0,12);
-            l.status.text=(e.IsBurning?"Burning ":"")+(e.IsStunned?"Stunned":e.PassiveImmunityRemaining>0?"Stun immune":"");
         }
         gone.Clear();
         foreach (var kv in labels) if (!alive.Contains(kv.Key)) gone.Add(kv.Key);
         foreach (var e in gone) {
             var l = labels[e];
-            Destroy(l.number.gameObject); Destroy(l.below.gameObject); Destroy(l.status.gameObject); Destroy(l.healthBack.gameObject);
+            Destroy(l.number.gameObject); Destroy(l.below.gameObject); Destroy(l.healthBack.gameObject);
             labels.Remove(e);
         }
     }
@@ -257,7 +234,6 @@ public class Hud : MonoBehaviour
         var l = new EnemyLabel {
             number = Free(MakeText(labelLayer, "", 30, TextColor, TextAnchor.MiddleCenter, Vector2.zero, H.makeEnemyLabel.numberSize)),
             below = Free(MakeText(labelLayer, "", 12, Dim, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(80, 18))),
-            status = Free(MakeText(labelLayer,"",12,Orange,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(90,18))),
             healthBack = Box(labelLayer, "HealthBar", Vector2.zero, Vector2.zero, new Vector2(60, 10), PanelEdge)
         };
         l.healthFill = Box(l.healthBack, "Health", new Vector2(0, .5f), new Vector2(2, 0), new Vector2(56, 6), Green);
@@ -313,18 +289,17 @@ public class Hud : MonoBehaviour
         comboText=Anchored(MakeText(root,"",18,Gold,TextAnchor.UpperLeft,Vector2.zero,new Vector2(430,28)),H.build.comboAnchor,H.build.comboPosition);
 
 
-        // Board callouts.
-        spawnLabel = Free(MakeText(labelLayer, "ENEMY SPAWN AREA", H.build.spawnLabelFontSize, Dim, TextAnchor.MiddleCenter, Vector2.zero, H.build.spawnLabelSize));
 
         // Bottom: recharge progress.
         float handWidth = slots.Length * H.slotWidth + (slots.Length - 1) * H.slotSpacing;
         bottomBar = Panel(root, "BottomBar", H.build.bottomBarAnchor, H.build.bottomBarPosition, new Vector2(H.build.rechargePanelWidth, H.build.bottomBarHeight), PanelEdge);
         float left = -H.build.rechargePanelWidth / 2f + H.build.bottomContentInset;
-        energyText = LeftText(MakeText(bottomBar, "", H.build.energyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.energyY), H.build.energyLabelSize));
         var barBack = Box(bottomBar, "EnergyBar", H.build.energyBarAnchor, new Vector2(left + H.build.energyBarX + H.build.energyBarExtraX, -32), H.build.energyBarSize, H.energyBackground);
         energyFill = Box(barBack, "Fill", Vector2.zero, Vector2.zero, Vector2.zero, Green);
         energyFill.anchorMin = Vector2.zero; energyFill.anchorMax = H.build.energyFillAnchor;
         energyFill.offsetMin = energyFill.offsetMax = Vector2.zero;
+        float requiredX=barBack.anchoredPosition.x+barBack.sizeDelta.x*.5f+12f;
+        energyText=LeftText(MakeText(bottomBar,"",H.build.energyFontSize,Dim,TextAnchor.MiddleLeft,new Vector2(requiredX,barBack.anchoredPosition.y),H.build.energyLabelSize));
 
         // Fixed sorted slots; dragging moves every selected card by the same offset.
         slotHomes=new Vector2[slots.Length];
@@ -342,9 +317,6 @@ public class Hud : MonoBehaviour
 
         keyboardHint=Box(root,"KeyboardCastHint",H.build.castHintAnchor,H.build.castHintPosition,new Vector2(340,32),PanelEdge);
         keyboardHintText=MakeText(keyboardHint,"",17,Gold,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(330,30));keyboardHint.gameObject.SetActive(false);
-        ghost=Panel(root,"GroupPreview",H.build.groupPreviewAnchor,H.build.groupPreviewPosition,new Vector2(440,275),Blue);
-        ghostCard=Bold(MakeText(ghost,"",23,Blue,TextAnchor.MiddleCenter,new Vector2(0,115),new Vector2(425,35)));
-        ghostResult=MakeText(ghost,"",15,TextColor,TextAnchor.MiddleCenter,new Vector2(0,-10),new Vector2(425,230));ghost.gameObject.SetActive(false);
 
         countdownText = Bold(MakeText(root, "", H.build.countdownFontSize, TextColor, TextAnchor.MiddleCenter, H.build.countdownPosition, H.build.countdownSize));
 
