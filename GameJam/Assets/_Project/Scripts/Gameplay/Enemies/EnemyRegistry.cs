@@ -18,8 +18,8 @@ namespace Pinball.Gameplay
 
         public int Count => enemies.Count;
 
-        // (enemy, ball, contact point) for every valid ball hit, after its base damage.
-        public event Action<Enemy, Ball, Vector3> BallHit;
+        // (enemy, ball, contact point, damage allowed) for every new ball contact.
+        public event Action<Enemy, Ball, Vector3, bool> BallContact;
         public event Action<Enemy> Added;
         public event Action<Enemy> Removed;
 
@@ -35,7 +35,13 @@ namespace Pinball.Gameplay
             if (enemies.Remove(enemy)) Removed?.Invoke(enemy);
         }
 
-        internal void ReportBallHit(Enemy enemy, Ball ball, Vector3 point) => BallHit?.Invoke(enemy, ball, point);
+        internal void ReportContact(Enemy enemy, Ball ball, Vector3 point, bool damageAllowed) => BallContact?.Invoke(enemy, ball, point, damageAllowed);
+
+        // Take every living enemy off the field without rewards (a life was lost).
+        internal void DespawnAll()
+        {
+            foreach (var e in FrontFirst(scratch)) e.Despawn();
+        }
 
         // Living enemies, closest to the danger line first (ties: oldest first). Fills and returns `into`.
         public List<Enemy> FrontFirst(List<Enemy> into)
@@ -52,15 +58,16 @@ namespace Pinball.Gameplay
         }
 
         // Living enemies within `radius` of a world point, measured flat on the board, nearest first
-        // (ties: oldest first). Optional number filter and one enemy to leave out.
-        public List<Enemy> Nearby(Vector3 point, float radius, int? number, Enemy except, List<Enemy> into)
+        // (ties: oldest first). With an element, only enemies it can affect (not of that element).
+        // Optional enemy to leave out.
+        public List<Enemy> Nearby(Vector3 point, float radius, ElementDefinition element, Enemy except, List<Enemy> into)
         {
             into.Clear();
             var up = board.Up;
             float limit = radius * radius + 0.00001f;
             foreach (var e in enemies)
             {
-                if (!e || !e.Alive || e == except || (number.HasValue && e.Number != number.Value)) continue;
+                if (!e || !e.Alive || e == except || (element && e.Element == element)) continue;
                 if (Vector3.ProjectOnPlane(e.transform.position - point, up).sqrMagnitude <= limit) into.Add(e);
             }
             into.Sort((a, b) =>

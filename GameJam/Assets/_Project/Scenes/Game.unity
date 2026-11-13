@@ -298,6 +298,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1924760550951292761, guid: b87317c8735cf7d46b5a8c862fe6f2f9, type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
+      objectReference: {fileID: 0}
     - target: {fileID: 2217923954468807027, guid: b87317c8735cf7d46b5a8c862fe6f2f9, type: 3}
       propertyPath: m_Name
       value: Hud
@@ -344,6 +348,9 @@ MonoBehaviour:
   igniteVfx: {fileID: 11400000, guid: 5048224a5200b8040a600891a1fb94cf, type: 2}
   igniteStrongVfx: {fileID: 11400000, guid: dd189f517603ce040b6538ecc0fffdc2, type: 2}
   igniteSfx: {fileID: 0}
+  cardsPlayedSfx: {fileID: 11400000, guid: 237b39ef620611f49a29c938e0bf7e06, type: 2}
+  scoreSfx: {fileID: 11400000, guid: 736652ab7ab5ef046a8c38d8e1704c98, type: 2}
+  enemyContactSfx: {fileID: 11400000, guid: e632569866e9e8541a71fed755636c04, type: 2}
   lifeLostSfx: {fileID: 11400000, guid: 7a44e17cbd9f648488c09d6c02ead18f, type: 2}
   gameOverSfx: {fileID: 0}
 --- !u!4 &801566951
@@ -682,12 +689,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.DebugCheats
   context: {fileID: 1954774642}
-  luckyNumber: 6
-  nextQuality: 40
+  nextDice: 
   cardElement: {fileID: 0}
   cardNumber: 6
   enemy: {fileID: 0}
-  enemyNumber: 2
+  enemyElement: {fileID: 0}
   enemyPosition: {x: 0, y: 5}
 --- !u!1001 &2109007979
 PrefabInstance:

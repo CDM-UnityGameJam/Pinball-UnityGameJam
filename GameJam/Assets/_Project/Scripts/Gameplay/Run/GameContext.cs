@@ -29,11 +29,11 @@ namespace Pinball.Gameplay
         public EnemyMarch March { get; private set; }
         public ScoreSystem Score { get; private set; }
         public RunStats Stats { get; private set; }
-        public LuckSystem Luck { get; private set; }
         public HandSystem Hand { get; private set; }
         public CastScheduler Casts { get; private set; }
         public CombatResolver Combat { get; private set; }
         public MultiballSystem Multiball { get; private set; }
+        public BallRelaunch Relaunch { get; private set; }
         public CombatFeedback Feedback { get; } = new CombatFeedback();
         public IRandom Random { get; private set; } = UnityRandom.Shared;
         public BoardRoot Board => board;
@@ -50,24 +50,25 @@ namespace Pinball.Gameplay
             Clock = new CombatClock();
             Balls = new BallSystem(this, ballPrefab, ballParent ? ballParent : board.transform);
             Stats = new RunStats();
-            Score = new ScoreSystem(Run, Stats);
+            // Every combat step, in this order (the v0.6 TickGameplay): score (time points, combo timeout),
+            // spawning, then hand stats and natural charge.
+            Score = new ScoreSystem(this);
             Enemies = new EnemyRegistry(board);
             Spawner = new EnemySpawner(this, board.transform);
             March = new EnemyMarch(this);
             Casts = new CastScheduler(this);
-            Luck = new LuckSystem(this);
             Hand = new HandSystem(this);
             Combat = new CombatResolver(this);
             Multiball = new MultiballSystem(this);
+            Relaunch = new BallRelaunch(this);
 
             // When several deadlines fall on the same moment they fire in this order (old TickGameplay):
-            // enemy statuses (front first), cast waves, lucky number, hand refill.
+            // enemy statuses (front first), dice reveal and skill waves, then a replacement ball.
             Clock.Register(Enemies);
             Clock.Register(Casts);
-            Clock.Register(Luck);
-            Clock.Register(Hand);
-            Clock.Stepped += step => Stats.Tick(step, Hand.Count);
+            Clock.Register(Relaunch);
 
+            Run.LivesLost += OnLivesLost;
             Run.StateChanged += _ => ApplyTimeFlow();
             Run.PauseChanged += _ => ApplyTimeFlow();
             Run.LaunchDue += LaunchWaitingBall;
@@ -93,11 +94,7 @@ namespace Pinball.Gameplay
             if (Pressed(pauseAction)) Run.TogglePause();
             // Clamp load hitches so they can't eat the whole launch countdown.
             Run.Tick(Mathf.Min(Time.unscaledDeltaTime, Time.maximumDeltaTime));
-            if (!DriveTimeManually)
-            {
-                Spawner.Tick(Time.deltaTime);
-                Multiball.Tick(Time.deltaTime);
-            }
+            if (!DriveTimeManually) Multiball.Tick(Time.deltaTime);
         }
 
         // Combat clock first, then enemy movement (the old FixedUpdate order).
@@ -138,18 +135,44 @@ namespace Pinball.Gameplay
             foreach (var ball in Balls.Active)
             {
                 if (!ball.Body.isKinematic || ball.InReturnLane || Multiball.IsHeld(ball)) continue;
-                var direction = board.launchPoint.Direction(config.launchSpreadDegrees, Random.Value());
-                ball.Launch(board.launchPoint.Position, direction * config.launchSpeed);
+                Launch(ball);
             }
         }
 
+        // A new ball straight from the launch point (replacement after a drain).
+        internal Ball LaunchNewBall()
+        {
+            var ball = Balls.Spawn(board.launchPoint.Position);
+            Launch(ball);
+            return ball;
+        }
+
+        void Launch(Ball ball)
+        {
+            var direction = board.launchPoint.Direction(config.launchSpreadDegrees, Random.Value());
+            ball.Launch(board.launchPoint.Position, direction * config.launchSpeed);
+        }
+
+        // Drains never cost lives. When the last ball goes, the run keeps playing and a replacement launches
+        // after the countdown, unless a multiball reward is already on its way.
         void OnDrained(Ball ball)
         {
             if (!Run.IsPlaying || !Balls.Remove(ball)) return;
             if (Balls.Count > 0) return;
             Stats.drains++;
-            Run.LoseLives(config.drainLifeCost, "Ball drain");
-            if (Run.State == RunState.Playing) BeginLaunch();
+            if (Multiball.Pending > 0) return;
+            Relaunch.Begin(config.launchCountdown);
+        }
+
+        // Every life lost clears the field (no rewards); the last one also pays the running combo.
+        void OnLivesLost(int amount)
+        {
+            Enemies.DespawnAll();
+            if (Run.Lives <= 0)
+            {
+                Score.FinishCombo();
+                Relaunch.Cancel();
+            }
         }
 
         [Button, DisableInEditorMode]

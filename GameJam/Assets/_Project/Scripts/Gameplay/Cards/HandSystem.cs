@@ -5,101 +5,190 @@ using UnityEngine;
 
 namespace Pinball.Gameplay
 {
-    // The hand: fixed slots, playing cards, and refills (refill debt rules in Pinball.Core.RefillClock).
-    // Port of the old GameManager hand code:
-    // - Cards stay packed to the left: playing a card shifts the ones after it (CardShifted).
-    // - Holding cards enchants the ball (CombatResolver reads HeldCount / EnabledCount).
-    // - Playing a card: lock the lucky number, snapshot enemies front first, remove the card, pay the refill
-    //   delay, roll Q (lucky weights on a match) and resolve it (CastScheduler).
-    public sealed class HandSystem : ICombatTimer
+    // The hand: fixed slots, playing batches, and charge-driven refills (rules in Pinball.Core.ChargeAccount).
+    // Port of the v0.6 GameManager hand code:
+    // - Cards stay packed to the left: playing cards shifts the ones after them (CardShifted).
+    // - Held cards enchant the ball by element, whatever their number (CombatResolver reads HeldCount).
+    // - Playing a batch (1..5 cards, same number): snapshot enemies front first, roll one die per card, remove
+    //   the cards, add the per-card charge cost, stock empowered hits, and hand the batch to the CastScheduler,
+    //   which reveals the dice after the reveal delay. Only one batch can wait for its reveal at a time.
+    // - While a card is missing, charge builds from natural recovery (every combat step) and from ball contacts
+    //   (CombatResolver, after the contact's damage and enchantments). Each full charge draws a card.
+    public sealed class HandSystem
     {
         readonly GameContext context;
-        readonly CardSpec?[] slots;
-        readonly RefillClock refill;
+        readonly HandCard[] slots;
+        readonly ChargeAccount charge = new ChargeAccount();
 
         public HandSystem(GameContext context)
         {
             this.context = context;
-            var deck = context.config.deck;
-            slots = new CardSpec?[Mathf.Max(1, deck.handSize)];
-            refill = new RefillClock(deck.refillInterval, deck.playRefillDelay);
-            for (int i = 0; i < Mathf.Min(slots.Length, deck.startingHand.Count); i++) slots[i] = deck.startingHand[i];
-            if (!IsFull) refill.SetNext(context.Clock.Now + Mathf.Max(0.01f, deck.refillInterval));
+            var deck = Deck;
+            slots = new HandCard[Mathf.Max(1, deck.handSize)];
+            for (int i = 0; i < Mathf.Min(slots.Length, deck.startingHand.Count); i++) slots[i] = new HandCard(deck.startingHand[i]);
+            if (IsFull) charge.FullHand(); else charge.StartMissing(deck.baseCost);
+            context.Clock.Stepped += OnStep;
         }
 
+        DeckConfig Deck => context.config.deck;
+
         public int Size => slots.Length;
-        public CardSpec? this[int slot] => slot >= 0 && slot < slots.Length ? slots[slot] : null;
+        public HandCard this[int slot] => slot >= 0 && slot < slots.Length ? slots[slot] : null;
+        public IReadOnlyList<HandCard> Slots => slots;
 
         public int Count
         {
-            get { int n = 0; foreach (var c in slots) if (c.HasValue) n++; return n; }
+            get { int n = 0; foreach (var c in slots) if (c != null) n++; return n; }
         }
 
         public bool IsFull => Count == Size;
-        public bool Resolving { get; private set; }
-        public CastResult LastPlay { get; private set; }
+        // True while a batch or a contact is being resolved; nothing else may change the hand then.
+        public bool Resolving { get; internal set; }
+        public int EmpoweredHits { get; private set; }
 
-        public float RefillRemaining => refill.Remaining(context.Clock.Now, IsFull);
-        public float RefillAfterPlay => refill.RemainingAfterPlay(context.Clock.Now, IsFull);
+        public double ChargeProgress => charge.Progress;
+        public double ChargeRequired => charge.Required;
+        public double ChargeAfterBatch(int count) => charge.RequiredAfterBatch(IsFull, count, Deck.baseCost, Deck.perCardCost);
 
-        // Raised before a slot's content changes, so a drag in progress can't submit a different card.
+        // Raised before a slot's content changes, so a selection can drop a card that left.
         public event Action<int> SlotReplaced;
-        // (from, to) when playing a card shifts another one left.
+        // (from, to) when playing cards shifts another one left.
         public event Action<int, int> CardShifted;
         // Any change to which cards are held.
         public event Action Changed;
-        public event Action<CastResult> CardPlayed;
+        // (world point, amount) for charge earned from a ball contact.
+        public event Action<Vector3, double> ContactCharged;
+        // A batch was accepted (its dice are not revealed yet).
+        public event Action<DiceBatch> BatchPlayed;
 
         public int HeldCount(ElementDefinition element)
         {
             int n = 0;
-            foreach (var c in slots) if (c.HasValue && c.Value.element == element) n++;
+            foreach (var c in slots) if (c != null && c.Element == element) n++;
             return n;
         }
 
-        public int HeldCount(ElementDefinition element, int number)
+        public int HeldCountOfNumber(int number)
         {
             int n = 0;
-            foreach (var c in slots) if (c.HasValue && c.Value.element == element && c.Value.number == number) n++;
+            foreach (var c in slots) if (c != null && c.Number == number) n++;
             return n;
         }
 
-        // Held cards that currently enchant the ball (none while the element is short-circuited).
-        public int EnabledCount(ElementDefinition element) => context.Casts.IsShortCircuited(element) ? 0 : HeldCount(element);
-        public int EnabledCount(ElementDefinition element, int number) => context.Casts.IsShortCircuited(element) ? 0 : HeldCount(element, number);
+        public bool Contains(HandCard card) => card != null && Array.IndexOf(slots, card) >= 0;
 
-        public bool TryPlay(int slot)
+        public bool CanPlay => context.Run.IsPlaying && !Resolving && context.Casts.PendingBatch == null;
+
+        public bool IsValidBatch(IList<HandCard> cards) => DiceRules.ValidSelection(cards, slots, c => c.Number);
+
+        // Debug: the next batch rolls these faces (it must have exactly that many cards).
+        public int[] ForcedDice { get; private set; }
+        public bool ForceNextDice(int[] faces)
         {
-            if (!context.Run.IsPlaying || Resolving || slot < 0 || slot >= slots.Length || !slots[slot].HasValue) return false;
-            var card = slots[slot].Value;
-            int lockedLucky = context.Luck.Current;
-            bool wasFull = IsFull;
-            // Snapshot every living enemy before the card leaves the hand and before Q is drawn.
+            if (faces == null || !DiceRules.ValidFaces(faces, faces.Length)) return false;
+            ForcedDice = (int[])faces.Clone();
+            return true;
+        }
+
+        // Play a batch. False (and nothing changes) unless playing, no batch is waiting for its reveal, and
+        // the cards are 1..5 distinct held cards with the same number.
+        public bool TryPlay(IList<HandCard> cards, int[] forcedDice = null)
+        {
+            if (!CanPlay || !IsValidBatch(cards)) return false;
+            if (forcedDice == null && ForcedDice != null)
+            {
+                // A debug roll with the wrong count refuses the batch rather than being silently dropped.
+                if (ForcedDice.Length != cards.Count) return false;
+                forcedDice = ForcedDice;
+                ForcedDice = null;
+            }
+            if (forcedDice != null && !DiceRules.ValidFaces(forcedDice, cards.Count)) return false;
+            var played = new HandCard[cards.Count];
+            cards.CopyTo(played, 0);
             var snapshot = context.Enemies.FrontFirst(new List<Enemy>());
+            var dice = forcedDice != null ? (int[])forcedDice.Clone() : DiceRules.Roll(played.Length, context.Random);
+            var batch = new DiceBatch(played, dice, context.Clock.Now + Mathf.Max(0f, context.config.diceRevealDelay), snapshot, context.config.elements);
+            bool wasFull = IsFull;
             Resolving = true;
             try
             {
-                SlotReplaced?.Invoke(slot);
-                slots[slot] = null;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    if (slots[i] == null || Array.IndexOf(played, slots[i]) < 0) continue;
+                    SlotReplaced?.Invoke(i);
+                    slots[i] = null;
+                }
                 Compact();
-                refill.OnCardPlayed(context.Clock.Now, wasFull);
-                bool lucky = card.number == lockedLucky;
-                int quality = context.Luck.RollQuality(lucky);
-                LastPlay = context.Casts.Resolve(card, quality, lucky, lockedLucky, snapshot);
-                context.Stats.RecordPlay(LastPlay);
+                charge.PlayBatch(wasFull, played.Length, Deck.baseCost, Deck.perCardCost);
+                EmpoweredHits = (int)Math.Min(int.MaxValue, EmpoweredHits + (long)played.Length * Math.Max(0, context.config.empoweredHitsPerCard));
+                context.Stats.RecordBatch(played.Length);
+                context.Casts.Accept(batch);
                 Changed?.Invoke();
-                CardPlayed?.Invoke(LastPlay);
+                BatchPlayed?.Invoke(batch);
             }
             finally { Resolving = false; }
             return true;
         }
 
-        // Put a card in the first empty slot (debug tools, rewards). Keeps a running refill countdown.
+        // Uses one empowered hit if any. Returns true if one was used.
+        internal bool ConsumeEmpoweredHit()
+        {
+            if (EmpoweredHits <= 0) return false;
+            EmpoweredHits--;
+            context.Stats.empoweredUsed++;
+            return true;
+        }
+
+        internal double EarnContactCharge(Vector3 point)
+        {
+            double earned = Earn(Deck.perContact);
+            if (earned > 0) ContactCharged?.Invoke(point, earned);
+            return earned;
+        }
+
+        void OnStep(double step)
+        {
+            context.Stats.Tick(step, Count);
+            Earn(Deck.naturalPerSecond * step);
+        }
+
+        double Earn(double amount)
+        {
+            if (!context.Run.IsPlaying || IsFull) return 0;
+            charge.StartMissing(Deck.baseCost);
+            double earned = charge.Earn(amount);
+            DrawWhileCharged();
+            return earned;
+        }
+
+        void DrawWhileCharged()
+        {
+            bool drew = false;
+            while (!IsFull && charge.TryConsume(Deck.baseCost))
+            {
+                Insert(new HandCard(Draw()));
+                drew = true;
+            }
+            if (IsFull) charge.FullHand();
+            if (drew) Changed?.Invoke();
+        }
+
+        // Put a card in the first empty slot (debug tools, rewards). Keeps charge progress.
         public bool Grant(CardSpec card)
         {
-            if (!Insert(card)) return false;
-            refill.OnCardGranted(context.Clock.Now, IsFull);
+            if (!card.element || !Insert(new HandCard(card))) return false;
+            if (IsFull) charge.FullHand();
             Changed?.Invoke();
+            return true;
+        }
+
+        // Debug: fill the charge so the next missing card arrives now.
+        public bool FillCharge()
+        {
+            if (!context.Run.IsPlaying || Resolving || IsFull) return false;
+            charge.StartMissing(Deck.baseCost);
+            charge.Earn(Math.Max(0, charge.Required - charge.Progress));
+            DrawWhileCharged();
             return true;
         }
 
@@ -109,16 +198,18 @@ namespace Pinball.Gameplay
             for (int i = 0; i < slots.Length; i++)
             {
                 SlotReplaced?.Invoke(i);
-                slots[i] = i < cards.Length ? cards[i] : (CardSpec?)null;
+                slots[i] = i < cards.Length ? new HandCard(cards[i]) : null;
             }
-            if (IsFull) refill.Reset();
-            else refill.SetNext(context.Clock.Now + Mathf.Max(0.01f, context.config.deck.refillInterval));
+            charge.FullHand();
+            if (!IsFull) charge.StartMissing(Deck.baseCost);
             Changed?.Invoke();
         }
 
+        internal void ClearEmpoweredHits() => EmpoweredHits = 0;
+
         public CardSpec Draw()
         {
-            var deck = context.config.deck;
+            var deck = Deck;
             ElementDefinition element = null;
             float total = 0f;
             foreach (var w in deck.elementWeights) if (w.element) total += Mathf.Max(0f, w.weight);
@@ -130,7 +221,7 @@ namespace Pinball.Gameplay
                 if (pick < w.weight) break;
                 pick -= w.weight;
             }
-            int number = context.config.luck.minNumber;
+            int number = 1;
             total = 0f;
             foreach (var w in deck.numberWeights) total += Mathf.Max(0f, w.weight);
             pick = context.Random.Value() * total;
@@ -144,12 +235,12 @@ namespace Pinball.Gameplay
             return new CardSpec(element, number);
         }
 
-        bool Insert(CardSpec card)
+        bool Insert(HandCard card)
         {
-            if (!card.element || IsFull) return false;
+            if (card == null || !card.Element || IsFull) return false;
             for (int i = 0; i < slots.Length; i++)
             {
-                if (slots[i].HasValue) continue;
+                if (slots[i] != null) continue;
                 SlotReplaced?.Invoke(i);
                 slots[i] = card;
                 return true;
@@ -162,7 +253,7 @@ namespace Pinball.Gameplay
             int next = 0;
             for (int i = 0; i < slots.Length; i++)
             {
-                if (!slots[i].HasValue) continue;
+                if (slots[i] == null) continue;
                 if (i != next)
                 {
                     slots[next] = slots[i];
@@ -171,16 +262,6 @@ namespace Pinball.Gameplay
                 }
                 next++;
             }
-        }
-
-        public double NextEventAt => refill.NextEventAt(IsFull);
-
-        public void OnTime(double now)
-        {
-            if (!refill.IsDue(now, IsFull)) return;
-            Insert(Draw());
-            refill.OnRefilled(now, IsFull);
-            Changed?.Invoke();
         }
     }
 }

@@ -13,19 +13,12 @@ MonoBehaviour:
   m_Name: StarterDeck
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.DeckConfig
   handSize: 5
-  startingHand:
-  - element: {fileID: 11400000, guid: 7597dc487d579dd459f7a34c527bc4d5, type: 2}
-    number: 6
-  - element: {fileID: 11400000, guid: 2e800a3fb504d104f8d39801c072083f, type: 2}
-    number: 6
-  - element: {fileID: 11400000, guid: 1e4cbf00310caf24bb5f7f43800cc915, type: 2}
-    number: 2
-  - element: {fileID: 11400000, guid: 1e4cbf00310caf24bb5f7f43800cc915, type: 2}
-    number: 4
-  - element: {fileID: 11400000, guid: 7597dc487d579dd459f7a34c527bc4d5, type: 2}
-    number: 5
-  refillInterval: 8
-  playRefillDelay: 4
+  startingHand: []
+  maxNumber: 6
+  baseCost: 100
+  perCardCost: 0
+  naturalPerSecond: 2
+  perContact: 13
   elementWeights:
   - element: {fileID: 11400000, guid: 1e4cbf00310caf24bb5f7f43800cc915, type: 2}
     weight: 1

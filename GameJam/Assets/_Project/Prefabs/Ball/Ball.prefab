@@ -200,7 +200,13 @@ MonoBehaviour:
     - _Target: {fileID: 6256779945862641020}
       _MemberName: Play
       _PersistentArguments: []
-  minBounceSpeed: 3
+  onFlipperShot:
+    _PersistentCalls:
+    - _Target: {fileID: 7035000523224062424}
+      _MemberName: Play
+      _PersistentArguments: []
+  minBounceSpeed: 1
+  floorAngle: 60
   bounceLayers:
     serializedVersion: 2
     m_Bits: 640

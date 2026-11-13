@@ -7,7 +7,8 @@ using UnityEngine.TestTools;
 
 namespace Pinball.Tests.PlayMode
 {
-    // Phase 3 "done when": you can flip, launch, drain and lose lives in Game.unity.
+    // Phase 3 "done when": you can flip, launch, drain and lose lives in Game.unity (v0.6 rules: drains are
+    // free and relaunch while the fight goes on; only breaches cost lives).
     public class GameScenePlayModeTests
     {
         GameContext context;
@@ -86,27 +87,24 @@ namespace Pinball.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator DrainCostsALifeAndWaitsToRelaunch()
+        public IEnumerator DrainIsFreeAndRelaunchesWhileTheFightGoesOn()
         {
             yield return WaitUntilPlaying();
             yield return DrainTheBall();
-            Assert.That(context.Run.Lives, Is.EqualTo(context.config.lives - context.config.drainLifeCost));
-            Assert.That(context.Run.State, Is.EqualTo(RunState.Launching));
-            var ball = OnlyBall;
-            Assert.That(ball.Body.isKinematic);
-            Assert.That(Vector3.Distance(ball.Body.position, context.Board.launchPoint.Position), Is.LessThan(0.01f));
-            yield return WaitUntilPlaying();
+            Assert.That(context.Run.Lives, Is.EqualTo(context.config.lives), "drains never cost lives");
+            Assert.That(context.Run.State, Is.EqualTo(RunState.Playing));
+            Assert.That(context.Balls.Count, Is.Zero, "no ball waits on the table during the countdown");
+            Assert.That(Time.timeScale, Is.EqualTo(1f), "physics and enemies keep running");
+            float end = Time.realtimeSinceStartup + context.config.launchCountdown + 2f;
+            while (context.Balls.Count == 0 && Time.realtimeSinceStartup < end) yield return null;
             Assert.That(OnlyBall.Body.isKinematic, Is.False, "relaunched");
         }
 
         [UnityTest]
         public IEnumerator LosingEveryLifeEndsTheRun()
         {
-            for (int life = 0; life < context.config.lives; life++)
-            {
-                yield return WaitUntilPlaying();
-                yield return DrainTheBall();
-            }
+            yield return WaitUntilPlaying();
+            for (int life = 0; life < context.config.lives; life++) context.Run.LoseLives(1, "Enemy breach");
             Assert.That(context.Run.State, Is.EqualTo(RunState.GameOver));
             Assert.That(context.Run.Lives, Is.Zero);
             Assert.That(Time.timeScale, Is.Zero);

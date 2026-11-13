@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.EnemyDefinition
   displayName: Grunt
   prefab: {fileID: 7952590621124555846, guid: 9dbed01608f6e6c48a87a903141dd6a3, type: 3}
-  health: 40
+  health: 9
   radius: 0.75
   hitCooldown: 0.2
   scoreValue: 50
   hitBounceSpeed: 14
-  numberRule: 0
-  fixedNumber: 1
-  descendSeconds: 40
+  elementRule: 0
+  fixedElement: {fileID: 0}
+  descendSeconds: 35
   queueGap: 0.1
   horizontalGap: 0.45
   verticalGap: 0.35

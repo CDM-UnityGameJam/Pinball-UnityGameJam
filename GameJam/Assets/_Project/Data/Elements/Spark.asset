@@ -14,65 +14,38 @@ MonoBehaviour:
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.ElementDefinition
   displayName: Spark
   skillName: Inferno
-  color: {r: 1, g: 0.25, b: 0.015, a: 1}
+  color: {r: 1, g: 0.24, b: 0.15, a: 1}
+  symbol: "\u25B2"
   icon: {fileID: 0}
-  passiveDescription: '#{number} burn: {dps} DPS / {seconds}s
-
-    Same-number spread'
+  passiveDescription: "Burn: {dps} DPS \xB7 {seconds}s\nFractions add up per tick"
   activeDescription: 
   passive:
-    rid: 1859406348216172982
+    rid: 1859406402477359191
   active:
-    rid: 1859406348216172983
-  bandScaling:
-  - bandId: Low
-    allTargets: 0
-    targets:
-      min: 2
-      max: 3
-    waves:
-      min: 1
-      max: 1
-    burnSeconds:
-      min: 1
-      max: 2
-      step: 0.5
-    stunSeconds:
-      min: 0.4
-      max: 0.8
-      step: 0.1
-  - bandId: Medium
-    allTargets: 0
-    targets:
-      min: 4
-      max: 8
-    waves:
-      min: 1
-      max: 1
-    burnSeconds:
-      min: 3
-      max: 5
-      step: 0.5
-    stunSeconds:
-      min: 1
-      max: 1.8
-      step: 0.1
-  - bandId: High
-    allTargets: 1
-    targets:
-      min: 0
-      max: 0
-    waves:
-      min: 1
-      max: 1
-    burnSeconds:
-      min: 6
-      max: 8
-      step: 0.5
-    stunSeconds:
-      min: 2
-      max: 3
-      step: 0.1
+    rid: 1859406402477359192
+  tiers:
+  - allTargets: 0
+    targetCount: 3
+    waves: 1
+    burnSeconds: 6
+    stunSeconds: 0
+  - allTargets: 0
+    targetCount: 5
+    waves: 1
+    burnSeconds: 6
+    stunSeconds: 0
+  - allTargets: 1
+    targetCount: 4
+    waves: 1
+    burnSeconds: 6
+    stunSeconds: 0
+  - allTargets: 1
+    targetCount: 4
+    waves: 1
+    burnSeconds: 6
+    stunSeconds: 0
+  extraWavesPerCopy: 0
+  extraBurnSecondsPerCopy: 2
   ballAuraPrefab: {fileID: 5272690643811955074, guid: c0185c33657a3ed4cab5ae3e9d966ad6, type: 3}
   passiveHitVfx: {fileID: 0}
   activeHitVfx: {fileID: 0}
@@ -82,19 +55,22 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1859406348216172982
+    - rid: 1859406402477359191
       type: {class: IgnitePassive, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
       data:
         igniteHitEnemy: 1
-        radius: 2.5
+        radius: 5
         extraTargets:
-          baseValue: 0
-          perExtraCard: 1
-          min: 0
-          max: 3
-        burnSeconds: 3
-        burnDps: 4
-    - rid: 1859406348216172983
+          byHeld: 0200000003000000040000000500000006000000i
+        burnSeconds: 6
+        burnDps:
+          byHeld:
+          - 0.5
+          - 0.75
+          - 1.5
+          - 4
+          - 10
+    - rid: 1859406402477359192
       type: {class: BurnSkill, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
       data:
-        burnDps: 6
+        burnDps: 4

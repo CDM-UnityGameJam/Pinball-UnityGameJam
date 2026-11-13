@@ -5,14 +5,15 @@ namespace Pinball.Gameplay
 {
     public enum RunState
     {
-        Launching, // Countdown before the ball launches (run start, and after the last ball drains).
+        Launching, // Countdown before the first ball launches. (After a drain the run keeps playing; see GameContext.)
         Playing,
         GameOver,
     }
 
     // Run flow and lives. Port of the old GameManager state handling:
     // - Pause is a separate flag: you can pause during the launch countdown too, and it freezes it.
-    // - Lives are only lost while playing (not paused, not counting down).
+    // - Lives are only lost while playing (not paused, not counting down). LivesLost runs before the run can end,
+    //   so its handlers (clear the field, pay the combo) still see a playing run.
     // - Reaching zero lives ends the run; nothing restarts it except a scene reload.
     public sealed class RunStateMachine
     {
@@ -30,6 +31,8 @@ namespace Pinball.Gameplay
         public event Action<RunState> StateChanged;
         public event Action<bool> PauseChanged;
         public event Action<int> LivesChanged;
+        // (amount) after lives went down, before a game over is decided.
+        public event Action<int> LivesLost;
         // The countdown finished: launch the waiting ball.
         public event Action LaunchDue;
 
@@ -71,8 +74,11 @@ namespace Pinball.Gameplay
         public void LoseLives(int amount, string cause)
         {
             if (!IsPlaying) return;
-            Lives -= Mathf.Max(0, amount);
+            amount = Mathf.Max(0, amount);
+            if (amount == 0) return;
+            Lives = Mathf.Max(0, Lives - amount);
             LivesChanged?.Invoke(Lives);
+            LivesLost?.Invoke(amount);
             if (Lives > 0) return;
             EndCause = cause;
             Set(RunState.GameOver);

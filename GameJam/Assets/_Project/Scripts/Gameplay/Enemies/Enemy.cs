@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Pinball.Gameplay
 {
-    // Root of an enemy prefab: identity (definition, number, spawn order) and placement on the board.
+    // Root of an enemy prefab: identity (definition, element, spawn order) and placement on the board.
     // Rules live in the sibling components; the look lives in EnemyView and the Visual child.
     [RequireComponent(typeof(Rigidbody), typeof(EnemyHealth), typeof(EnemyStatus))]
     [RequireComponent(typeof(EnemyContact))]
@@ -14,7 +14,8 @@ namespace Pinball.Gameplay
         public float centerHeight = 0.25f;
 
         public EnemyDefinition Definition { get; private set; }
-        public int Number { get; private set; }
+        // The enemy's element: it is immune to that element's damage and statuses.
+        public ElementDefinition Element { get; private set; }
         public long SpawnOrder { get; private set; }
         public float Radius => Definition ? Definition.radius : 0.5f;
 
@@ -24,6 +25,9 @@ namespace Pinball.Gameplay
         public EnemyContact Contact { get; private set; }
 
         public bool Alive => Health.Alive && gameObject.activeInHierarchy;
+
+        // Alive and not of this element.
+        public bool CanReceive(ElementDefinition element) => Alive && Element != element;
 
         // Raised once when the enemy leaves play (killed or breached), before it goes back to the pool.
         public event Action<Enemy> Removed;
@@ -39,13 +43,13 @@ namespace Pinball.Gameplay
             Contact = GetComponent<EnemyContact>();
         }
 
-        internal void Spawn(GameContext context, EnemyDefinition definition, int number, long spawnOrder, Vector3 boardPosition)
+        internal void Spawn(GameContext context, EnemyDefinition definition, ElementDefinition element, int health, long spawnOrder, Vector3 boardPosition)
         {
             Context = context;
             Definition = definition;
-            Number = number;
+            Element = element;
             SpawnOrder = spawnOrder;
-            Health.ResetFor(definition.health, context);
+            Health.ResetFor(health, context);
             Status.ResetFor(this);
             Contact.ResetFor(this);
             var world = context.Board.ToWorld(WithHeight(boardPosition));
@@ -65,13 +69,26 @@ namespace Pinball.Gameplay
             return boardPosition;
         }
 
+        // Element damage: nothing if the enemy is of that element.
+        public bool TakeElementDamage(int amount, ElementDefinition element, AttackRecord source) =>
+            CanReceive(element) && Health.TakeDamage(amount, source);
+
+        // Crossed the danger line: leaves play first, then costs lives (which clears the rest of the field).
         internal void Breach()
         {
             if (!Alive || !Context.Run.IsPlaying) return;
             Health.Kill();
             Context.Stats.breaches++;
             Breached?.Invoke();
+            Remove();
             Context.Run.LoseLives(Context.config.breachLifeCost, "Enemy breach");
+        }
+
+        // Taken off the field without counting as a kill (no score, charge or multi-kill).
+        internal void Despawn()
+        {
+            if (!Alive) return;
+            Health.Kill();
             Remove();
         }
 

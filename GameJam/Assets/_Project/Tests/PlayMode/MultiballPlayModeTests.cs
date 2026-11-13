@@ -8,8 +8,8 @@ using UnityEngine.TestTools;
 
 namespace Pinball.Tests.PlayMode
 {
-    // Port of the multiball-side-kickers branch: extra balls from lucky kills and multi-kills,
-    // side-wall kickers, and the enemies' pop-bumper bounce.
+    // Port of the v0.5 multiball integration: extra balls from an attack's second kill, side-wall kickers,
+    // the enemies' pop-bumper bounce, and continuous relaunch after the last drain.
     public class MultiballPlayModeTests
     {
         GameContext context;
@@ -47,20 +47,21 @@ namespace Pinball.Tests.PlayMode
             for (int i = 0; i < count; i++) yield return new WaitForFixedUpdate();
         }
 
-        int Lucky => context.Luck.Current;
-        int NotLucky => Lucky == context.config.luck.minNumber ? Lucky + 1 : Lucky - 1;
-
-        Enemy Spawn(int number, float x, float z) => context.Spawner.Spawn(grunt, number, new Vector3(x, 0f, z));
+        Enemy Spawn(float x, float z) => context.Spawner.Spawn(grunt, context.config.elements[0], new Vector3(x, 0f, z));
 
         Vector3 OnSurface(float x, float z) => Board.ToWorld(new Vector3(x, Board.SurfaceHeightAt(x, z) + 0.375f + 0.01f, z));
 
         [UnityTest]
-        public IEnumerator LuckyKillEarnsABallThatIsHeldThenDropsDownTheTable()
+        public IEnumerator SecondKillEarnsABallThatIsHeldThenDropsDownTheTable()
         {
-            Spawn(NotLucky, -4f, 4f).Health.TakeDamage(10000);
-            Assert.That(context.Multiball.Pending, Is.Zero, "an unlucky kill earns nothing");
+            Spawn(-4f, 4f).Health.TakeDamage(10000);
+            Spawn(0f, 4f).Health.TakeDamage(10000);
+            Assert.That(context.Multiball.Pending, Is.Zero, "single kills from separate attacks earn nothing");
 
-            Spawn(Lucky, 4f, 4f).Health.TakeDamage(10000);
+            var attack = new AttackRecord("Test");
+            Spawn(-4f, 6f).Health.TakeDamage(10000, attack);
+            Assert.That(context.Multiball.Pending, Is.Zero);
+            Spawn(4f, 4f).Health.TakeDamage(10000, attack);
             Assert.That(context.Multiball.Pending, Is.EqualTo(1));
             yield return null;
 
@@ -82,7 +83,7 @@ namespace Pinball.Tests.PlayMode
         public void MultiKillEarnsOneBallPerAttack()
         {
             var attack = new AttackRecord("Test");
-            for (int i = 0; i < 3; i++) Spawn(NotLucky, -4f + 4f * i, 4f).Health.TakeDamage(10000, attack);
+            for (int i = 0; i < 3; i++) Spawn(-4f + 4f * i, 4f).Health.TakeDamage(10000, attack);
             Assert.That(attack.Kills, Is.EqualTo(3));
             Assert.That(context.Multiball.Pending, Is.EqualTo(1));
         }
@@ -94,6 +95,25 @@ namespace Pinball.Tests.PlayMode
             for (int i = 0; i < free; i++) Assert.That(context.Multiball.AddBall(), Is.True);
             Assert.That(context.Multiball.AddBall(), Is.False);
             Assert.That(context.Multiball.Pending, Is.EqualTo(free));
+        }
+
+        [UnityTest]
+        public IEnumerator DrainingTheLastBallCostsNoLifeAndRelaunches()
+        {
+            int lives = context.Run.Lives;
+            var main = context.Balls.Active[0];
+            main.Launch(Board.drain.transform.position, Vector3.zero);
+            yield return FixedSteps(3);
+            Assert.That(context.Balls.Count, Is.Zero);
+            Assert.That(context.Run.Lives, Is.EqualTo(lives), "only breaches cost lives");
+            Assert.That(context.Run.State, Is.EqualTo(RunState.Playing), "the fight keeps going");
+            Assert.That(context.Relaunch.Pending);
+            double before = context.Clock.Now;
+            yield return FixedSteps(Mathf.CeilToInt(context.config.launchCountdown / Time.fixedDeltaTime) + 2);
+            Assert.That(context.Clock.Now - before, Is.GreaterThan(context.config.launchCountdown - 0.05), "combat time ran during the countdown");
+            Assert.That(context.Balls.Count, Is.EqualTo(1), "a replacement launched");
+            Assert.That(context.Balls.Active[0].Body.isKinematic, Is.False);
+            Assert.That(context.Relaunch.Pending, Is.False);
         }
 
         [UnityTest]
@@ -133,7 +153,7 @@ namespace Pinball.Tests.PlayMode
         [UnityTest]
         public IEnumerator EnemiesPushASlowBallAwayLikeAPopBumper()
         {
-            var enemy = Spawn(NotLucky, 4f, 2f);
+            var enemy = Spawn(4f, 2f);
             enemy.Health.SetCurrent(10000);
             var ball = context.Balls.Active[0];
             ball.Launch(OnSurface(4f, 2f + grunt.radius + 0.375f + 0.3f), Vector3.zero);

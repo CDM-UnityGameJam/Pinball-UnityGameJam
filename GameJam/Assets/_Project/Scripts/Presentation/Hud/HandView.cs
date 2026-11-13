@@ -1,94 +1,119 @@
 using System.Collections.Generic;
+using Pinball.Core;
 using Pinball.Gameplay;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Pinball.Presentation
 {
-    // The hand and drag-to-play. Port of the old Hud drag rules:
-    // - Press a card to pick it up (only while playing); releasing over the playfield plays it, releasing
-    //   anywhere else (including over HUD panels) puts it back.
-    // - If the dragged card shifts left because another card was played, the drag follows it.
-    // - If a refill replaces the dragged slot, the drag is dropped, so a release can never play a different card.
-    // - While dragging, enemies with the card's number are highlighted (passive preview).
+    // The hand, card selection and the Cast button. Port of the v0.6 Hud selection rules:
+    // - Click a card to select it, click again to unselect. The first card locks the number: cards with another
+    //   number are greyed out and can't be selected. Up to five cards; elements can mix.
+    // - Selected cards stay in the hand (they still enchant the ball) until the batch is cast.
+    // - The Cast button plays the selection: one die per card. Nothing can be selected or cast while a batch
+    //   waits for its dice.
+    // - A card that leaves the hand drops out of the selection; casting clears it.
+    // - Enemies the selection could target are highlighted (the widest tier it can reach).
     public sealed class HandView : HudPresenter
     {
         public List<CardView> slots = new List<CardView>();
-        public DragGhostView ghost;
-        [Tooltip("Releasing over these never plays a card.")]
-        public List<RectTransform> dropBlockers = new List<RectTransform>();
+        public Button castButton;
+        public TMP_Text castLabel;
+        public Image castButtonImage;
+        public Color castReadyColor = new Color32(43, 52, 72, 255);
 
+        readonly List<HandCard> selection = new List<HandCard>();
         readonly List<Enemy> enemies = new List<Enemy>();
+        readonly HashSet<Enemy> targets = new HashSet<Enemy>();
         readonly HashSet<EnemyView> previewed = new HashSet<EnemyView>();
         readonly Dictionary<Enemy, EnemyView> views = new Dictionary<Enemy, EnemyView>();
-        Vector2 pointer;
 
-        public int DragSlot { get; private set; } = -1;
-        public int? PreviewNumber => DragSlot >= 0 && Context.Hand[DragSlot].HasValue ? Context.Hand[DragSlot].Value.number : (int?)null;
-        public int PreviewCount { get; private set; }
+        public IReadOnlyList<HandCard> Selection => selection;
+        public int? SelectedNumber => selection.Count == 0 ? (int?)null : selection[0].Number;
+        public int PreviewCount => targets.Count;
 
         protected override void OnBind()
         {
             for (int i = 0; i < slots.Count; i++) slots[i].Bind(this, i);
-            Context.Hand.CardShifted += (from, to) => { if (DragSlot == from) DragSlot = to; };
-            Context.Hand.SlotReplaced += slot => { if (slot == DragSlot) DragSlot = -1; };
+            Context.Hand.Changed += () => selection.RemoveAll(c => !Context.Hand.Contains(c));
+            Context.Hand.BatchPlayed += _ => selection.Clear();
+            if (castButton) castButton.onClick.AddListener(() => Cast());
         }
 
-        public void Press(int slot, Vector2 screen)
+        // Returns true if the card's selection changed.
+        public bool Toggle(int slot)
         {
-            if (!Ready || !Context.Run.IsPlaying || !Context.Hand[slot].HasValue) return;
-            DragSlot = slot;
-            pointer = screen;
+            if (!Ready || !Context.Hand.CanPlay) return false;
+            var card = Context.Hand[slot];
+            if (card == null) return false;
+            if (selection.Remove(card)) return true;
+            if (selection.Count >= DiceRules.MaxCards || (SelectedNumber.HasValue && card.Number != SelectedNumber.Value)) return false;
+            selection.Add(card);
+            return true;
         }
 
-        public void Move(Vector2 screen) => pointer = screen;
+        // Play the selection. Returns true if the batch was accepted.
+        public bool Cast() => Ready && selection.Count > 0 && Context.Hand.TryPlay(new List<HandCard>(selection));
 
-        // Returns true if the card was played.
-        public bool Release(Vector2 screen)
-        {
-            if (DragSlot < 0) return false;
-            int slot = DragSlot;
-            DragSlot = -1;
-            return Context.Run.IsPlaying && Context.Hand[slot].HasValue && OverPlayfield(screen) && Context.Hand.TryPlay(slot);
-        }
-
-        public bool OverPlayfield(Vector2 screen)
-        {
-            foreach (var blocker in dropBlockers)
-                if (blocker && blocker.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(blocker, screen, null))
-                    return false;
-            return Context.Board.playfieldArea.Contains(Hud.WorldCamera.ScreenPointToRay(screen));
-        }
+        public bool IsSelected(HandCard card) => card != null && selection.Contains(card);
 
         void Update()
         {
             if (!Ready) return;
             var hand = Context.Hand;
-            if (!Context.Run.IsPlaying || (DragSlot >= 0 && !hand[DragSlot].HasValue)) DragSlot = -1;
-
-            int lucky = Context.Luck.Current;
             for (int i = 0; i < slots.Count; i++)
             {
                 var card = hand[i];
-                int stack = card.HasValue ? hand.HeldCount(card.Value.element, card.Value.number) : 0;
-                slots[i].Show(card, stack, card.HasValue && card.Value.number == lucky, i == DragSlot, Theme);
+                bool blocked = card != null && SelectedNumber.HasValue && card.Number != SelectedNumber.Value;
+                slots[i].Show(card, card != null ? hand.HeldCount(card.Element) : 0, card != null && hand.HeldCountOfNumber(card.Number) >= 2,
+                    IsSelected(card), blocked, Theme);
             }
 
+            bool ready = selection.Count > 0 && hand.CanPlay;
+            if (castLabel)
+            {
+                castLabel.text = $"Cast {selection.Count} · Roll {selection.Count} {(selection.Count == 1 ? "die" : "dice")}";
+                castLabel.color = ready ? Theme.text : Theme.dim;
+            }
+            if (castButtonImage) castButtonImage.color = ready ? castReadyColor : Theme.panelEdge;
+            if (castButton) castButton.interactable = ready;
+
             UpdatePreview();
-            if (DragSlot >= 0) ghost.Show(hand[DragSlot].Value, Hud.ScreenToCanvas(pointer), PreviewCount);
-            else ghost.Hide();
         }
 
         void UpdatePreview()
         {
             foreach (var view in previewed) if (view) view.Previewed = false;
             previewed.Clear();
-            PreviewCount = 0;
-            var number = PreviewNumber;
-            if (!number.HasValue || !Context.Run.IsPlaying) return;
-            foreach (var enemy in Context.Enemies.FrontFirst(enemies))
+            targets.Clear();
+            if (selection.Count == 0 || !Context.Run.IsPlaying) return;
+            Context.Enemies.FrontFirst(enemies);
+            var tiers = DiceRules.PossibleTiers(selection.Count);
+            foreach (var element in Context.config.elements)
             {
-                if (enemy.Number != number.Value) continue;
-                PreviewCount++;
+                int copies = 0;
+                foreach (var c in selection) if (c.Element == element) copies++;
+                if (copies == 0) continue;
+                bool all = false;
+                int limit = 0;
+                foreach (var tier in tiers)
+                {
+                    var plan = element.Plan(tier, copies);
+                    all |= plan.allTargets;
+                    limit = Mathf.Max(limit, plan.targetCount);
+                }
+                int count = 0;
+                foreach (var enemy in enemies)
+                {
+                    if (!enemy.CanReceive(element)) continue;
+                    if (!all && count >= limit) break;
+                    count++;
+                    targets.Add(enemy);
+                }
+            }
+            foreach (var enemy in targets)
+            {
                 if (!views.TryGetValue(enemy, out var view)) views[enemy] = view = enemy.GetComponent<EnemyView>();
                 if (!view) continue;
                 view.Previewed = true;
@@ -96,6 +121,6 @@ namespace Pinball.Presentation
             }
         }
 
-        public bool IsPreviewed(Enemy enemy) => PreviewNumber.HasValue && Context.Run.IsPlaying && enemy.Number == PreviewNumber.Value;
+        public bool IsPreviewed(Enemy enemy) => targets.Contains(enemy);
     }
 }

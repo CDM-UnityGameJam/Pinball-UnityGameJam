@@ -20,8 +20,16 @@ namespace Pinball.Presentation
         public VfxCue igniteStrongVfx;
         public SfxCue igniteSfx;
 
+        [Title("Cards and score")]
+        [Tooltip("A batch of cards was played.")]
+        public SfxCue cardsPlayedSfx;
+        [Tooltip("The score went up (kills, time, combos).")]
+        public SfxCue scoreSfx;
+        [Tooltip("An enemy reacts to every new ball contact, at the enemy.")]
+        public SfxCue enemyContactSfx;
+
         [Title("Run")]
-        [Tooltip("A life is lost (drain or breach).")]
+        [Tooltip("A life is lost (an enemy breached).")]
         public SfxCue lifeLostSfx;
         public SfxCue gameOverSfx;
 
@@ -30,7 +38,10 @@ namespace Pinball.Presentation
         void Start()
         {
             context.Feedback.Raised += OnFeedback;
-            context.Casts.CastResolved += OnCast;
+            context.Casts.BatchRevealed += OnBatchRevealed;
+            context.Hand.BatchPlayed += OnBatchPlayed;
+            context.Score.ScoreChanged += OnScoreChanged;
+            context.Enemies.BallContact += OnBallContact;
             lives = context.Run.Lives;
             context.Run.LivesChanged += OnLivesChanged;
             context.Run.StateChanged += state => { if (state == RunState.GameOver && gameOverSfx) gameOverSfx.Play(Listener); };
@@ -40,7 +51,10 @@ namespace Pinball.Presentation
         {
             if (!context || !context.IsInitialized) return;
             context.Feedback.Raised -= OnFeedback;
-            context.Casts.CastResolved -= OnCast;
+            context.Casts.BatchRevealed -= OnBatchRevealed;
+            context.Hand.BatchPlayed -= OnBatchPlayed;
+            context.Score.ScoreChanged -= OnScoreChanged;
+            context.Enemies.BallContact -= OnBallContact;
             context.Run.LivesChanged -= OnLivesChanged;
         }
 
@@ -70,10 +84,26 @@ namespace Pinball.Presentation
             }
         }
 
-        void OnCast(CastResult cast)
+        // Every element in the batch casts on the reveal.
+        void OnBatchRevealed(DiceBatch batch)
         {
-            var sfx = cast.card.element ? cast.card.element.castSfx : null;
-            if (cast.outcome == CastOutcome.Cast && sfx) sfx.Play(Listener);
+            foreach (var cast in batch.Casts)
+                if (cast.element && cast.element.castSfx) cast.element.castSfx.Play(Listener);
+        }
+
+        void OnBatchPlayed(DiceBatch batch)
+        {
+            if (cardsPlayedSfx) cardsPlayedSfx.Play(Listener);
+        }
+
+        void OnScoreChanged(long score)
+        {
+            if (scoreSfx) scoreSfx.Play(Listener);
+        }
+
+        void OnBallContact(Enemy enemy, Ball ball, Vector3 point, bool damageAllowed)
+        {
+            if (enemyContactSfx && enemy) enemyContactSfx.Play(enemy.transform.position);
         }
 
         void OnLivesChanged(int now)

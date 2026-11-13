@@ -6,10 +6,10 @@ using UnityEngine.UI;
 
 namespace Pinball.Presentation
 {
-    // One hand slot. Press to pick the card up, release over the playfield to play it (HandView decides).
-    public sealed class CardView : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IDragHandler
+    // One hand slot. Click to select or unselect the card (HandView decides).
+    public sealed class CardView : MonoBehaviour, IPointerClickHandler
     {
-        [Tooltip("Coloured edge: gold when the card matches the lucky number, blue while dragged.")]
+        [Tooltip("Coloured edge: gold when selected, the element's colour otherwise, dim when blocked.")]
         public Image edge;
         public TMP_Text caption, title, description;
 
@@ -22,34 +22,39 @@ namespace Pinball.Presentation
             slot = index;
         }
 
-        public void OnPointerDown(PointerEventData eventData) => hand?.Press(slot, eventData.position);
-        public void OnDrag(PointerEventData eventData) => hand?.Move(eventData.position);
-        public void OnPointerUp(PointerEventData eventData) => hand?.Release(eventData.position);
+        public void OnPointerClick(PointerEventData eventData) => hand?.Toggle(slot);
 
-        internal void Show(CardSpec? card, int stack, bool lucky, bool reserved, UiTheme theme)
+        // held: cards of this element in hand. pair: another card with the same number is held.
+        internal void Show(HandCard card, int held, bool pair, bool selected, bool blocked, UiTheme theme)
         {
-            edge.color = reserved ? theme.blue : lucky ? theme.gold : theme.panelEdge;
-            title.color = reserved ? theme.blue : theme.text;
-            if (!card.HasValue)
+            if (card == null)
             {
+                edge.color = theme.panelEdge;
+                title.color = theme.dim;
                 title.text = "Empty";
-                description.text = "Awaiting refill";
+                description.text = "Awaiting charge";
+                description.color = theme.dim;
                 caption.text = "";
                 return;
             }
-            var c = card.Value;
-            title.text = CardText(c);
-            description.text = Describe(c);
-            caption.text = $"#{c.number} stack: {stack}";
-            caption.color = lucky ? theme.gold : theme.dim;
+            var element = card.Element;
+            var color = element ? element.color : theme.text;
+            edge.color = selected ? theme.gold : blocked ? theme.panelEdge : color;
+            title.color = blocked ? theme.dim : color;
+            title.text = CardText(card.spec);
+            description.text = Describe(card.spec, held);
+            description.color = blocked ? theme.dim : theme.text;
+            caption.text = (selected ? "SELECTED · " : "") + (element ? element.symbol : "") + (pair ? "  PAIR" : "");
+            caption.color = selected ? theme.gold : blocked ? theme.dim : theme.text;
         }
 
         public static string CardText(CardSpec card) => $"{card.number} · {card.element.displayName}";
 
-        public static string Describe(CardSpec card)
+        // The element's card text with its module's numbers for `held` cards of the element.
+        public static string Describe(CardSpec card, int held)
         {
-            string text = (card.element.passiveDescription ?? "").Replace("{number}", card.number.ToString());
-            return card.element.passive != null ? card.element.passive.FillTokens(text) : text;
+            string text = card.element.passiveDescription ?? "";
+            return card.element.passive != null ? card.element.passive.FillTokens(text, held) : text;
         }
     }
 }

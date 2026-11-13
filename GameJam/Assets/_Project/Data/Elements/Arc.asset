@@ -14,65 +14,38 @@ MonoBehaviour:
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.ElementDefinition
   displayName: Arc
   skillName: Thunderstorm
-  color: {r: 0.1, g: 0.55, b: 1, a: 1}
+  color: {r: 0.12, g: 0.55, b: 1, a: 1}
+  symbol: "\u03DF"
   icon: {fileID: 0}
-  passiveDescription: '#{number} foes in {radius}m
-
-    {damage} dmg; excludes hit foe'
+  passiveDescription: "Arc: {damage} dmg \xB7 Hit + {targets} nearby\n{radius}m \xB7 Arc foes immune"
   activeDescription: 
   passive:
-    rid: 1859406348216172980
+    rid: 1859406402477359193
   active:
-    rid: 1859406348216172981
-  bandScaling:
-  - bandId: Low
-    allTargets: 0
-    targets:
-      min: 2
-      max: 3
-    waves:
-      min: 1
-      max: 1
-    burnSeconds:
-      min: 1
-      max: 2
-      step: 0.5
-    stunSeconds:
-      min: 0.4
-      max: 0.8
-      step: 0.1
-  - bandId: Medium
-    allTargets: 0
-    targets:
-      min: 4
-      max: 8
-    waves:
-      min: 1
-      max: 2
-    burnSeconds:
-      min: 3
-      max: 5
-      step: 0.5
-    stunSeconds:
-      min: 1
-      max: 1.8
-      step: 0.1
-  - bandId: High
-    allTargets: 1
-    targets:
-      min: 0
-      max: 0
-    waves:
-      min: 3
-      max: 4
-    burnSeconds:
-      min: 6
-      max: 8
-      step: 0.5
-    stunSeconds:
-      min: 2
-      max: 3
-      step: 0.1
+    rid: 1859406402477359194
+  tiers:
+  - allTargets: 0
+    targetCount: 4
+    waves: 1
+    burnSeconds: 0
+    stunSeconds: 0
+  - allTargets: 0
+    targetCount: 6
+    waves: 2
+    burnSeconds: 0
+    stunSeconds: 0
+  - allTargets: 1
+    targetCount: 4
+    waves: 3
+    burnSeconds: 0
+    stunSeconds: 0
+  - allTargets: 1
+    targetCount: 4
+    waves: 4
+    burnSeconds: 0
+    stunSeconds: 0
+  extraWavesPerCopy: 1
+  extraBurnSecondsPerCopy: 0
   ballAuraPrefab: {fileID: 970350062076337266, guid: ed4b6c27aa0c0fe459f901f76f9fa7d6, type: 3}
   passiveHitVfx: {fileID: 11400000, guid: e1c59c443a0c21c4684dd01489ca9be5, type: 2}
   activeHitVfx: {fileID: 11400000, guid: bdb7ebaadd8eadc40b69e89ba98c53fc, type: 2}
@@ -82,18 +55,16 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1859406348216172980
+    - rid: 1859406402477359193
       type: {class: ChainDamagePassive, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
       data:
-        radius: 3
+        radius: 5
         damage: 4
-        maxTargets:
-          baseValue: 2
-          perExtraCard: 1
-          min: 0
-          max: 5
-    - rid: 1859406348216172981
+        damageHitEnemy: 1
+        nearbyTargets:
+          byHeld: 030000000400000006000000080000000d000000i
+    - rid: 1859406402477359194
       type: {class: WaveDamageSkill, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
       data:
-        damagePerWave: 12
+        damagePerWave: 20
         waveInterval: 0.25

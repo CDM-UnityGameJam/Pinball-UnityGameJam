@@ -7,6 +7,8 @@ namespace Pinball.Tests.EditMode
     // driven by a real CombatClock the way the game will drive them.
     public class StatusRulesTests
     {
+        const float TickInterval = 0.5f, PassiveDps = 4f, ActiveDps = 6f, Immunity = 2f;
+
         sealed class Source { }
 
         // Minimal enemy: HP plus the two statuses, ticking burns on the clock.
@@ -21,7 +23,7 @@ namespace Pinball.Tests.EditMode
 
             public void OnTime(double now)
             {
-                if (burn.Tick(now, LegacyV03.BurnTickInterval, LegacyV03.PassiveBurnDps, LegacyV03.ActiveBurnDps, out int damage, out _))
+                if (burn.Tick(now, TickInterval, out int damage, out _, out _))
                     hp -= damage;
             }
         }
@@ -37,8 +39,9 @@ namespace Pinball.Tests.EditMode
             return enemy;
         }
 
-        void Ignite(TestEnemy e, bool active, float seconds) => e.burn.Ignite(clock.Now, active, seconds, LegacyV03.BurnTickInterval, null);
-        bool Stun(TestEnemy e, float seconds, bool active) => e.stun.TryStun(clock.Now, seconds, active, LegacyV03.PassiveStunImmunity);
+        void Ignite(TestEnemy e, bool active, float seconds, float? dps = null) =>
+            e.burn.Ignite(clock.Now, active, seconds, dps ?? (active ? ActiveDps : PassiveDps), TickInterval, null);
+        bool Stun(TestEnemy e, float seconds, bool active) => e.stun.TryStun(clock.Now, seconds, active, Immunity);
 
         [Test]
         public void BurnRulesMatchOldAcceptance()
@@ -60,6 +63,27 @@ namespace Pinball.Tests.EditMode
             Ignite(odd, true, 0.75f); clock.Advance(0.6f);
             Ignite(odd, true, 1); clock.Advance(0.4f);
             Assert.That(odd.hp, Is.EqualTo(94), "refresh between non-aligned expiry and tick preserves phase");
+        }
+
+        // v0.6: fractional DPS adds up across ticks of one continuous burn; a new burn starts from zero.
+        [Test]
+        public void FractionalBurnAccumulatesWholePoints()
+        {
+            var e = Enemy(100);
+            Ignite(e, false, 6, 0.5f);
+            clock.Advance(2f);
+            Assert.That(e.hp, Is.EqualTo(99), "0.25 per tick: one whole point after four ticks");
+            clock.Advance(4f);
+            Assert.That(e.hp, Is.EqualTo(97), "twelve ticks of 0.25 = 3");
+
+            var f = Enemy(100);
+            Ignite(f, false, 1, 1.5f);
+            clock.Advance(1f);
+            Assert.That(f.hp, Is.EqualTo(99), "0.75 + 0.75: one point, 0.5 carried");
+            clock.Advance(1f);
+            Ignite(f, false, 0.5f, 1.5f);
+            clock.Advance(0.5f);
+            Assert.That(f.hp, Is.EqualTo(99), "after the burn went out the remainder is dropped");
         }
 
         [Test]

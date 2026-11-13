@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace Pinball.Presentation
 {
-    // One enemy's screen label: number above, health bar and "hp/max" below, status ("Burning", "Stunned").
+    // One enemy's screen label: element symbol above, health bar and "hp/max" below, status ("Burning", "Stunned").
     public sealed class EnemyLabelView : MonoBehaviour
     {
         public TMP_Text number, health, status;
@@ -28,8 +28,8 @@ namespace Pinball.Presentation
             status.rectTransform.anchoredPosition = statusAt + statusOffset;
 
             var hp = enemy.Health;
-            number.text = enemy.Number.ToString();
-            number.color = previewed ? theme.gold : theme.text;
+            number.text = enemy.Element ? enemy.Element.symbol : "";
+            number.color = previewed ? theme.gold : enemy.Element ? enemy.Element.color : theme.text;
             healthFill.sizeDelta = new Vector2(fullWidth * Mathf.Clamp01(hp.Current / (float)Mathf.Max(1, hp.Max)), healthFill.sizeDelta.y);
             healthFillImage.color = previewed ? theme.gold : theme.green;
             health.text = $"{hp.Current}/{hp.Max}";

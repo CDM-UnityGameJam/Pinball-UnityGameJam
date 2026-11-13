@@ -1,67 +1,64 @@
 using System;
 using System.Collections.Generic;
 using Pinball.Core;
-using UnityEngine;
 
 namespace Pinball.Gameplay
 {
-    // Resolves played cards and runs active-skill waves on the combat clock. Port of the old UseCard outcome
-    // handling and SkillCast:
-    // - Q < 0 short-circuits the card's element for a while (type-wide: every number of that element).
-    // - Q = 0 misfires. Q > 0 casts: targets are taken from the front-first snapshot made before the card
-    //   left the hand, the first wave fires immediately, and later waves follow at the skill's interval.
-    // - Enemies that spawn later never join a cast's locked targets.
+    // Reveals played batches and runs their skill waves on the combat clock. Port of the v0.6 RevealBatch /
+    // SkillCast:
+    // - A batch reveals its dice `diceRevealDelay` after it was played. Then every element in it casts once,
+    //   at the batch's tier (Base when no die matched: a skill always fires).
+    // - Each cast hits the targets it locked when the batch was played (minus enemies of its element, which
+    //   are immune); enemies that spawn later never join, dead ones are never replaced.
+    // - The first wave fires on the reveal, later ones every WaveInterval.
     public sealed class CastScheduler : ICombatTimer
     {
         readonly GameContext context;
-        readonly List<CastResult> active = new List<CastResult>();
-        readonly Dictionary<ElementDefinition, double> shortCircuitUntil = new Dictionary<ElementDefinition, double>();
+        readonly List<SkillCast> active = new List<SkillCast>();
 
         public CastScheduler(GameContext context) => this.context = context;
 
-        public int PendingCasts => active.Count;
+        // The batch waiting for its dice (at most one).
+        public DiceBatch PendingBatch { get; private set; }
+        public DiceBatch LastBatch { get; private set; }
+        public int ActiveCasts => active.Count;
 
-        public event Action<CastResult> CastResolved;
-        public event Action<CastResult> WaveFired;
+        public event Action<DiceBatch> BatchRevealed;
+        public event Action<SkillCast> WaveFired;
 
-        public float ShortCircuitRemaining(ElementDefinition element) =>
-            element && shortCircuitUntil.TryGetValue(element, out var until) ? (float)Math.Max(0, until - context.Clock.Now) : 0f;
-
-        public bool IsShortCircuited(ElementDefinition element) => ShortCircuitRemaining(element) > 0f;
-
-        internal CastResult Resolve(CardSpec card, int quality, bool lucky, int luckyNumber, List<Enemy> snapshot)
+        internal void Accept(DiceBatch batch)
         {
-            var outcome = QualityRoller.Classify(quality);
-            var luck = context.config.luck;
-            var plan = outcome == CastOutcome.Cast ? card.element.Plan(luck, quality) : default;
-            var targets = new List<Enemy>();
-            if (outcome == CastOutcome.Cast)
-                for (int i = 0; i < snapshot.Count; i++)
-                    if (plan.allTargets || i < plan.targetCount) targets.Add(snapshot[i]);
-
-            var result = new CastResult(card, quality, outcome, lucky, luckyNumber, plan, targets);
-            if (outcome == CastOutcome.ShortCircuit)
-            {
-                double until = context.Clock.Now + QualityRoller.ShortCircuitSeconds(luck.bands, quality, luck.shortCircuitMinSeconds, luck.shortCircuitMaxSeconds);
-                shortCircuitUntil[card.element] = shortCircuitUntil.TryGetValue(card.element, out var current) ? Math.Max(current, until) : until;
-            }
-            else if (outcome == CastOutcome.Cast)
-            {
-                Fire(result);
-                if (!result.Complete) active.Add(result);
-            }
-            CastResolved?.Invoke(result);
-            return result;
+            PendingBatch = batch;
+            LastBatch = batch;
         }
 
-        void Fire(CastResult cast)
+        void Reveal()
         {
-            if (cast.Complete || cast.quality <= 0) return;
-            var skill = cast.card.element.active;
-            skill?.FireWave(new SkillWave(context, cast.card.element, cast.targets, cast.plan, cast.WavesFired == 0, cast.quality, cast));
+            var batch = PendingBatch;
+            PendingBatch = null;
+            batch.Revealed = true;
+            context.Stats.RecordReveal(batch);
+            context.Hand.Resolving = true;
+            try
+            {
+                foreach (var cast in batch.Casts)
+                {
+                    Fire(cast);
+                    if (!cast.Complete) active.Add(cast);
+                }
+            }
+            finally { context.Hand.Resolving = false; }
+            BatchRevealed?.Invoke(batch);
+        }
+
+        void Fire(SkillCast cast)
+        {
+            if (cast.Complete) return;
+            var skill = cast.element.active;
+            skill?.FireWave(new SkillWave(context, cast, cast.WavesFired == 0));
             cast.WavesFired++;
             cast.NextWaveAt = cast.Complete ? double.PositiveInfinity
-                : context.Clock.Now + Mathf.Max(0.01f, skill != null ? skill.WaveInterval : 0.01f);
+                : context.Clock.Now + Math.Max(0.000001, skill != null ? skill.WaveInterval : 0.01f);
             WaveFired?.Invoke(cast);
         }
 
@@ -69,15 +66,16 @@ namespace Pinball.Gameplay
         {
             get
             {
-                double next = double.PositiveInfinity;
+                double next = PendingBatch != null ? PendingBatch.revealAt : double.PositiveInfinity;
                 foreach (var cast in active) next = Math.Min(next, cast.NextWaveAt);
                 return next;
             }
         }
 
-        // Old order: newest cast first when several waves are due at the same moment.
+        // Old order: the reveal first, then waves newest cast first when several are due at the same moment.
         public void OnTime(double now)
         {
+            if (PendingBatch != null && PendingBatch.revealAt <= now + RuleMath.TimeEpsilon) Reveal();
             for (int i = active.Count - 1; i >= 0; i--)
             {
                 var cast = active[i];

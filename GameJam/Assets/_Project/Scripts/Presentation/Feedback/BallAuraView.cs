@@ -38,7 +38,7 @@ namespace Pinball.Presentation
             {
                 var aura = AuraFor(element);
                 if (aura == null) continue;
-                bool visible = context.Hand.EnabledCount(element) > 0;
+                bool visible = context.Hand.HeldCount(element) > 0;
                 aura.SetVisible(visible);
                 if (visible) aura.UpdateAura(transform.position, frame, phase);
             }

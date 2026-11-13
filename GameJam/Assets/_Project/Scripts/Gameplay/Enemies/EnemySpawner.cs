@@ -5,9 +5,13 @@ using UnityEngine.Pool;
 namespace Pinball.Gameplay
 {
     // Spawns enemies from the SpawnProfile into the board's SpawnZone, pooled per enemy type.
-    // Port of the old Spawner:
+    // Port of the v0.6 Spawner:
     // - The run opens with `openingCount` enemies in shuffled columns `openingColumnSpacing` apart.
-    // - Every `spawnInterval` seconds of play, a spawn happens with `spawnChance`.
+    // - Spawn attempts follow combat time: the interval is the base interval over the current difficulty's spawn
+    //   multiplier, and a failed or blocked attempt still uses its turn (SpawnPhase). Each attempt spawns with
+    //   `spawnChance`.
+    // - Each enemy gets a random element from the game's elements (or its fixed one) and its health × the
+    //   current difficulty's health multiplier.
     // - A spawn tries random X positions on the spawn row; a position is rejected if it's outside the arc,
     //   too close to another enemy or a ball, or if its straight path down would cross a SpawnBlocker.
     public sealed class EnemySpawner
@@ -16,15 +20,19 @@ namespace Pinball.Gameplay
         readonly Dictionary<EnemyDefinition, ObjectPool<Enemy>> pools = new Dictionary<EnemyDefinition, ObjectPool<Enemy>>();
         readonly List<SpawnBlocker> blockers = new List<SpawnBlocker>();
         readonly Transform parent;
+        readonly Pinball.Core.SpawnPhase phase = new Pinball.Core.SpawnPhase();
         long nextSpawnOrder;
-        float timer;
 
         public EnemySpawner(GameContext context, Transform parent)
         {
             this.context = context;
             this.parent = parent;
             context.Board.GetComponentsInChildren(true, blockers);
+            context.Clock.Stepped += OnStep;
         }
+
+        public double Phase => phase.Value;
+        public int PeriodicAttempts { get; private set; }
 
         SpawnProfile Profile => context.config.spawnProfile;
         BoardRoot Board => context.Board;
@@ -42,16 +50,20 @@ namespace Pinball.Gameplay
             }
         }
 
-        // Advance the spawn timer with scaled game time.
-        public void Tick(float deltaTime)
+        // Combat seconds between spawn attempts right now.
+        public double CurrentInterval => Profile.baseSpawnInterval / Profile.Sample(context.Clock.Now).spawnMultiplier;
+
+        // Health a new enemy of this type gets right now.
+        public int HealthFor(EnemyDefinition definition) =>
+            Pinball.Core.DifficultyCurve.Health(definition.health, Profile.Sample(context.Clock.Now).healthMultiplier);
+
+        void OnStep(double step)
         {
-            if (!context.Run.IsPlaying) return;
-            timer += deltaTime;
-            float minutes = (float)(context.Clock.Now / 60.0);
-            float interval = Mathf.Max(0.01f, Profile.spawnInterval * Profile.spawnIntervalOverTime.Evaluate(minutes));
-            while (timer >= interval)
+            if (!context.Run.IsPlaying || context.DriveTimeManually) return;
+            int attempts = phase.Advance(step, CurrentInterval);
+            for (int i = 0; i < attempts; i++)
             {
-                timer -= interval;
+                PeriodicAttempts++;
                 if (context.Random.Value() < Profile.spawnChance) TrySpawn(PickEnemy());
             }
         }
@@ -85,16 +97,16 @@ namespace Pinball.Gameplay
                 float x = fixedX ?? Mathf.Lerp(-width, width, context.Random.Value());
                 var position = new Vector3(x, 0f, row);
                 if (!IsClear(definition, position)) continue;
-                return Spawn(definition, NumberFor(definition), position);
+                return Spawn(definition, ElementFor(definition), position);
             }
             return null;
         }
 
-        int NumberFor(EnemyDefinition definition)
+        ElementDefinition ElementFor(EnemyDefinition definition)
         {
-            if (definition.numberRule == EnemyDefinition.NumberRule.Fixed) return definition.fixedNumber;
-            var luck = context.config.luck;
-            return context.Random.Range(luck.minNumber, luck.maxNumber + 1);
+            if (definition.elementRule == EnemyDefinition.ElementRule.Fixed) return definition.fixedElement;
+            var elements = context.config.elements;
+            return elements.Count == 0 ? null : elements[context.Random.Range(0, elements.Count)];
         }
 
         public bool IsClear(EnemyDefinition definition, Vector3 boardPosition)
@@ -131,11 +143,12 @@ namespace Pinball.Gameplay
         }
 
         // Place an enemy directly (also used by tests and debug tools). Board-space position; height is
-        // taken from the playfield.
-        public Enemy Spawn(EnemyDefinition definition, int number, Vector3 boardPosition)
+        // taken from the playfield. Health follows the current difficulty unless given.
+        public Enemy Spawn(EnemyDefinition definition, ElementDefinition element, Vector3 boardPosition, int? health = null)
         {
             var enemy = PoolFor(definition).Get();
-            enemy.Spawn(context, definition, number, nextSpawnOrder++, boardPosition);
+            enemy.Spawn(context, definition, element, health ?? HealthFor(definition), nextSpawnOrder++, boardPosition);
+            context.Stats.spawns++;
             context.Enemies.Add(enemy);
             return enemy;
         }

@@ -8,7 +8,8 @@ using UnityEngine.Pool;
 
 namespace Pinball.Presentation
 {
-    // Floating text: damage and kill numbers on enemies, the result of each played card, multi-kills and extra balls.
+    // Floating text: damage and kill numbers on enemies, each batch's result, multi-kills, extra balls,
+    // contact charge and paid combos.
     // Popups rise and fade over `lifetime` of real time, so they finish even when the game stops.
     public sealed class PopupLayer : HudPresenter
     {
@@ -18,8 +19,9 @@ namespace Pinball.Presentation
         [Tooltip("Canvas units risen immediately.")] public float initialRise = 14f;
         [Tooltip("World offset above the point, along the board's up.")] public float heightAbove = 0.5f;
         [Tooltip("World offset toward the top of the board, so text clears the enemy's number.")] public float forwardOffset = 0.75f;
-        [Tooltip("Board-space point for card results.")] public Vector3 castResultAt = new Vector3(0f, 0f, 2f);
-        [Tooltip("Board-space point for multi-kills.")] public Vector3 multiKillAt = new Vector3(0f, 0f, 1f);
+        [Tooltip("Board-space point for batch results.")] public Vector3 castResultAt = new Vector3(0f, 0f, 2f);
+        [Tooltip("Board-space point for multi-kills and paid combos.")] public Vector3 multiKillAt = new Vector3(0f, 0f, 1f);
+        [Tooltip("Contact charge appears this far down the board from the contact.")] public float chargeBackOffset = 1.2f;
         public Color hitColor = Color.white;
         [Tooltip("Shown where an extra ball appears.")] public string extraBallText = "+BALL";
 
@@ -49,7 +51,9 @@ namespace Pinball.Presentation
             Context.Enemies.Added += Watch;
             Context.Score.Killed += (enemy, reward, source) => Show(enemy.transform.position, "+" + reward, Theme.green);
             Context.Score.MultiKill += OnMultiKill;
-            Context.Hand.CardPlayed += OnCardPlayed;
+            Context.Casts.BatchRevealed += OnBatchRevealed;
+            Context.Hand.ContactCharged += (point, amount) => Show(point - Context.Board.Forward * chargeBackOffset, "+" + amount.ToString("G6"), Theme.blue);
+            Context.Score.ComboPaid += points => Show(Context.Board.ToWorld(multiKillAt), "COMBO +" + points, Theme.gold);
             Context.Multiball.BallEarned += ball => Show(ball.transform.position, extraBallText, Theme.gold);
         }
 
@@ -59,20 +63,17 @@ namespace Pinball.Presentation
             enemy.Health.Damaged += (amount, source) => Show(enemy.transform.position, "-" + amount, hitColor);
         }
 
-        void OnCardPlayed(CastResult cast)
+        void OnBatchRevealed(DiceBatch batch)
         {
             if (castToast != null) { Remove(castToast); castToast = null; }
-            var element = cast.card.element;
-            string result = cast.outcome == CastOutcome.ShortCircuit ? element.displayName + " short circuit"
-                : cast.outcome == CastOutcome.Misfire ? "Misfire"
-                : element.skillName + " · " + (element.active != null ? element.active.Summary(cast.plan) : "");
-            var color = cast.outcome == CastOutcome.ShortCircuit ? Theme.danger : cast.outcome == CastOutcome.Misfire ? Theme.dim : Theme.orange;
-            castToast = Show(Context.Board.ToWorld(castResultAt), $"{result}  Q={cast.quality}", color);
+            var color = batch.tier == CastTier.Base ? Theme.dim : batch.tier == CastTier.Jackpot ? Theme.gold : Theme.blue;
+            castToast = Show(Context.Board.ToWorld(castResultAt), $"{DiceRules.Label(batch.tier)} · {batch.Coverage} targets", color);
         }
 
         void OnMultiKill(AttackRecord source)
         {
             string label = $"{source.label} ×{source.Kills} MULTIKILL";
+            // Batches report kills as their skills land; the label keeps updating in place.
             foreach (var p in active)
                 if (ReferenceEquals(p.source, source)) { p.text.text = label; p.age = 0f; return; }
             Show(Context.Board.ToWorld(multiKillAt), label, Theme.gold).source = source;

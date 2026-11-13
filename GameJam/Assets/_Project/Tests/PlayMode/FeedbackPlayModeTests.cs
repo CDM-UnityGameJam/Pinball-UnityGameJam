@@ -47,13 +47,21 @@ namespace Pinball.Tests.PlayMode
             yield return null;
         }
 
-        Enemy Enemy(int number, float x, float z = 4) => ctx.Spawner.Spawn(grunt, number, new Vector3(x, 0, z));
+        Enemy Enemy(ElementDefinition element, float x, float z = 4) => ctx.Spawner.Spawn(grunt, element, new Vector3(x, 0, z), health: 100);
 
         void Hit(Enemy e)
         {
             ball.Body.isKinematic = false;
-            e.Contact.TryBallHit(ball, e.transform.position);
+            e.Contact.TryContact(ball, e.transform.position);
             ball.Body.isKinematic = true;
+        }
+
+        void Reveal() => ctx.Clock.Advance(ctx.config.diceRevealDelay + 0.01f);
+
+        bool Play(int[] dice, params int[] slots)
+        {
+            var cards = slots.Select(i => ctx.Hand[i]).ToList();
+            return ctx.Hand.TryPlay(cards, dice);
         }
 
         List<CombatFeedbackEvent> Of(FeedbackKind kind) => events.Where(e => e.kind == kind).ToList();
@@ -76,13 +84,15 @@ namespace Pinball.Tests.PlayMode
         public IEnumerator ArcJumpsRaiseOneHitPerTouchedEnemyAndPlayBolts()
         {
             ctx.Hand.SetHand(new CardSpec(Arc, 6));
-            var direct = Enemy(1, 0); var a = Enemy(6, .8f); var b = Enemy(6, 1.6f); Enemy(6, 3.5f);
+            var direct = Enemy(Shock, 0); var a = Enemy(Shock, .8f); var b = Enemy(Spark, 1.6f); var c = Enemy(Shock, 3.5f);
+            Enemy(Arc, 1.2f); Enemy(Spark, 3.9f);
             int active = Arc.passiveHitVfx.ActiveCount;
             Hit(direct);
             var hits = Of(FeedbackKind.PassiveHit);
-            Assert.That(hits.Select(h => h.target), Is.EquivalentTo(new[] { a, b }), "N=1 arc: two nearest #6 in range");
+            Assert.That(hits.Select(h => h.target), Is.EquivalentTo(new[] { direct, a, b, c }),
+                "one Arc card: the hit foe plus the three nearest that Arc can affect (Arc foes are immune)");
             Assert.That(hits.All(h => h.element == Arc && h.from.HasValue), "bolts start at the ball contact");
-            Assert.That(Arc.passiveHitVfx.ActiveCount, Is.EqualTo(active + 2));
+            Assert.That(Arc.passiveHitVfx.ActiveCount, Is.EqualTo(active + 4));
             yield break;
         }
 
@@ -90,50 +100,53 @@ namespace Pinball.Tests.PlayMode
         public IEnumerator ShockPulseOnlyWhenSomethingWasStunned()
         {
             ctx.Hand.SetHand(new CardSpec(Shock, 6));
-            var direct = Enemy(3, 0);
+            var direct = Enemy(Shock, 0);
             Hit(direct);
-            Assert.That(Of(FeedbackKind.PassivePulse), Is.Empty, "no #6 nearby: no pulse");
-            var six = Enemy(6, .6f, 8);
-            ctx.Clock.Advance(.2f);
-            Hit(six);
+            Assert.That(Of(FeedbackKind.PassivePulse), Is.Empty, "only Shockwave foes nearby (immune): no pulse");
+            var arc = Enemy(Arc, .6f, 8);
+            Hit(arc);
             var pulse = Of(FeedbackKind.PassivePulse).Single();
-            Assert.That(pulse.radius, Is.EqualTo(1.2f).Within(1e-5f));
+            Assert.That(pulse.radius, Is.EqualTo(3f).Within(1e-5f), "one Shockwave card: 3 m");
             Assert.That(pulse.element, Is.EqualTo(Shock));
             yield break;
         }
 
         [UnityTest]
-        public IEnumerator ActiveWavesRaiseHitsStrongAtHighQ()
+        public IEnumerator ActiveWavesRaiseHitsStrongAtFullFieldAndJackpot()
         {
-            var a = Enemy(1, 0, 0); var b = Enemy(2, 0, 1);
-            ctx.Hand.SetHand(new CardSpec(Arc, 6), new CardSpec(Arc, 5));
-            ctx.Luck.ForceNextQuality(5); ctx.Hand.TryPlay(0);
+            var a = Enemy(Shock, 0, 0); var b = Enemy(Spark, 0, 1); Enemy(Arc, 0, 2);
+            ctx.Hand.SetHand(new CardSpec(Arc, 5), new CardSpec(Arc, 6), new CardSpec(Arc, 6));
+            Assert.That(Play(new[] { 2 }, 0));
+            Assert.That(Of(FeedbackKind.ActiveHit), Is.Empty, "nothing before the reveal");
+            Reveal();
             var low = Of(FeedbackKind.ActiveHit);
-            Assert.That(low.Select(e => e.target), Is.EquivalentTo(new[] { a, b }));
+            Assert.That(low.Select(e => e.target), Is.EquivalentTo(new[] { a, b }), "Base still casts; the Arc foe is immune");
             Assert.That(low.All(e => !e.strong && e.element == Arc));
+            ctx.Clock.Advance(1f);
             events.Clear();
-            ctx.Luck.ForceNextQuality(90); ctx.Hand.TryPlay(0);
-            Assert.That(Of(FeedbackKind.ActiveHit).All(e => e.strong), "all-targets plans are strong");
+            Assert.That(Play(new[] { 6, 6 }, 0, 1));
+            Reveal();
+            Assert.That(Of(FeedbackKind.ActiveHit), Is.Not.Empty);
+            Assert.That(Of(FeedbackKind.ActiveHit).All(e => e.strong), "Jackpot plays strong");
             yield break;
         }
 
         [UnityTest]
         public IEnumerator IgniteAndBurnTicksRaiseStatusEvents()
         {
-            var e = Enemy(1, 0);
-            e.Health.SetCurrent(100);
-            e.Status.Ignite(false, 3, 4, null);
+            var e = Enemy(Arc, 0);
+            e.Status.Ignite(Spark, false, 3, 4, null);
             Assert.That(Of(FeedbackKind.Ignite).Single().strong, Is.False);
             ctx.Clock.Advance(.5f);
             Assert.That(Of(FeedbackKind.BurnTick).Count, Is.EqualTo(1));
-            e.Status.Ignite(true, 1, 6, null);
+            e.Status.Ignite(Spark, true, 1, 6, null);
             ctx.Clock.Advance(.5f);
             Assert.That(Of(FeedbackKind.BurnTick).Last().strong, "the tick used the active burn");
             yield break;
         }
 
         [UnityTest]
-        public IEnumerator BallAurasFollowEnabledElements()
+        public IEnumerator BallAurasFollowHeldElements()
         {
             var auras = ball.GetComponent<BallAuraView>();
             ctx.Hand.SetHand(new CardSpec(Arc, 6), new CardSpec(Spark, 2));
@@ -141,15 +154,10 @@ namespace Pinball.Tests.PlayMode
             Assert.That(auras.IsShowing(Arc));
             Assert.That(auras.IsShowing(Spark));
             Assert.That(auras.IsShowing(Shock), Is.False);
-            ctx.Luck.ForceNextQuality(-10);
-            ctx.Hand.TryPlay(1); // Spark short circuit: the Spark card is gone anyway
-            ctx.Luck.ForceNextQuality(-10);
-            ctx.Hand.Grant(new CardSpec(Arc, 3));
-            ctx.Hand.TryPlay(1); // Arc short-circuited while #6 Arc is still held
+            Assert.That(Play(new[] { 1 }, 1));
             yield return null;
-            Assert.That(ctx.Hand.HeldCount(Arc), Is.EqualTo(1));
-            Assert.That(auras.IsShowing(Arc), Is.False, "short-circuited: no aura");
-            Assert.That(auras.IsShowing(Spark), Is.False);
+            Assert.That(auras.IsShowing(Arc));
+            Assert.That(auras.IsShowing(Spark), Is.False, "the Spark card was played");
         }
 
         // Regression: rolling on the playfield used to raise On Bounce ~23 times a second.
@@ -160,7 +168,8 @@ namespace Pinball.Tests.PlayMode
             Assert.That(ball.IsBounce(board.Up, -board.Up * 10f + board.Forward * 20f), Is.False, "the playfield floor never counts");
             Assert.That(ball.IsBounce(board.transform.right, board.transform.right * 5f), "a hit into a wall counts");
             Assert.That(ball.IsBounce(board.transform.right, board.Forward * 20f), Is.False, "sliding along a wall doesn't");
-            Assert.That(ball.IsBounce(board.transform.right, board.transform.right * 2f), Is.False, "too soft");
+            Assert.That(ball.IsBounce(board.transform.right, board.transform.right * 0.5f), Is.False, "too soft");
+            Assert.That(ball.IsBounce(-board.Up, board.Up * 5f), Is.False, "the underside of the glass never counts");
         }
 
         [UnityTest]
@@ -178,15 +187,16 @@ namespace Pinball.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator EnemyBallHitFiresItsSoundHook()
+        public IEnumerator EnemyBallContactFiresItsSoundHook()
         {
-            var e = Enemy(1, 0);
+            var e = Enemy(Arc, 0);
             var view = e.GetComponent<EnemyView>();
             int calls = 0;
             view.onBallHit.DynamicCalls += _ => calls++;
             Assert.That(view.onBallHit.PersistentCallsList.Count, Is.EqualTo(1), "wired to the SFX player on the prefab");
             Hit(e);
-            Assert.That(calls, Is.EqualTo(1));
+            Hit(e);
+            Assert.That(calls, Is.EqualTo(2), "every new contact, also inside the damage cooldown");
             yield break;
         }
     }

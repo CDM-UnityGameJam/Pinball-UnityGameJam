@@ -15,14 +15,13 @@ namespace Pinball.Gameplay
         public EnemyMarch(GameContext context) => this.context = context;
 
         // Speed for an enemy definition: from the spawn row to the danger line in descendSeconds,
-        // scaled by the spawn profile's march-speed curve.
+        // times the current difficulty's move multiplier.
         public float SpeedOf(EnemyDefinition definition)
         {
             var board = context.Board;
-            float distance = board.spawnZone.RowZ - board.dangerLine.BoardZ;
-            float minutes = (float)(context.Clock.Now / 60.0);
-            return distance / UnityEngine.Mathf.Max(0.01f, definition.descendSeconds)
-                   * context.config.spawnProfile.marchSpeedOverTime.Evaluate(minutes);
+            float distance = UnityEngine.Mathf.Abs(board.spawnZone.RowZ - board.dangerLine.BoardZ);
+            return (float)(distance / UnityEngine.Mathf.Max(0.01f, definition.descendSeconds)
+                   * context.config.spawnProfile.Sample(context.Clock.Now).moveMultiplier);
         }
 
         public void Step(float deltaTime)

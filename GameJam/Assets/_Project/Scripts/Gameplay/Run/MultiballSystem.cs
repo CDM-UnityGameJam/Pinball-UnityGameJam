@@ -3,13 +3,15 @@ using UnityEngine;
 
 namespace Pinball.Gameplay
 {
-    // Extra balls (port of the multiball-side-kickers branch):
-    // - A kill of an enemy carrying the lucky number, or the second kill of one attack, earns a ball,
-    //   up to GameConfig.multiball.maxBalls on the table (balls waiting to enter count).
+    // Extra balls (port of the v0.5 multiball integration):
+    // - The second kill of one attack earns a ball, once per attack. An attack is a ball hit with its
+    //   enchantments (and the burns they cause), or a whole played batch (every element, wave and burn).
+    //   Up to GameConfig.multiball.maxBalls on the table (balls waiting to enter count); a ball earned while
+    //   the table is full is lost, not banked.
     // - Earned balls enter one at a time at the board's ExtraBallEntry (top centre, above the enemies):
     //   held still for `entryHold` gameplay seconds, then, once no other ball sits on the entry, dropped
     //   down the table. A bottom launch would only reach mid-table while the player is busy with another ball.
-    // - A drain only costs a life when no ball is left (GameContext.OnDrained), so drained extras are free.
+    // - Drains never cost lives (GameContext.OnDrained).
     public sealed class MultiballSystem
     {
         readonly GameContext context;
@@ -29,14 +31,8 @@ namespace Pinball.Gameplay
         public MultiballSystem(GameContext context)
         {
             this.context = context;
-            context.Score.Killed += OnKilled;
             context.Score.MultiKill += OnMultiKill;
             context.Run.StateChanged += state => { if (state == RunState.GameOver) pending = 0; };
-        }
-
-        void OnKilled(Enemy enemy, long reward, AttackRecord source)
-        {
-            if (Rules.ballOnLuckyKill && enemy.Number == context.Luck.Current) AddBall();
         }
 
         // MultiKill is raised on every kill from the second on: only the second earns a ball.
@@ -48,7 +44,7 @@ namespace Pinball.Gameplay
         // Queue an extra ball. False when the run isn't playing or the table is full.
         public bool AddBall()
         {
-            if (!context.Run.IsPlaying || context.Balls.Count + pending >= Rules.maxBalls) return false;
+            if (!context.Run.IsPlaying || context.Balls.Count + pending >= Mathf.Clamp(Rules.maxBalls, 1, 3)) return false;
             pending++;
             return true;
         }

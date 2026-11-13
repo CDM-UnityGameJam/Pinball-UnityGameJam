@@ -13,6 +13,9 @@ namespace Pinball.Tests.PlayMode
     {
         GameContext context;
         EnemyDefinition grunt;
+        ElementDefinition Arc => context.config.elements[0];
+        ElementDefinition Spark => context.config.elements[1];
+        ElementDefinition Shock => context.config.elements[2];
 
         [UnitySetUp]
         public IEnumerator LoadGame()
@@ -61,11 +64,12 @@ namespace Pinball.Tests.PlayMode
                 var p = e.BoardPosition;
                 Assert.That(p.z, Is.EqualTo(zone.RowZ).Within(0.01f));
                 Assert.That(Mathf.Abs(p.x), Is.LessThanOrEqualTo(zone.HalfWidthAt(zone.RowZ) - grunt.radius - grunt.wallClearance + 0.001f));
-                Assert.That(e.Number, Is.InRange(context.config.luck.minNumber, context.config.luck.maxNumber));
+                Assert.That(context.config.elements, Has.Member(e.Element), "one of the game's elements");
+                Assert.That(e.Health.Max, Is.EqualTo(grunt.health), "difficulty 1x at the start");
                 Assert.That(p.y, Is.EqualTo(context.Board.SurfaceHeightAt(p.x, p.z) + e.centerHeight).Within(0.01f), "stands on the playfield");
                 columns.Add(Mathf.Round(p.x * 100f) / 100f);
             }
-            Assert.That(columns, Is.EquivalentTo(new[] { -2f, 0f, 2f }), "shuffled columns 2 m apart");
+            Assert.That(columns, Is.EquivalentTo(new[] { 0f }), "one opening enemy, centred");
         }
 
         [UnityTest]
@@ -77,22 +81,26 @@ namespace Pinball.Tests.PlayMode
             Assert.That(front.BoardPosition.z, Is.EqualTo(z0), "no movement before launch");
 
             yield return WaitUntilPlaying();
-            var lone = context.Spawner.Spawn(grunt, 3, new Vector3(5f, 0f, 2f));
+            var lone = context.Spawner.Spawn(grunt, Arc, new Vector3(5f, 0f, 2f));
             yield return new WaitForFixedUpdate();
             float start = lone.BoardPosition.z;
             yield return FixedSteps(100);
             float expected = context.March.SpeedOf(grunt) * 1f;
             Assert.That(start - lone.BoardPosition.z, Is.EqualTo(expected).Within(0.02f), "one second of marching");
-            Assert.That(expected, Is.EqualTo((9.5f - -5f) / 40f).Within(0.001f), "v0.3 speed");
+            float ramp = (float)context.config.spawnProfile.Sample(context.Clock.Now).moveMultiplier;
+            Assert.That(expected, Is.EqualTo((9.5f - -5f) / 35f * ramp).Within(0.001f), "v0.6 speed: 35 s descent × the difficulty's move multiplier");
+            Assert.That(ramp, Is.EqualTo(1f).Within(0.02f), "barely ramped a second into the run");
         }
 
         [UnityTest]
         public IEnumerator StunnedEnemyStaysPut()
         {
             yield return WaitUntilPlaying();
-            var e = context.Spawner.Spawn(grunt, 3, new Vector3(5f, 0f, 2f));
+            var e = context.Spawner.Spawn(grunt, Arc, new Vector3(5f, 0f, 2f));
             yield return new WaitForFixedUpdate();
-            Assert.That(e.Status.Stun(1f, true));
+            Assert.That(e.Status.Stun(Shock, 1f, true));
+            var immune = context.Spawner.Spawn(grunt, Shock, new Vector3(-5f, 0f, 2f));
+            Assert.That(immune.Status.Stun(Shock, 1f, true), Is.False, "Shockwave enemies can't be stunned");
             float z = e.BoardPosition.z;
             yield return FixedSteps(50);
             Assert.That(e.BoardPosition.z, Is.EqualTo(z).Within(0.0001f));
@@ -104,40 +112,56 @@ namespace Pinball.Tests.PlayMode
             yield return WaitUntilPlaying();
             int lives = context.Run.Lives;
             float danger = context.Board.dangerLine.BoardZ;
-            var e = context.Spawner.Spawn(grunt, 3, new Vector3(5f, 0f, danger + 0.02f));
+            var other = context.Spawner.Spawn(grunt, Arc, new Vector3(-4f, 0f, 3f));
+            var e = context.Spawner.Spawn(grunt, Arc, new Vector3(5f, 0f, danger + 0.02f));
             yield return FixedSteps(10);
             Assert.That(context.Run.Lives, Is.EqualTo(lives - context.config.breachLifeCost));
             Assert.That(e.gameObject.activeSelf, Is.False, "back in the pool");
-            Assert.That(All, Has.No.Member(e));
-            Assert.That(context.Score.Kills, Is.Zero, "a breach is not a kill");
+            Assert.That(All, Is.Empty, "losing a life clears the whole field");
+            Assert.That(other.gameObject.activeSelf, Is.False);
+            Assert.That(context.Score.Kills, Is.Zero, "neither the breach nor the clear is a kill");
         }
 
         [UnityTest]
         public IEnumerator BallHitsDamageWithACooldownAndKillsScore()
         {
             yield return WaitUntilPlaying();
-            var e = context.Spawner.Spawn(grunt, 3, new Vector3(5f, 0f, 2f));
+            var e = context.Spawner.Spawn(grunt, Arc, new Vector3(5f, 0f, 2f), health: 40);
             var ball = context.Balls.Active[0];
             ball.Body.isKinematic = false;
             int damage = context.config.ballHitDamage;
-            int hits = 0;
-            context.Enemies.BallHit += (enemy, b, point) => { if (enemy == e) hits++; };
+            int hits = 0, contacts = 0;
+            context.Enemies.BallContact += (enemy, b, point, allowed) => { if (enemy != e) return; contacts++; if (allowed) hits++; };
 
-            Assert.That(e.Contact.TryBallHit(ball, e.transform.position));
-            Assert.That(e.Health.Current, Is.EqualTo(grunt.health - damage));
-            Assert.That(e.Contact.TryBallHit(ball, e.transform.position), Is.False, "cooldown");
+            Assert.That(e.Contact.TryContact(ball, e.transform.position));
+            Assert.That(e.Health.Current, Is.EqualTo(40 - damage));
+            Assert.That(e.Contact.TryContact(ball, e.transform.position), "a contact inside the cooldown still counts as a contact");
+            Assert.That(e.Health.Current, Is.EqualTo(40 - damage), "but deals no damage");
             yield return FixedSteps(Mathf.CeilToInt(grunt.hitCooldown / Time.fixedDeltaTime) + 1);
-            Assert.That(e.Contact.TryBallHit(ball, e.transform.position), "cooldown passed");
-            Assert.That(hits, Is.EqualTo(2), "every valid hit is reported for enchantments");
+            Assert.That(e.Contact.TryContact(ball, e.transform.position), "cooldown passed");
+            Assert.That((hits, contacts), Is.EqualTo((2, 3)));
 
             e.Health.SetCurrent(damage);
             yield return FixedSteps(Mathf.CeilToInt(grunt.hitCooldown / Time.fixedDeltaTime) + 1);
-            long score = context.Score.Score;
-            Assert.That(e.Contact.TryBallHit(ball, e.transform.position), "lethal hit still counts");
+            int kills = context.Score.Kills;
+            Assert.That(e.Contact.TryContact(ball, e.transform.position), "lethal hit still counts");
             Assert.That(hits, Is.EqualTo(3), "a lethal hit still reports, so enchantments can trigger");
             Assert.That(e.gameObject.activeSelf, Is.False, "dead enemies return to the pool");
-            Assert.That(context.Score.Score, Is.EqualTo(score + grunt.scoreValue));
-            Assert.That(context.Score.Kills, Is.EqualTo(1));
+            Assert.That(context.Score.Kills, Is.EqualTo(kills + 1));
+        }
+
+        [UnityTest]
+        public IEnumerator PersistentContactCountsOnceUntilTheBallLeaves()
+        {
+            yield return WaitUntilPlaying();
+            var e = context.Spawner.Spawn(grunt, Arc, new Vector3(5f, 0f, 2f), health: 400);
+            var ball = context.Balls.Active[0];
+            ball.Body.isKinematic = false;
+            var collider = ball.GetComponent<Collider>();
+            Assert.That(e.Contact.BeginContact(ball, collider, e.transform.position));
+            Assert.That(e.Contact.BeginContact(ball, collider, e.transform.position), Is.False, "still touching");
+            e.Contact.EndContact(ball, collider);
+            Assert.That(e.Contact.BeginContact(ball, collider, e.transform.position), "a new contact after leaving");
         }
 
         [UnityTest]
@@ -145,26 +169,28 @@ namespace Pinball.Tests.PlayMode
         {
             yield return WaitUntilPlaying();
             var board = context.Board;
-            var e = context.Spawner.Spawn(grunt, 3, new Vector3(4f, 0f, 0f));
+            var e = context.Spawner.Spawn(grunt, Arc, new Vector3(4f, 0f, 0f), health: 40);
             yield return new WaitForFixedUpdate();
             var ball = context.Balls.Active[0];
             var start = e.BoardPosition + new Vector3(-1.5f, 0f, 0f);
             start.y = board.SurfaceHeightAt(start.x, start.z) + 0.375f;
             ball.Launch(board.ToWorld(start), board.transform.right * 8f);
-            for (int i = 0; i < 30 && e.Health.Current == grunt.health; i++) yield return new WaitForFixedUpdate();
-            Assert.That(e.Health.Current, Is.EqualTo(grunt.health - context.config.ballHitDamage));
+            for (int i = 0; i < 30 && e.Health.Current == 40; i++) yield return new WaitForFixedUpdate();
+            Assert.That(e.Health.Current, Is.EqualTo(40 - context.config.ballHitDamage));
         }
 
         [UnityTest]
         public IEnumerator BurnTicksOnTheCombatClock()
         {
             yield return WaitUntilPlaying();
-            var e = context.Spawner.Spawn(grunt, 3, new Vector3(5f, 0f, 2f));
-            e.Health.SetCurrent(100);
-            e.Status.Ignite(false, 3f, 4, null);
+            var e = context.Spawner.Spawn(grunt, Arc, new Vector3(5f, 0f, 2f), health: 100);
+            e.Status.Ignite(Spark, false, 3f, 4f, null);
             Assert.That(e.Status.IsBurning);
             yield return FixedSteps(55); // past the first tick at 0.5 s
             Assert.That(e.Health.Current, Is.EqualTo(98), "4 DPS x 0.5 s");
+            var immune = context.Spawner.Spawn(grunt, Spark, new Vector3(-5f, 0f, 2f));
+            immune.Status.Ignite(Spark, true, 3f, 4f, null);
+            Assert.That(immune.Status.IsBurning, Is.False, "Spark enemies don't burn");
         }
 
         [UnityTest]
@@ -173,9 +199,8 @@ namespace Pinball.Tests.PlayMode
             int added = 0;
             context.Enemies.Added += _ => added++;
             yield return WaitUntilPlaying();
-            // The three opening enemies block the whole spawn row until they have marched 1.85 m down
-            // (about 5.1 s); after that, attempts every 2 s at 96 % find room.
-            yield return FixedSteps(1000);
+            // Attempts every 5 s of combat at difficulty 1x, 96 % each.
+            yield return FixedSteps(1600);
             Assert.That(added, Is.GreaterThanOrEqualTo(1));
         }
 

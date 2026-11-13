@@ -11,12 +11,15 @@ namespace Pinball.Gameplay
         [Title("Hooks")]
         public UltEvent onLaunch;
         public UltEvent onDrain;
-        [Tooltip("The ball hit a wall, guide or flipper hard enough (rolling on the playfield never counts).")]
+        [Tooltip("The ball hit the side of a wall, guide or resting flipper hard enough. The playfield, deflectors, " +
+                 "other balls and enemies never count (enemies have their own hit hooks).")]
         public UltEvent onBounce;
+        [Tooltip("Same, against a flipper the player is holding up (a flipper shot).")]
+        public UltEvent onFlipperShot;
         [MinValue(0), SuffixLabel("m/s"), Tooltip("Minimum speed INTO the surface (along the contact normal). Sliding along it doesn't count.")]
-        public float minBounceSpeed = 3f;
-        [Range(0f, 90f), SuffixLabel("deg"), Tooltip("Contacts whose surface faces within this angle of the board's up are the playfield floor, not a bounce.")]
-        public float floorAngle = 45f;
+        public float minBounceSpeed = 1f;
+        [Range(0f, 90f), SuffixLabel("deg"), Tooltip("Only side-facing contacts count: surfaces facing within this angle of the board's up (or down) are floors and tops.")]
+        public float floorAngle = 60f;
         [Tooltip("Layers that count as a bounce. Enemies have their own hit hooks.")]
         public LayerMask bounceLayers = ~0;
 
@@ -42,16 +45,27 @@ namespace Pinball.Gameplay
 
         void OnCollisionEnter(Collision collision)
         {
-            if ((bounceLayers.value & (1 << collision.collider.gameObject.layer)) == 0 || collision.contactCount == 0) return;
-            if (IsBounce(collision.GetContact(0).normal, collision.relativeVelocity)) onBounce?.Invoke();
+            var hit = collision.collider;
+            if (Body.isKinematic || (bounceLayers.value & (1 << hit.gameObject.layer)) == 0 || collision.contactCount == 0) return;
+            if (Context != null && (!Context.Run.IsPlaying || hit == Context.Board.playfieldSurface)) return;
+            if (hit.GetComponentInParent<Deflector>() || hit.GetComponentInParent<Ball>()) return;
+            for (int i = 0; i < collision.contactCount; i++)
+            {
+                if (!IsBounce(collision.GetContact(i).normal, collision.relativeVelocity)) continue;
+                var flipper = hit.GetComponentInParent<Flipper>();
+                if (flipper && flipper.IsPressed) onFlipperShot?.Invoke();
+                else onBounce?.Invoke();
+                return;
+            }
         }
 
-        // A bounce is a hit into a wall-like surface: the speed along the contact normal is high enough and the
-        // surface isn't the floor the ball rolls on.
+        // A bounce is a hit into a side-facing surface: the speed along the contact normal is high enough and the
+        // surface isn't a floor or a top.
         public bool IsBounce(Vector3 contactNormal, Vector3 relativeVelocity)
         {
             var up = Context != null ? Context.Board.Up : Vector3.up;
-            if (Vector3.Angle(contactNormal, up) <= floorAngle) return false;
+            float angle = Vector3.Angle(contactNormal, up);
+            if (angle <= floorAngle || angle >= 180f - floorAngle) return false;
             return Mathf.Abs(Vector3.Dot(relativeVelocity, contactNormal)) >= minBounceSpeed;
         }
 

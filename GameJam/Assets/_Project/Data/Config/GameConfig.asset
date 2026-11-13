@@ -13,23 +13,40 @@ MonoBehaviour:
   m_Name: GameConfig
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.GameConfig
   lives: 3
-  drainLifeCost: 1
   breachLifeCost: 1
   launchCountdown: 3
   launchSpeed: 32
   launchSpreadDegrees: 8
   multiball:
     maxBalls: 3
-    ballOnLuckyKill: 1
     ballOnMultiKill: 1
     entryHold: 1
     entrySpeed: 4
     entryClearance: 0.1
   ballHitDamage: 4
+  empoweredHitDamage: 8
+  empoweredHitsPerCard: 1
+  diceRevealDelay: 0.45
   status:
     burnTickInterval: 0.5
-    passiveStunImmunity: 2
-  luck: {fileID: 11400000, guid: ff5d4c4099951d74384514b98a59904e, type: 2}
+    passiveStunImmunity: 1
+  scoring:
+    timeInterval: 5
+    timePoints: 5
+    comboTimeout: 3
+    comboTiers:
+    - hits: 5
+      points: 50
+    - hits: 10
+      points: 100
+    - hits: 20
+      points: 500
+    - hits: 25
+      points: 750
+    - hits: 30
+      points: 1000
+    - hits: 50
+      points: 9999
   deck: {fileID: 11400000, guid: 8d4b5e20b9ddcfe41aec9ec2498f6a2b, type: 2}
   spawnProfile: {fileID: 11400000, guid: ea28d091171fc5d4abfe86cb49d9207e, type: 2}
   elements:

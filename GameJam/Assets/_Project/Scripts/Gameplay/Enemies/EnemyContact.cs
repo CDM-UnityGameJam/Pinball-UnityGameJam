@@ -1,11 +1,13 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Pinball.Gameplay
 {
-    // Ball contact. Port of the old Enemy.TryBallHit / NudgeSlowBall:
-    // - A valid hit (playing, enemy alive, ball moving freely, cooldown passed on the combat clock) deals
-    //   GameConfig.ballHitDamage, then reports the hit so held enchantments can trigger. A lethal hit still
-    //   reports, with the contact point.
+    // Ball contact. Port of the v0.6 Enemy.BeginBallContact / TryBallHit / NudgeSlowBall:
+    // - Each ball starting a new contact (not one that keeps touching) is reported once. A ball that bounces
+    //   off and comes back is a new contact; two balls touching at once are two.
+    // - A contact deals damage only if the enemy's hit cooldown has passed on the combat clock; either way it
+    //   is reported (CombatResolver decides damage, enchantments and charge).
     // - A ball touching the enemy slower than the unstick speed is pushed away every physics step,
     //   so it can't come to rest against it. That push never counts as a hit.
     // - A ball striking a live enemy is pushed away like a pop bumper: it keeps its speed (at least the
@@ -14,37 +16,64 @@ namespace Pinball.Gameplay
     {
         Enemy enemy;
         double lastHit = double.NegativeInfinity;
+        readonly Dictionary<Ball, HashSet<Collider>> touching = new Dictionary<Ball, HashSet<Collider>>();
 
-        // (ball, contact point) for every valid hit, after its base damage. For presentation hooks.
-        public event System.Action<Ball, Vector3> BallHit;
+        // (ball, contact point) for every new ball contact, hit or not. For presentation hooks (contact sounds).
+        public event System.Action<Ball, Vector3> BallContact;
 
         internal void ResetFor(Enemy owner)
         {
             enemy = owner;
             lastHit = double.NegativeInfinity;
+            touching.Clear();
         }
+
+        void OnDisable() => touching.Clear();
 
         void OnCollisionEnter(Collision collision)
         {
             Bounce(collision);
             Nudge(collision);
             var ball = BallOf(collision);
-            if (ball) TryBallHit(ball, collision.contactCount > 0 ? collision.GetContact(0).point : transform.position);
+            if (ball) BeginContact(ball, collision.collider, collision.contactCount > 0 ? collision.GetContact(0).point : transform.position);
         }
 
         void OnCollisionStay(Collision collision) => Nudge(collision);
 
+        void OnCollisionExit(Collision collision)
+        {
+            var ball = BallOf(collision);
+            if (ball) EndContact(ball, collision.collider);
+        }
+
         static Ball BallOf(Collision collision) => collision.rigidbody ? collision.rigidbody.GetComponent<Ball>() : null;
 
-        public bool TryBallHit(Ball ball, Vector3 point)
+        // A ball collider started touching. Only the first collider of a ball starts a contact.
+        public bool BeginContact(Ball ball, Collider collider, Vector3 point)
+        {
+            if (!ball || !collider) return false;
+            if (!touching.TryGetValue(ball, out var colliders)) touching[ball] = colliders = new HashSet<Collider>();
+            bool first = colliders.Count == 0;
+            if (!colliders.Add(collider) || !first) return false;
+            return TryContact(ball, point);
+        }
+
+        public void EndContact(Ball ball, Collider collider)
+        {
+            if (!touching.TryGetValue(ball, out var colliders)) return;
+            colliders.Remove(collider);
+            if (colliders.Count == 0) touching.Remove(ball);
+        }
+
+        // One new contact (tests can call this directly). Returns true if it was reported.
+        public bool TryContact(Ball ball, Vector3 point)
         {
             var context = enemy ? enemy.Context : null;
             if (context == null || !context.Run.IsPlaying || !enemy.Alive || !ball || ball.Body.isKinematic) return false;
-            if (context.Clock.Now - lastHit < enemy.Definition.hitCooldown - Core.RuleMath.TimeEpsilon) return false;
-            lastHit = context.Clock.Now;
-            enemy.Health.TakeDamage(context.config.ballHitDamage);
-            BallHit?.Invoke(ball, point);
-            context.Enemies.ReportBallHit(enemy, ball, point);
+            bool damageAllowed = context.Clock.Now - lastHit >= enemy.Definition.hitCooldown - Core.RuleMath.TimeEpsilon;
+            if (damageAllowed) lastHit = context.Clock.Now;
+            BallContact?.Invoke(ball, point);
+            context.Enemies.ReportContact(enemy, ball, point, damageAllowed);
             return true;
         }
 

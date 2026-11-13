@@ -11,15 +11,18 @@ namespace Pinball.Presentation
     public sealed class EnemyView : MonoBehaviour
     {
         [Required] public Enemy enemy;
+        [Tooltip("Shows the enemy's element symbol.")]
         public TMP_Text numberLabel;
         [Tooltip("The outer ring (body).")] public Renderer ring;
         [Tooltip("The inner cap; shows hit flash, burn and stun.")] public Renderer cap;
 
         [Title("Colours")]
+        [Tooltip("Ring colour when the enemy has no element. Otherwise the element's colour.")]
         public Color ringColor = new Color32(201, 71, 90, 255);
-        [Tooltip("Ring colour while a dragged card would target this enemy's number.")]
+        [Tooltip("Ring colour while the selected cards would target this enemy.")]
         public Color previewColor = new Color32(233, 185, 73, 255);
-        public Color capColor = new Color32(90, 38, 50, 255);
+        [Range(0f, 1f), Tooltip("Cap colour = black blended this far toward the ring colour.")]
+        public float capShade = 0.35f;
         public Color flashColor = Color.white;
         public Color burnColor = new Color(1f, 0.32f, 0.03f);
         public Color stunColor = new Color(0.3f, 0.7f, 1f);
@@ -30,30 +33,30 @@ namespace Pinball.Presentation
         public UltEvent<Vector3> onHit;
         public UltEvent<Vector3> onKilled;
         public UltEvent<Vector3> onBreach;
-        [Tooltip("A valid ball hit on this enemy. Passes the contact point.")]
+        [Tooltip("Every new ball contact on this enemy (also inside its damage cooldown). Passes the contact point.")]
         public UltEvent<Vector3> onBallHit;
         public UltEvent onBurnStart, onBurnEnd, onStunned;
 
         static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         MaterialPropertyBlock block;
         float flashLeft;
-        int shownNumber = int.MinValue;
+        ElementDefinition shownElement;
         bool wasBurning, wasStunned;
 
-        // Set by the HUD while a dragged card's number matches this enemy.
+        // Set by the HUD while the selected cards would target this enemy.
         public bool Previewed { get; set; }
 
         void OnEnable()
         {
             block ??= new MaterialPropertyBlock();
             flashLeft = 0f;
-            shownNumber = int.MinValue;
+            shownElement = null;
             wasBurning = wasStunned = false;
             Previewed = false;
             enemy.Health.Damaged += OnDamaged;
             enemy.Health.Died += OnDied;
             enemy.Breached += OnBreached;
-            enemy.Contact.BallHit += OnBallHit;
+            enemy.Contact.BallContact += OnBallHit;
         }
 
         void OnDisable()
@@ -61,7 +64,7 @@ namespace Pinball.Presentation
             enemy.Health.Damaged -= OnDamaged;
             enemy.Health.Died -= OnDied;
             enemy.Breached -= OnBreached;
-            enemy.Contact.BallHit -= OnBallHit;
+            enemy.Contact.BallContact -= OnBallHit;
         }
 
         void OnBallHit(Ball ball, Vector3 point) => onBallHit?.Invoke(point);
@@ -77,11 +80,12 @@ namespace Pinball.Presentation
 
         void Update()
         {
-            if (numberLabel && enemy.Number != shownNumber)
+            if (numberLabel && enemy.Element != shownElement)
             {
-                shownNumber = enemy.Number;
-                numberLabel.text = shownNumber.ToString();
+                shownElement = enemy.Element;
+                numberLabel.text = shownElement ? shownElement.symbol : "";
             }
+            var baseColor = enemy.Element ? enemy.Element.color : ringColor;
 
             bool burning = enemy.Status.IsBurning, stunned = enemy.Status.IsStunned;
             if (burning != wasBurning) { if (burning) onBurnStart?.Invoke(); else onBurnEnd?.Invoke(); wasBurning = burning; }
@@ -89,8 +93,8 @@ namespace Pinball.Presentation
             wasStunned = stunned;
 
             if (flashLeft > 0f) flashLeft -= Time.unscaledDeltaTime;
-            Paint(ring, Previewed ? previewColor : ringColor);
-            Paint(cap, flashLeft > 0f ? flashColor : burning ? burnColor : stunned ? stunColor : capColor);
+            Paint(ring, Previewed ? previewColor : baseColor);
+            Paint(cap, flashLeft > 0f ? flashColor : burning ? burnColor : stunned ? stunColor : Color.Lerp(Color.black, baseColor, capShade));
         }
 
         void Paint(Renderer target, Color color)
