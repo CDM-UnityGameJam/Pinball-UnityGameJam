@@ -14,7 +14,7 @@ public static class EmptyHandArcChecks
             Hud.Instance=null;
             using(var f=new LuckPrototypeCheck.Fixture()){
                 var gm=f.gm;Check(gm.CardCount==0&&gm.HandSize==5&&gm.RechargeProgress==0&&gm.RechargeRequired==gm.luck.rechargeBaseCost,"new run starts empty with base recharge cost only");
-                gm.TickGameplay(10);Check(gm.CardCount==1&&gm.RechargeRequired==100&&gm.EmpoweredHits==0&&gm.Metrics.plays==0,"natural recharge grants first card without cast cost or power");
+                gm.TickGameplay(10);Check(gm.CardCount==1&&gm.RechargeRequired==100&&gm.Metrics.plays==0,"natural recharge grants first card without cast cost");
             }
             foreach(int hp in new[]{8,4})using(var f=new LuckPrototypeCheck.Fixture()){
                 var gm=f.gm;f.Hand(new Card(6,Card.Equipment.Arc));var direct=f.Enemy(Card.Equipment.Spark,hp:hp);var a=f.Enemy(Card.Equipment.Spark,.5f,hp:4);var b=f.Enemy(Card.Equipment.Spark,-.5f,hp:4);

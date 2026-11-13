@@ -14,6 +14,8 @@ public sealed class RechargeAccount
     public void Play(bool wasFull,double baseCost,double extraCost){if(wasFull){Progress=0;pending=true;Required=Math.Max(0,baseCost);}else StartMissing(baseCost);Required+=Math.Max(0,extraCost);}
     public void PlayBatch(bool wasFull,int count,double baseCost,double perCardCost){if(count<1||count>5)throw new ArgumentOutOfRangeException("count");Play(wasFull,baseCost,perCardCost*count);}
     public void FullHand(){Progress=0;Required=0;pending=false;}
+    public void SetRequirement(double cost){pending=true;Required=Math.Max(0,cost);}
+    public bool Ready=>pending&&Progress+1e-8>=Required;
     public double WindowUsed(double now)
     {
         while(combatJournal.Count>0 && combatJournal.Peek().time<=now-1)combatUsed-=combatJournal.Dequeue().amount;

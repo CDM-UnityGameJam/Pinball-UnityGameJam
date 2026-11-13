@@ -25,10 +25,19 @@ public sealed class DiceBatch : AttackRecord
     public readonly double RevealAt;
     public bool Revealed { get; internal set; }
     public int CoverageCount => covered.Count;
+    public DiceBatch(Card[] cards,bool lucky,double now,IList<EnemySnapshot> snapshot,LuckTuning tuning):base("Group #"+cards[0].number)
+    {
+        this.cards=(Card[])cards.Clone();dice=new int[0];Number=cards[0].number;Tier=lucky?CastTier.Lucky:CastTier.Normal;Matches=0;RevealAt=now;
+        BuildSkills(snapshot,tuning);
+    }
     public DiceBatch(Card[] cards,int[] dice,double revealAt,IList<EnemySnapshot> snapshot,LuckTuning tuning) : base("Batch #"+cards[0].number)
     {
         this.cards=(Card[])cards.Clone();this.dice=(int[])dice.Clone();Number=cards[0].number;
         Tier=DiceRules.Tier(Number,dice);Matches=DiceRules.Matches(Number,dice);RevealAt=revealAt;
+        BuildSkills(snapshot,tuning);
+    }
+    void BuildSkills(IList<EnemySnapshot> snapshot,LuckTuning tuning)
+    {
         for(int type=0;type<3;type++) {
             int count=0;foreach(var c in cards)if((int)c.equipment==type)count++;
             if(count==0)continue;

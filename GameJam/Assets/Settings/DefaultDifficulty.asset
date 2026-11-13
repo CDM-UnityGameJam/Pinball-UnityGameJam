@@ -12,18 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcd627f042c74116b14f5a5d7765e487, type: 3}
   m_Name: DefaultDifficulty
   m_EditorClassIdentifier: 
-  baseSpawnInterval: 5
-  baseDescentTime: 35
+  baseSpawnInterval: 3
+  baseDescentTime: 50
   spawnSpeedMultiplier: 1
   moveSpeedMultiplier: 1
-  baseEnemyHealth: 9
+  baseEnemyHealth: 20
   stages:
   - time: 0
     spawnMultiplier: 1
     moveMultiplier: 1
     healthMultiplier: 1
   - time: 30
-    spawnMultiplier: 1.2
+    spawnMultiplier: 1.1
     moveMultiplier: 1.25
     healthMultiplier: 2
   - time: 90
@@ -31,14 +31,14 @@ MonoBehaviour:
     moveMultiplier: 1.3
     healthMultiplier: 4
   - time: 180
-    spawnMultiplier: 2
+    spawnMultiplier: 1.8
     moveMultiplier: 1.5
-    healthMultiplier: 6
+    healthMultiplier: 5
   - time: 300
-    spawnMultiplier: 5
+    spawnMultiplier: 3
     moveMultiplier: 1.7
-    healthMultiplier: 8
+    healthMultiplier: 7
   - time: 480
-    spawnMultiplier: 10
+    spawnMultiplier: 5
     moveMultiplier: 1.8
     healthMultiplier: 10

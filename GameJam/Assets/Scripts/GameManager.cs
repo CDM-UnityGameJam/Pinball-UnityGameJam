@@ -118,10 +118,9 @@ public class GameManager : MonoBehaviour
         float previewTime=UnityEditor.SessionState.GetFloat("Luck.NextDifficultyTime",-1);
         if(previewTime>=0){DifficultyDebug.Specify(previewTime);UnityEditor.SessionState.EraseFloat("Luck.NextDifficultyTime");}
 #endif
-        handSize = 5;
+        handSize = luck.draws.handSize;
         hand = new Card[handSize];
-        recharge.StartMissing(luck.rechargeBaseCost);
-        Metrics.StartRechargeInterval(0);DifficultyStats.BeginRefill(0);
+        DrawToFull(false);
         Time.fixedDeltaTime = Mathf.Max(0.001f, physicsStep);
         Physics.gravity = Vector3.down * gravity;
     }
@@ -317,7 +316,11 @@ public class GameManager : MonoBehaviour
     public long Score=>score;
     public int Lives=>lives;
     public int Energy=>0;
-    public int EmpoweredHits {get;private set;}
+    public int LuckyNumber {get;private set;}
+    public int DrawSequence {get;private set;}
+    public double LastDrawTime {get;private set;}
+    public bool IsLucky(Card card)=>card!=null&&LuckyNumber!=0&&card.number==LuckyNumber;
+    public int LuckyHeldCount(Card.Equipment type){int n=0;foreach(var c in hand)if(c!=null&&c.equipment==type&&IsLucky(c))n++;return n;}
     public bool CanSubmit=>IsPlaying && !resolving && PendingBatch==null;
     public int CardCount {get {int n=0;foreach(var c in hand)if(c!=null)n++;return n;}}
     public bool IsHandFull=>CardCount==HandSize;
@@ -330,37 +333,30 @@ public class GameManager : MonoBehaviour
     public double RechargeProgress=>recharge.Progress;
     public double RechargeRequired=>recharge.Required;
     public double RechargeWindowUsed=>recharge.WindowUsed(CombatTime);
-    public double RechargeAfterBatch(int count)=>(IsHandFull?luck.rechargeBaseCost:recharge.Required)+count*luck.rechargeCastCost;
-    public bool UseCard(int slot)=>UseCards(new Card[]{GetCard(slot)});
+    public double RechargeAfterBatch(int count)=>luck.draws.RefillCost(HandSize-CardCount+count);
+    public bool UseCard(int slot){var card=GetCard(slot);if(card==null)return false;var group=new List<Card>();foreach(var c in hand)if(c!=null&&c.number==card.number)group.Add(c);return UseCards(group);}
     public bool UseCards(IList<Card> selected)
     {
-        if(!CanSubmit || !DiceRules.ValidSelection(selected,hand,c=>c.number))return false;
-        if(DevelopmentTools && fixedDice!=null && fixedDice.Length!=selected.Count)return false;
+        if(!CanSubmit || !DiceRules.ValidGroup(selected,hand,c=>c.number))return false;
         var cards=new Card[selected.Count];selected.CopyTo(cards,0);
         var snapshot=EquipmentResolver.Snapshot(this);
         var tuning=luck;
-        var prepared=new DiceBatch(cards,RollDice(cards.Length),CombatTime+tuning.diceRevealDelay,snapshot,tuning);
-        float baseCost=tuning.rechargeBaseCost,extraCost=tuning.rechargeCastCost;
-        int granted=(int)System.Math.Min(int.MaxValue,(long)cards.Length*tuning.empoweredHitsPerCard);
+        var prepared=new DiceBatch(cards,cards[0].number==LuckyNumber,CombatTime,snapshot,tuning);
         bool wasFull=IsHandFull;resolving=true;
         try {
             for(int i=0;i<hand.Length;i++)foreach(var c in cards)if(ReferenceEquals(hand[i],c)){SlotReplaced?.Invoke(i);hand[i]=null;break;}
             CompactHand();
+            if(LuckyNumber!=0&&NumberCount(LuckyNumber)==0)LuckyNumber=0;
             if(wasFull){Metrics.StartRechargeInterval(CombatTime);DifficultyStats.BeginRefill(CombatTime);}
-            recharge.PlayBatch(wasFull,cards.Length,baseCost,extraCost);
-            EmpoweredHits=(int)System.Math.Min(int.MaxValue,(long)EmpoweredHits+granted);
-            Metrics.empoweredGranted+=granted;
+            recharge.SetRequirement(tuning.draws.RefillCost(HandSize-CardCount));
             RefreshBallEnchantments();
             PendingBatch=prepared;
             if (cardPowerUp) cardPowerUp.Play(transform.position);
             LastBatch=PendingBatch;Metrics.RecordBatch(cards.Length);BatchSubmitted?.Invoke(PendingBatch);
         }finally {resolving=false;}
+        RevealBatch();
+        ResolveRecharge();
         return true;
-    }
-    int[] RollDice(int count)
-    {
-        if(DevelopmentTools && fixedDice!=null){var result=(int[])fixedDice.Clone();fixedDice=null;return result;}
-        var resultDice=new int[count];for(int i=0;i<count;i++)resultDice[i]=Random.Range(1,7);return resultDice;
     }
     void RevealBatch()
     {
@@ -369,16 +365,16 @@ public class GameManager : MonoBehaviour
             batch.Revealed=true;
             foreach(var skill in batch.Skills){skill.FireWave(this);if(!skill.Complete)casts.Add(skill);}
             Metrics.RecordReveal(batch);PendingBatch=null;
-            if(Hud.Instance)Hud.Instance.ShowBatch(batch);
         }finally {resolving=false;}
     }
     void CompactHand()
     {
-        int next=0;for(int i=0;i<HandSize;i++)if(hand[i]!=null){if(i!=next){hand[next]=hand[i];hand[i]=null;CardShifted?.Invoke(i,next);}next++;}
+        var before=(Card[])hand.Clone();HandOrder.Sort(hand,c=>c.number);
+        for(int to=0;to<hand.Length;to++)if(hand[to]!=null)for(int from=0;from<before.Length;from++)if(ReferenceEquals(hand[to],before[from])){if(from!=to)CardShifted?.Invoke(from,to);break;}
     }
     public string EnchantmentSummary(Card.Equipment type,int count)
     {
-        return luck.HeldSummary(type,count);
+        return luck.HeldSummary(type,count,System.Math.Min(count,LuckyHeldCount(type)));
     }
     public void RegisterBallHit(Enemy direct,Vector3 point,bool damageAllowed)
     {
@@ -392,9 +388,7 @@ public class GameManager : MonoBehaviour
             if(damageAllowed) {
                 AwardCombo(scoreAccount.Hit(CombatTime,luck.scoring));
                 var source=new AttackRecord("Ball collision and enchantments");
-                int damage=EmpoweredHits>0?luck.empoweredCollisionDamage:luck.collisionDamage;
-                if(damage>0 && EmpoweredHits>0){EmpoweredHits--;Metrics.empoweredConsumed++;}
-                direct.TakeDamage(damage,source);
+                direct.TakeDamage(luck.collisionDamage,source);
                 Metrics.physicalDamageHits++;
                 EquipmentResolver.BallHit(this,direct,point,source);
             } else Metrics.cooldownContacts++;
@@ -406,19 +400,30 @@ public class GameManager : MonoBehaviour
     {
         double actual=EarnRecharge(luck.rechargeHit,false);
         if(actual>0){Metrics.collisionChargeEvents++;Metrics.collisionCharge+=actual;}
-        if(actual>0 && Hud.Instance)Hud.Instance.Popup(point-board.forward*1.2f,"+"+actual.ToString("G6"),Hud.Blue);
         return actual;
     }
     double EarnRecharge(double amount,bool natural)
     {
         if(!IsPlaying || IsHandFull)return 0;
-        recharge.StartMissing(luck.rechargeBaseCost);
+        recharge.SetRequirement(luck.draws.RefillCost(HandSize-CardCount));
         double actual=natural?recharge.EarnNatural(amount):recharge.EarnCombat(CombatTime,amount);
         Metrics.RecordRecharge(amount,actual,natural);
         ResolveRecharge();
         return actual;
     }
-    void ResolveRecharge(){while(!IsHandFull && recharge.Consume(luck.rechargeBaseCost)){AddCard(Card.Random());Metrics.RecordRefill(CombatTime);DifficultyStats.RefillCompleted(CombatTime);}}
+    void ResolveRecharge(){if(!IsHandFull&&recharge.Ready)DrawToFull(true);}
+    void DrawToFull(bool isRefill)
+    {
+        bool keepLucky=isRefill&&LuckyNumber!=0&&NumberCount(LuckyNumber)>0;
+        var numbers=new List<int>();
+        for(int i=0;i<hand.Length;i++)if(hand[i]==null){hand[i]=Card.Random(luck);numbers.Add(hand[i].number);SlotReplaced?.Invoke(i);}
+        CompactHand();
+        if(numbers.Count>0){if(!keepLucky)LuckyNumber=isRefill?luck.draws.PickLucky(numbers,()=>Random.value):0;DrawSequence++;LastDrawTime=CombatTime;}
+        recharge.FullHand();
+        if(isRefill){Metrics.RecordRefill(CombatTime);DifficultyStats.RefillCompleted(CombatTime);}
+        HandChanged?.Invoke();
+        RefreshBallEnchantments();
+    }
     public void TickGameplay(float elapsed)
     {
         if(!IsPlaying || resolving || elapsed<=0 || float.IsNaN(elapsed) || float.IsInfinity(elapsed))return;
@@ -448,22 +453,20 @@ public class GameManager : MonoBehaviour
         if(card==null || IsHandFull)return false;
         for(int i=0;i<HandSize;i++)if(hand[i]==null){
             SlotReplaced?.Invoke(i);hand[i]=card;
-            if(IsHandFull)recharge.FullHand();else recharge.StartMissing(luck.rechargeBaseCost);
+            CompactHand();
+            if(IsHandFull)recharge.FullHand();else recharge.SetRequirement(luck.draws.RefillCost(HandSize-CardCount));
+            HandChanged?.Invoke();
             RefreshBallEnchantments();return true;
         }
         return false;
     }
-    int[] fixedDice;
-    public string FixedDice=>fixedDice==null?"Random":string.Join(", ",fixedDice);
-    public bool DebugSetDice(int[] dice)
-    {
-        if(!DevelopmentTools || dice==null || !DiceRules.ValidFaces(dice,dice.Length))return false;
-        fixedDice=(int[])dice.Clone();return true;
-    }
-    public void DebugClearDice(){if(DevelopmentTools)fixedDice=null;}
-    public bool DebugAddCard(int number,Card.Equipment equipment)=>DevelopmentTools && !IsGameOver && number>=1 && number<=6 && (int)equipment>=0 && (int)equipment<3 && AddCard(new Card(number,equipment));
-    public void DebugClearEmpowered(){if(DevelopmentTools)EmpoweredHits=0;}
-    public bool DebugFillRecharge(){if(!DevelopmentTools||!IsPlaying||resolving||IsHandFull)return false;recharge.StartMissing(luck.rechargeBaseCost);recharge.EarnNatural(System.Math.Max(0,recharge.Required-recharge.Progress));ResolveRecharge();return true;}
+    // Compatibility for archived editor checks; dice are no longer part of gameplay.
+    public string FixedDice=>"Removed";
+    public bool DebugSetDice(int[] dice)=>false;
+    public void DebugClearDice(){}
+    public bool DebugAddCard(int number,Card.Equipment equipment)=>DevelopmentTools && !IsGameOver && number>=1 && number<=3 && (int)equipment>=0 && (int)equipment<3 && AddCard(new Card(number,equipment));
+    public bool DebugSetLucky(int number){if(!DevelopmentTools||IsGameOver||number<0||number>3)return false;LuckyNumber=number;HandChanged?.Invoke();return true;}
+    public bool DebugFillRecharge(){if(!DevelopmentTools||!IsPlaying||resolving||IsHandFull)return false;recharge.SetRequirement(luck.draws.RefillCost(HandSize-CardCount));recharge.EarnNatural(System.Math.Max(0,recharge.Required-recharge.Progress));ResolveRecharge();return true;}
     public Enemy SpawnEnemy(Card.Equipment element,Vector3 local){var enemy=Enemy.Create(board,Enemy.Kind.Normal,element,local);if(enemy)DifficultyStats.Spawn(CombatTime);return enemy;}
     public long OnNormalKill(AttackRecord source = null)
     {
@@ -474,7 +477,6 @@ public class GameManager : MonoBehaviour
             if(source!=null) {
                 source.Kills++; LastEventKills=source.Kills;
                 if(source is DiceBatch)Metrics.batchKills++;
-                if(source.Kills>=2 && Hud.Instance) Hud.Instance.ShowMultiKill(source);
                 if(source.Kills==2 && ballOnMultiKill) AddBall(); // ==2: once per attack, not per extra kill
             }
         }

@@ -6,12 +6,13 @@ public class RunTelemetry
     public string policy = "Manual play";
     public int batches,baseBatches,standardBatches,fullFieldBatches,jackpotBatches,coveredTargets,batchKills,activatedCards;
     public int[] groupSizes=new int[6];
+    public int normalBatches,luckyBatches;
     public void RecordBatch(int count){batches++;plays+=count;groupSizes[count]++;}
     public void RecordReveal(DiceBatch batch){
-        if(batch.Tier==CastTier.Base)baseBatches++;else if(batch.Tier==CastTier.Standard)standardBatches++;else if(batch.Tier==CastTier.FullField)fullFieldBatches++;else jackpotBatches++;
+        if(batch.Tier==CastTier.Normal)normalBatches++;else if(batch.Tier==CastTier.Lucky)luckyBatches++;else if(batch.Tier==CastTier.Base)baseBatches++;else if(batch.Tier==CastTier.Standard)standardBatches++;else if(batch.Tier==CastTier.FullField)fullFieldBatches++;else jackpotBatches++;
         coveredTargets+=batch.CoverageCount;activatedCards+=batch.Cards.Count;skillReleases+=batch.Skills.Count;diceMatches+=batch.Matches;
     }
-    public int skillReleases,diceMatches,physicalDamageHits,cooldownContacts,collisionChargeEvents,burnChargeEvents,empoweredGranted,empoweredConsumed;
+    public int skillReleases,diceMatches,physicalDamageHits,cooldownContacts,collisionChargeEvents,burnChargeEvents;
     public double collisionCharge,burnCharge;
     public int plays, validBallHits, kills, drains, breaches, lowQuality, mediumQuality, highQuality, shortCircuits, misfires;
     public float elapsed, handTimeIntegral, lowEquipmentSeconds;
@@ -39,5 +40,5 @@ public class RunTelemetry
         elapsed+=delta; handTimeIntegral+=delta*cards;
         if(cards<=1) lowEquipmentSeconds+=delta;
     }
-    public string Summary() => $"Policy={policy}, Time={elapsed:0.0}s, Batches={batches}, Skills={skillReleases}, Collision/Burn charge={collisionCharge:0.##}/{burnCharge:0.##}, Matching dice={diceMatches}, Power granted/used={empoweredGranted}/{empoweredConsumed}, Cards={plays}, Groups[1-5]={groupSizes[1]}/{groupSizes[2]}/{groupSizes[3]}/{groupSizes[4]}/{groupSizes[5]}, Tiers={baseBatches}/{standardBatches}/{fullFieldBatches}/{jackpotBatches}, Activated cards={activatedCards}, Coverage={coveredTargets}, Batch kills={batchKills}, Average hand={AverageHand:0.00}, Low gear (0-1)={lowEquipmentSeconds:0.0}s, Kills={kills}, Death cause={deathCause}, Breaches={breaches}, Drains={drains}, {RechargeSummary()}";
+    public string Summary() => $"Policy={policy}, Time={elapsed:0.0}s, Batches={batches}, Skills={skillReleases}, Collision/Burn charge={collisionCharge:0.##}/{burnCharge:0.##}, Normal/Lucky batches={normalBatches}/{luckyBatches}, Cards={plays}, Groups[1-5]={groupSizes[1]}/{groupSizes[2]}/{groupSizes[3]}/{groupSizes[4]}/{groupSizes[5]}, Tiers={baseBatches}/{standardBatches}/{fullFieldBatches}/{jackpotBatches}, Activated cards={activatedCards}, Coverage={coveredTargets}, Batch kills={batchKills}, Average hand={AverageHand:0.00}, Low gear (0-1)={lowEquipmentSeconds:0.0}s, Kills={kills}, Death cause={deathCause}, Breaches={breaches}, Drains={drains}, {RechargeSummary()}";
 }

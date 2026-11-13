@@ -10,6 +10,7 @@ public class Spawner : MonoBehaviour
     public int PeriodicAttempts {get;private set;}
     SpringBumper[] springs;
     SideReturnLane[] returnLanes;
+    Material dangerLineMaterial;
 
     void Start()=>Initialize(GameManager.Instance);
     public void Initialize(GameManager manager)
@@ -95,14 +96,22 @@ public class Spawner : MonoBehaviour
 
     void MakeRedLine()
     {
-        var line = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        line.name = "RedLine";
-        Destroy(line.GetComponent<Collider>());
-        var r = line.GetComponent<Renderer>();
-        r.sharedMaterial = gm.board.GetComponentInChildren<Renderer>().sharedMaterial;
-        r.material.color = S.dangerLineColor;
-        line.transform.SetParent(gm.board, false);
-        line.transform.localPosition = new Vector3(S.dangerLineOffset.x, S.dangerLineOffset.y, S.dangerZ);
-        line.transform.localScale = S.dangerLineScale;
+        var line = new GameObject("DangerLine",typeof(LineRenderer)).GetComponent<LineRenderer>();
+        line.transform.SetParent(gm.board,false);line.useWorldSpace=false;
+        dangerLineMaterial=new Material(gm.board.GetComponentInChildren<Renderer>().sharedMaterial);
+        dangerLineMaterial.color=S.dangerLineColor;
+        if(dangerLineMaterial.HasProperty("_BaseColor"))dangerLineMaterial.SetColor("_BaseColor",S.dangerLineColor);
+        if(dangerLineMaterial.HasProperty("_EmissionColor")){dangerLineMaterial.EnableKeyword("_EMISSION");dangerLineMaterial.SetColor("_EmissionColor",S.dangerLineColor*2);}
+        line.sharedMaterial=dangerLineMaterial;line.widthMultiplier=Mathf.Max(.16f,S.dangerLineScale.z);
+        line.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;line.receiveShadows=false;
+        line.numCapVertices=4;line.positionCount=65;
+        var surface=gm.board.GetComponentInChildren<OuterRingSurface>();
+        for(int i=0;i<line.positionCount;i++){
+            float x=S.dangerLineOffset.x+Mathf.Lerp(-S.dangerLineScale.x*.5f,S.dangerLineScale.x*.5f,i/(float)(line.positionCount-1));
+            // Follow the raised playfield/ramp instead of hiding below its surface.
+            float y=(surface?surface.HeightAt(x,S.dangerZ):0)+Mathf.Max(.05f,S.dangerLineOffset.y);
+            line.SetPosition(i,new Vector3(x,y,S.dangerZ));
+        }
     }
+    void OnDestroy(){if(dangerLineMaterial)Destroy(dangerLineMaterial);}
 }

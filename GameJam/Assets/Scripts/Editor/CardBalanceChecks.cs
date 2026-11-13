@@ -66,10 +66,6 @@ public static class CardBalanceChecks
             using(var f=new LuckPrototypeCheck.Fixture()){
                 var gm=f.gm;gm.cardBalanceConfig=config;var a=C(Card.Equipment.Shockwave);var b=C(Card.Equipment.Shockwave);f.Hand(a,b);var target=f.Enemy(Card.Equipment.Spark);config.settings.shockTiers[3].waves=99;gm.DebugSetDice(new[]{6,6});gm.UseCards(new[]{a,b});gm.TickGameplay(.45f);Check(target.hp==92,"combined Jackpot Shockwave hits once");Near(target.StunRemaining,3,"Jackpot stun duration retained");gm.TickGameplay(2);Check(target.hp==92&&gm.PendingCasts==0,"no delayed Shockwave hits");
             }
-            config.settings=new LuckTuning();config.settings.empoweredHitsPerCard=3;
-            using(var f=new LuckPrototypeCheck.Fixture()){
-                var gm=f.gm;gm.cardBalanceConfig=config;f.Hand(C(Card.Equipment.Shockwave));gm.DebugSetDice(new[]{6,6});var randomBefore=UnityEngine.Random.state;Check(!gm.UseCard(0)&&gm.CardCount==1&&gm.FixedDice=="6, 6"&&UnityEngine.Random.state.Equals(randomBefore),"fixed-dice count mismatch is atomic");gm.DebugSetDice(new[]{1});gm.UseCard(0);Check(gm.EmpoweredHits==3&&gm.FixedDice=="Random","configured grants and one-shot dice");gm.DebugClearEmpowered();Check(gm.EmpoweredHits==0,"clear power");Check(gm.DebugAddCard(4,Card.Equipment.Spark),"specified card inserted");
-            }
             config.settings=new LuckTuning();config.settings.passiveArcRadius=float.NaN;Check(config.Effective.Valid()&&float.IsNaN(config.settings.passiveArcRadius),"invalid config falls back without modifying asset values");
             Debug.Log("CARD BALANCE INTEGRATION PASSED: passive live edit, batch/status snapshots, recharge preservation, debug inputs and safe defaults.");
         }finally{Object.DestroyImmediate(config);GameManager.Instance=original;Hud.Instance=hud;UnityEngine.Random.state=random;Physics.gravity=gravity;Time.timeScale=scale;Time.fixedDeltaTime=step;}

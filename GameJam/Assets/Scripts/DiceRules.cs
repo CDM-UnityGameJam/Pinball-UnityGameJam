@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-public enum CastTier { Base, Standard, FullField, Jackpot }
+public enum CastTier { Base, Standard, FullField, Jackpot, Normal, Lucky }
 
 // Pure rules shared by the battle entry point, selection UI and standalone checks.
 public static class DiceRules
@@ -29,6 +29,12 @@ public static class DiceRules
         }
         return true;
     }
-    public static string Label(CastTier tier) { return tier==CastTier.Base?"Base":tier==CastTier.Standard?"Hit":tier==CastTier.FullField?"Full Field":"Jackpot"; }
+    public static string Label(CastTier tier) { return tier==CastTier.Normal?"Normal":tier==CastTier.Lucky?"Lucky":tier==CastTier.Base?"Base":tier==CastTier.Standard?"Hit":tier==CastTier.FullField?"Full Field":"Jackpot"; }
+    public static bool ValidGroup<T>(IList<T> cards,IList<T> hand,Func<T,int> number) where T:class
+    {
+        if(!ValidSelection(cards,hand,number)||number(cards[0])>3)return false;
+        int total=0;foreach(var c in hand)if(c!=null&&number(c)==number(cards[0]))total++;
+        return total==cards.Count;
+    }
 }
 

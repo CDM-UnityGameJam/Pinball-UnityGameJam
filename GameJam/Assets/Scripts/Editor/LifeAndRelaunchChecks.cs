@@ -26,9 +26,9 @@ public static class LifeAndRelaunchChecks
             using(var f=new LuckPrototypeCheck.Fixture()){
                 var gm=f.gm;var dropped=Setup(f);gm.launchWait=.5f;f.Hand(new Card(6,Card.Equipment.Arc));
                 var target=f.Enemy(Card.Equipment.Spark,hp:1000);var burning=f.Enemy(Card.Equipment.Arc,4,hp:1000);var walking=f.Enemy(Card.Equipment.Spark,-4,6);
-                target.Stun(1,true);burning.Ignite(false,3,new AttackRecord("relaunch status check"));gm.DebugSetDice(new[]{1});gm.UseCard(0);int power=gm.EmpoweredHits;
+                target.Stun(1,true);burning.Ignite(false,3,new AttackRecord("relaunch status check"));gm.DebugSetDice(new[]{1});gm.UseCard(0);
                 gm.OnDrain(dropped);gm.OnDrain(dropped);
-                Check(gm.Lives==3&&gm.IsPlaying&&!gm.IsWaiting&&gm.IsRelaunching&&gm.BallCount==0,"last drain starts one countdown without life loss or waiting state");Near(Time.timeScale,1,"drain never pauses physics");Check(gm.Metrics.drains==1&&gm.EmpoweredHits==power,"duplicate drain ignored, power retained");
+                Check(gm.Lives==3&&gm.IsPlaying&&!gm.IsWaiting&&gm.IsRelaunching&&gm.BallCount==0,"last drain starts one countdown without life loss or waiting state");Near(Time.timeScale,1,"drain never pauses physics");Check(gm.Metrics.drains==1,"duplicate drain ignored");
                 gm.TickGameplay(.25f);Near(gm.CombatTime,.25,"combat clock advances without a ball");Check(gm.RechargeProgress>0&&gm.PendingBatch!=null,"charge advances, reveal still scheduled");Near(target.StunRemaining,.75,"stun time advances");
                 var moves=EnemyMovement.Plan(gm,.1f);Check(moves.Exists(m=>m.enemy==walking&&m.local.z<walking.LocalPosition.z),"unstunned enemy moves during relaunch");
                 double progress=gm.RechargeProgress;float remaining=gm.Countdown;gm.SetPaused(true);gm.TickGameplay(10);Near(gm.CombatTime,.25,"manual pause freezes combat");Near(gm.Countdown,remaining,"manual pause freezes relaunch");Near(gm.RechargeProgress,progress,"manual pause freezes recharge");gm.SetPaused(false);

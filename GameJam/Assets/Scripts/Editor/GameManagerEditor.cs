@@ -22,8 +22,7 @@ public class GameManagerEditor : Editor
         "hitPopupColor", "killPopupColor"
     };
 
-    int debugCardNumber=6;
-    string debugDice="6, 2";
+    int debugCardNumber=1,debugLuckyNumber;
     Card.Equipment debugEnemyElement;
     Card.Equipment debugEquipment;
     Vector3 debugEnemyPosition = new Vector3(0, 0, 5);
@@ -49,18 +48,13 @@ public class GameManagerEditor : Editor
         }
         serializedObject.ApplyModifiedProperties();
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Luck Number v0.5 · Developer Tools", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Luck Number · Developer Tools", EditorStyles.boldLabel);
         var gm = (GameManager)target;
         using (new EditorGUI.DisabledScope(!Application.isPlaying || gm.IsGameOver)) {
-            debugDice=EditorGUILayout.TextField("Next dice (complete sequence)",debugDice);
-            if(GUILayout.Button("Set next dice sequence")) {
-                var values=new System.Collections.Generic.List<int>();bool valid=true;
-                foreach(var part in debugDice.Split(',')) {if(int.TryParse(part.Trim(),out int value))values.Add(value);else valid=false;}
-                if(!valid || !gm.DebugSetDice(values.ToArray()))Debug.LogWarning("Enter 1-5 dice, each 1-6. The count must equal the submitted card count.");
-            }
-            EditorGUILayout.LabelField("Pending debug dice",gm.FixedDice);
-            if(GUILayout.Button("Clear fixed dice"))gm.DebugClearDice();
-            debugCardNumber = EditorGUILayout.IntSlider("Card number", debugCardNumber, 1, 6);
+            debugLuckyNumber=EditorGUILayout.IntSlider("Lucky number (0 = none)",debugLuckyNumber,0,3);
+            if(GUILayout.Button("Set lucky number"))gm.DebugSetLucky(debugLuckyNumber);
+            EditorGUILayout.LabelField("Current lucky number",gm.LuckyNumber.ToString());
+            debugCardNumber = EditorGUILayout.IntSlider("Card number", debugCardNumber, 1, 3);
             debugEquipment = (Card.Equipment)EditorGUILayout.EnumPopup("Equipment type", debugEquipment);
             using (new EditorGUI.DisabledScope(gm.IsHandFull))
                 if (GUILayout.Button("Add specified card")) gm.DebugAddCard(debugCardNumber, debugEquipment);

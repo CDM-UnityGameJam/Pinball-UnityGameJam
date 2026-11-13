@@ -2371,6 +2371,83 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 835189703}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &844991243
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 21
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 21
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 22.552042
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 1.66
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.9981359
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.06103131
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 6.998
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: -180
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_Name
+      value: PinballMachineBoard
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 368efc9560d0ffd4ca008211e863f81c, type: 3}
 --- !u!1 &901091635
 GameObject:
   m_ObjectHideFlags: 0
@@ -3202,6 +3279,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61761618c8e48dc4dbeb780afdc3435f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Slingshot
+  kickEnabled: 0
   kickSpeed: 28
   speedMultiplier: 1.3
   upwardBias: 2.5
@@ -4311,6 +4389,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61761618c8e48dc4dbeb780afdc3435f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Slingshot
+  kickEnabled: 0
   kickSpeed: 28
   speedMultiplier: 1.3
   upwardBias: 2.5
@@ -4792,6 +4871,67 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1821282101}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &1873323565
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 1.93
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_Name
+      value: PinballMachineBoard_2
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: fa8f4bdc69ad2954ab1bf0c359a2a7d3, type: 3}
 --- !u!1 &1906905051
 GameObject:
   m_ObjectHideFlags: 0
@@ -4933,6 +5073,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cee21f8852e74424d8af2ac0e671e7e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  pinballLaunch: {fileID: 0}
+  pinballHit: {fileID: 0}
+  pinballHitCreature: {fileID: 0}
+  creatureGetHit: {fileID: 0}
+  cardPowerUp: {fileID: 0}
+  scoreIncrease: {fileID: 0}
   handSize: 5
   launchWait: 3
   normalKillPoints: 50
@@ -4993,7 +5139,7 @@ MonoBehaviour:
     hitDamage: 1
     pulseDamage: 1
     kickSpeed: 20
-    hitBounceSpeed: 14
+    hitBounceSpeed: 10
     unstickSpeed: 5
     unstickAcceleration: 20
     unstickForwardBias: 0.35
@@ -5089,7 +5235,7 @@ MonoBehaviour:
     buttonHoverColor: {r: 0.2, g: 0.27450982, b: 0.41960785, a: 1}
     slotWidth: 170
     slotHeight: 115
-    slotSpacing: 18
+    slotSpacing: 128
     slotBottom: 40
     popupTime: 1
     popupRise: 40
@@ -5141,11 +5287,19 @@ MonoBehaviour:
       effectsPosition: {x: -60, y: -34}
       effectsFontSize: 22
       topBarAnchor: {x: 0.5, y: 1}
-      topBarPosition: {x: 0, y: -140}
+      topBarPosition: {x: 0, y: -75}
       topBarSize: {x: 1060, y: 90}
-      scoreX: -490
-      livesX: -40
+      scoreX: -130
+      livesX: -490
       timeX: 280
+      comboAnchor: {x: 0, y: 1}
+      comboPosition: {x: 90, y: -150}
+      groupPreviewAnchor: {x: 1, y: 0.5}
+      groupPreviewPosition: {x: -240, y: 40}
+      castHintAnchor: {x: 0.5, y: 0}
+      castHintPosition: {x: 0, y: 16}
+      keyboardHintAnchor: {x: 0.5, y: 0}
+      keyboardHintPosition: {x: 0, y: 300}
       leftHelpAnchor: {x: 0, y: 1}
       leftHelpPosition: {x: 70, y: -230}
       rightHelpAnchor: {x: 1, y: 1}
@@ -5158,6 +5312,7 @@ MonoBehaviour:
       bottomBarAnchor: {x: 0.5, y: 0}
       bottomBarPosition: {x: 0, y: 210}
       bottomBarWidthPadding: 60
+      rechargePanelWidth: 982
       bottomBarHeight: 80
       bottomContentWidthPadding: 60
       bottomContentInset: 25
@@ -5841,3 +5996,5 @@ SceneRoots:
   - {fileID: 2126269041}
   - {fileID: 618706460}
   - {fileID: 2021540453}
+  - {fileID: 844991243}
+  - {fileID: 1873323565}

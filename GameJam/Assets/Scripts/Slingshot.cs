@@ -5,6 +5,8 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class Slingshot : MonoBehaviour
 {
+    [Tooltip("Enable the powered kick. Turn off to keep this wall's normal physical collision without launching the ball.")]
+    public bool kickEnabled = true;
     [Min(0f), Tooltip("Minimum launch speed.")]
     public float kickSpeed = 28f;
     [Min(1f), Tooltip("A fast incoming ball leaves this many times faster, if that beats kickSpeed.")]
@@ -31,6 +33,8 @@ public class Slingshot : MonoBehaviour
 
     void OnCollisionEnter(Collision c)
     {
+        // Unity can deliver collision messages to disabled behaviours too.
+        if (!isActiveAndEnabled || !kickEnabled) return;
         var gm = GameManager.Instance;
         var ball = c.rigidbody;
         if (!gm || !gm.IsPlaying || !ball || ball.isKinematic || !c.collider.CompareTag("Player")) return;

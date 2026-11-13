@@ -8,6 +8,8 @@ public sealed class ActiveTier
     public SkillTargetMode targetMode;
     public int targetCount=1,waves=1;
     public float burnDuration,stunDuration;
+    public int damage=12;
+    public float burnDps=6;
 }
 public struct SkillPlan
 {
@@ -27,8 +29,14 @@ public struct SkillPlan
 public class LuckTuning
 {
     public ScoreRules scoring=new ScoreRules();
+    public HandRules draws=new HandRules();
+    public ActiveTier[] normalSkills=NewSkills(false),luckySkills=NewSkills(true);
+    public static ActiveTier[] NewSkills(bool lucky)=>new[]{
+        new ActiveTier{targetMode=lucky?SkillTargetMode.AllEligible:SkillTargetMode.Limited,targetCount=4,waves=lucky?3:2,damage=12},
+        new ActiveTier{targetMode=lucky?SkillTargetMode.AllEligible:SkillTargetMode.Limited,targetCount=4,burnDuration=lucky?6:4,burnDps=6},
+        new ActiveTier{targetMode=lucky?SkillTargetMode.AllEligible:SkillTargetMode.Limited,targetCount=4,waves=1,damage=8,stunDuration=lucky?2:1.5f}};
     public float rechargeBaseCost=100,rechargeCastCost=50,rechargePerSecond=10,rechargeHit=2.5f;
-    public int collisionDamage=4,empoweredCollisionDamage=8,empoweredHitsPerCard=1;
+    public int collisionDamage=4;
     public int passiveArcDamage=4;
     public float passiveArcRadius=3,passiveBurnDps=4,passiveBurnDuration=3,passiveSparkRadius=2.5f,passiveStunDuration=.35f,passiveStunImmunity=2,burnTickInterval=.5f;
     public int[] arcTargetCounts={2,3,4,5,5},sparkTargetCounts={0,1,2,3,3};
@@ -54,24 +62,28 @@ public class LuckTuning
     public ActiveTier[] Tiers(Card.Equipment e)=>e==Card.Equipment.Arc?arcTiers:e==Card.Equipment.Spark?sparkTiers:shockTiers;
     public SkillPlan Plan(Card.Equipment e,CastTier tier,int copies)
     {
-        if(copies<1)return default(SkillPlan);var row=Tiers(e)[(int)tier];int extra=copies-1;
+        if(copies<1)return default(SkillPlan);bool current=tier==CastTier.Normal||tier==CastTier.Lucky;var row=current?(tier==CastTier.Lucky?luckySkills:normalSkills)[(int)e]:Tiers(e)[(int)tier];int extra=copies-1;
         return new SkillPlan{allTargets=row.targetMode==SkillTargetMode.AllEligible,targetCount=row.targetCount,
             waves=e==Card.Equipment.Arc?(int)Math.Min(int.MaxValue,(long)row.waves+(long)extra*extraArcWaves):1,
-            damage=e==Card.Equipment.Arc?activeArcDamage:activeShockDamage,burnDuration=(float)Math.Min(float.MaxValue,(double)row.burnDuration+extra*(double)extraBurnPerCard),stunDuration=row.stunDuration,
-            waveInterval=e==Card.Equipment.Arc?arcWaveInterval:0,burnDps=activeBurnDps,burnTickInterval=burnTickInterval,stunImmunity=passiveStunImmunity};
+            damage=current?row.damage:e==Card.Equipment.Arc?activeArcDamage:activeShockDamage,burnDuration=(float)Math.Min(float.MaxValue,(double)row.burnDuration+extra*(double)extraBurnPerCard),stunDuration=row.stunDuration,
+            waveInterval=e==Card.Equipment.Arc?arcWaveInterval:0,burnDps=current?row.burnDps:activeBurnDps,burnTickInterval=burnTickInterval,stunImmunity=passiveStunImmunity};
     }
-    public string HeldSummary(Card.Equipment e,int n)
+    public int HeldArcDamage(int lucky)=>(int)Math.Min(int.MaxValue,Math.Floor(passiveArcDamage+(double)lucky*draws.luckyArcDamage+1e-7));
+    public float HeldFireDps(int n,int lucky)=>(float)Math.Min(float.MaxValue,HeldSparkDps(n)+(double)lucky*draws.luckyBurnDps);
+    public float HeldStun(int lucky)=>(float)Math.Min(float.MaxValue,passiveStunDuration+(double)lucky*draws.luckyStunDuration);
+    public string HeldSummary(Card.Equipment e,int n,int lucky=0)
     {
         if(n<=0)return "Enchantment lost";
-        if(e==Card.Equipment.Arc)return $"Hit foe + {ArcTargets(n)} nearby · {passiveArcRadius:0.###}m · {passiveArcDamage} Arc damage";
-        if(e==Card.Equipment.Spark)return $"Hit foe + {ExtraSparkTargets(n)} nearby · {passiveSparkRadius:0.###}m · {HeldSparkDps(n):0.###} DPS · {passiveBurnDuration:0.###}s · {BurnDamage(HeldSparkDps(n),burnTickInterval):0.###} accumulated/tick";
-        return $"{ShockRadius(n):0.###}m · stun {passiveStunDuration:0.###}s · immunity {passiveStunImmunity:0.###}s · no damage";
+        if(e==Card.Equipment.Arc)return $"Hit foe + {ArcTargets(n)} nearby · {passiveArcRadius:0.###}m · {HeldArcDamage(lucky)} Arc damage";
+        if(e==Card.Equipment.Spark)return $"Hit foe + {ExtraSparkTargets(n)} nearby · {passiveSparkRadius:0.###}m · {HeldFireDps(n,lucky):0.###} DPS · {passiveBurnDuration:0.###}s";
+        return $"{ShockRadius(n):0.###}m · stun {HeldStun(lucky):0.###}s · immunity {passiveStunImmunity:0.###}s · no damage";
     }
     public bool Valid()
     {
         if(scoring==null||scoring.Errors().Count>0)return false;
+        if(draws==null||draws.Errors().Count>0||!ValidSkills(normalSkills)||!ValidSkills(luckySkills))return false;
         if(!NonNegative(rechargeBaseCost)||!NonNegative(rechargeCastCost)||!NonNegative(rechargePerSecond)||!NonNegative(rechargeHit))return false;
-        if(collisionDamage<0||empoweredCollisionDamage<0||empoweredHitsPerCard<0||passiveArcDamage<0||activeArcDamage<0||activeShockDamage<0||extraArcWaves<0)return false;
+        if(collisionDamage<0||passiveArcDamage<0||activeArcDamage<0||activeShockDamage<0||extraArcWaves<0)return false;
         if(!NonNegative(passiveArcRadius)||!NonNegative(passiveBurnDps)||!NonNegative(passiveBurnDuration)||!NonNegative(passiveSparkRadius)||!NonNegative(passiveStunDuration)||!NonNegative(passiveStunImmunity)||!NonNegative(activeBurnDps)||!NonNegative(extraBurnPerCard)||!NonNegative(diceRevealDelay)||!NonNegative(enemyQueueGap))return false;
         if(!NonNegative(burnTickInterval)||burnTickInterval<=0||!NonNegative(arcWaveInterval)||arcWaveInterval<=0)return false;
         if(sparkDpsMultipliers==null||sparkDpsMultipliers.Length!=5)return false;
@@ -81,9 +93,10 @@ public class LuckTuning
         return ValidTiers(arcTiers)&&ValidTiers(sparkTiers)&&ValidTiers(shockTiers);
     }
     static bool ValidTiers(ActiveTier[] tiers){if(tiers==null||tiers.Length!=4)return false;foreach(var t in tiers)if(t==null||(int)t.targetMode<0||(int)t.targetMode>1||t.targetCount<1||t.waves<1||!NonNegative(t.burnDuration)||!NonNegative(t.stunDuration))return false;return true;}
+    static bool ValidSkills(ActiveTier[] rows){if(rows==null||rows.Length!=3)return false;foreach(var t in rows)if(t==null||!Enum.IsDefined(typeof(SkillTargetMode),t.targetMode)||t.targetCount<1||t.waves<1||t.damage<0||!NonNegative(t.burnDps)||!NonNegative(t.burnDuration)||!NonNegative(t.stunDuration))return false;return rows[2].waves==1;}
     public List<string> Errors()
     {
-        var r=new List<string>();if(scoring==null)r.Add("Scoring settings missing.");else r.AddRange(scoring.Errors());foreach(var f in typeof(LuckTuning).GetFields()){
+        var r=new List<string>();if(draws==null)r.Add("Draw settings missing.");else r.AddRange(draws.Errors());if(!ValidSkills(normalSkills))r.Add("Normal skills: three valid element rows required; Shockwave must have one wave.");if(!ValidSkills(luckySkills))r.Add("Lucky skills: three valid element rows required; Shockwave must have one wave.");if(scoring==null)r.Add("Scoring settings missing.");else r.AddRange(scoring.Errors());foreach(var f in typeof(LuckTuning).GetFields()){
             if(f.FieldType==typeof(float)&&!NonNegative((float)f.GetValue(this)))r.Add(f.Name+": must be finite and non-negative.");
             if(f.FieldType==typeof(int)&&(int)f.GetValue(this)<0)r.Add(f.Name+": must not be negative.");}
         if(burnTickInterval<=0)r.Add("burnTickInterval: must be greater than zero.");if(arcWaveInterval<=0)r.Add("arcWaveInterval: must be greater than zero.");

@@ -6,10 +6,11 @@ public sealed class DifficultyDebugPanel : MonoBehaviour
 {
     GameManager gm;
     bool visible;
+    public bool Visible=>visible;
     Rect window=new Rect(20,20,420,480);
     string spawn="1",move="1",time="300",error="";
     int page,cardElement;
-    string cardNumber="6",dice="6, 2";
+    string cardNumber="1",dice="0";
     Vector2 cardScroll;
     void Awake(){gm=GetComponent<GameManager>();enabled=Application.isEditor||Debug.isDebugBuild;}
     void Update(){if(Keyboard.current!=null&&Keyboard.current.f8Key.wasPressedThisFrame)visible=!visible;}
@@ -52,24 +53,18 @@ public sealed class DifficultyDebugPanel : MonoBehaviour
         if(gm.cardBalanceConfig&&(gm.cardBalanceConfig.settings==null||!gm.cardBalanceConfig.settings.Valid()))GUILayout.Label("INVALID CONFIG · safe defaults active");
         foreach(var c in gm.HandSnapshot)if(c!=null)GUILayout.Label(c.ToString());
         GUILayout.Label("Arc "+gm.HeldCount(Card.Equipment.Arc)+" · Spark "+gm.HeldCount(Card.Equipment.Spark)+" · Shock "+gm.HeldCount(Card.Equipment.Shockwave));
-        GUILayout.Label($"Recharge: {gm.RechargeProgress:0.##} / {gm.RechargeRequired:0.##} · Power: {gm.EmpoweredHits}");
+        GUILayout.Label($"Recharge: {gm.RechargeProgress:0.##} / {gm.RechargeRequired:0.##}");
         GUILayout.BeginHorizontal();GUILayout.Label("Card number",GUILayout.Width(100));cardNumber=GUILayout.TextField(cardNumber);GUILayout.EndHorizontal();
         cardElement=GUILayout.Toolbar(cardElement,new[]{"Arc","Spark","Shockwave"});
         if(GUILayout.Button("Add specified card to empty slot")){
-            error=int.TryParse(cardNumber,out var n)&&gm.DebugAddCard(n,(Card.Equipment)cardElement)?"Card added.":"Cannot add: use number 1–6, an empty slot, and an active run.";
+            error=int.TryParse(cardNumber,out var n)&&gm.DebugAddCard(n,(Card.Equipment)cardElement)?"Card added.":"Cannot add: use number 1–3, an empty slot, and an active run.";
         }
-        GUILayout.Label("Next dice (1–6, comma or space separated)");dice=GUILayout.TextField(dice);
-        if(GUILayout.Button("Fix next batch dice (one use)")){
-            var parts=dice.Split(new[]{',',' ',';','\t'},System.StringSplitOptions.RemoveEmptyEntries);var faces=new int[parts.Length];bool ok=true;
-            for(int i=0;i<parts.Length;i++)if(!int.TryParse(parts[i],out faces[i]))ok=false;
-            error=ok&&gm.DebugSetDice(faces)?"Dice fixed. Count must match the submitted batch.":"Enter 1–5 dice, each from 1 to 6.";
-        }
-        GUILayout.Label("Next dice: "+gm.FixedDice);
-        if(GUILayout.Button("Restore random dice"))gm.DebugClearDice();
+        GUILayout.Label("Lucky number: "+(gm.LuckyNumber==0?"None":gm.LuckyNumber.ToString()));
+        GUILayout.Label("Set lucky number (0 = none, 1–3)");dice=GUILayout.TextField(dice);
+        if(GUILayout.Button("Set lucky number for this run"))error=int.TryParse(dice,out var lucky)&&gm.DebugSetLucky(lucky)?"Lucky number updated.":"Use 0–3.";
         if(GUILayout.Button("Fill current recharge through normal refill"))error=gm.DebugFillRecharge()?"Recharge completed.":"Requires normal play and an empty slot.";
-        if(GUILayout.Button("Clear empowered hits"))gm.DebugClearEmpowered();
         var batch=gm.LastBatch;
-        if(batch!=null){GUILayout.Space(6);GUILayout.Label("Last batch: "+DiceRules.Label(batch.Tier)+(batch.Revealed?"":" (pending)"));foreach(var c in batch.Cards)GUILayout.Label(c.ToString());GUILayout.Label("Dice: "+string.Join(", ",batch.Dice));foreach(var skill in batch.Skills)GUILayout.Label(skill.Element+": "+skill.Plan.Summary(skill.Element));}
+        if(batch!=null){GUILayout.Space(6);GUILayout.Label("Last batch: "+DiceRules.Label(batch.Tier));foreach(var c in batch.Cards)GUILayout.Label(c.ToString());foreach(var skill in batch.Skills)GUILayout.Label(skill.Element+": "+skill.Plan.Summary(skill.Element));}
         if(error.Length>0)GUILayout.Label(error);
         GUILayout.EndScrollView();
     }

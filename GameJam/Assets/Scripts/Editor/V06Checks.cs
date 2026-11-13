@@ -34,17 +34,8 @@ internal static class V06Checks
   }
   foreach(int outcome in new[]{0,1,2})using(var f=F()){
    var a=C(Card.Equipment.Spark);var b=C(Card.Equipment.Spark);f.Hand(a,b);var target=f.Enemy(Card.Equipment.Arc);var immune=f.Enemy(Card.Equipment.Spark,2);
-   f.gm.DebugSetDice(outcome==0?new[]{2,6}:outcome==1?new[]{4,6}:new[]{4,4});Check(f.gm.UseCards(new[]{a,b}),"fire batch accepted");Check(f.gm.EmpoweredHits==2,"two power granted immediately");f.gm.TickGameplay(.45f);
+   f.gm.DebugSetDice(outcome==0?new[]{2,6}:outcome==1?new[]{4,6}:new[]{4,4});Check(f.gm.UseCards(new[]{a,b}),"fire batch accepted");f.gm.TickGameplay(.45f);
    Near(target.ActiveBurnRemaining,outcome==0?3:outcome==1?8:10,"duplicate fire duration");Check(!immune.IsBurning,"fire immunity");Check(f.gm.LastBatch.Skills.Count>0,"Base creates skills");
-  }
-  for(int scenario=0;scenario<3;scenario++)using(var f=F()){
-   f.Hand(C(Card.Equipment.Shockwave));Enemy old=scenario==0?null:f.Enemy(scenario==1?Card.Equipment.Shockwave:Card.Equipment.Spark);
-   f.gm.DebugSetDice(new[]{1});f.gm.UseCard(0);if(scenario==2)old.TakeDamage(100,new AttackRecord("before reveal"));f.gm.TickGameplay(.45f);
-   Check(f.gm.EmpoweredHits==1,"empty or immune preserves power");var purple=f.Enemy(Card.Equipment.Shockwave,3);purple.TryBallHit(f.Ball());Check(purple.hp==92 && f.gm.EmpoweredHits==0,"neutral eight on purple");
-  }
-  using(var f=F()){
-   f.Hand(C(Card.Equipment.Shockwave));var first=f.Enemy(Card.Equipment.Spark);var ball=f.Ball();first.TryBallHit(ball);f.gm.DebugSetDice(new[]{1});f.gm.UseCard(0);f.gm.TickGameplay(.1f);first.TryBallHit(ball);Check(f.gm.EmpoweredHits==1 && first.hp==96,"cooldown preserves stock");
-   var a=f.Enemy(Card.Equipment.Spark,2);var b=f.Enemy(Card.Equipment.Spark,-2);a.TryBallHit(f.Ball());b.TryBallHit(f.Ball());Check(a.hp==92 && b.hp==96 && f.gm.EmpoweredHits==0,"shared stock consumed once");
   }
   using(var f=F()){
    f.Hand(C(Card.Equipment.Shockwave));var a=f.Enemy(Card.Equipment.Spark);var b=f.Enemy(Card.Equipment.Arc,.5f);a.TryBallHit(f.Ball());Check(a.hp==96 && b.hp==100 && b.IsStunned,"passive shock status only");

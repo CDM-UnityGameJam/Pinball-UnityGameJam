@@ -26,7 +26,7 @@ This is a manual Excel-to-Unity workflow. Saving Excel does not automatically im
 - Card scalar parameters: recharge, collision damage, passive effects, active damage, stacking, dice delay and existing queue spacing.
 - Held-count tables covering exactly 1 through 5 cards.
 - Twelve independent active skill rows, one for each element/tier pair. Limited mode requires a whole target count. All-target mode requires that field to be blank.
-- Formula-driven preview of held effects, active damage, stacking, duration, charge cost and empowered hit grants. This sheet is not imported.
+- Formula-driven preview of held effects, active damage, stacking, duration, charge cost. This sheet is not imported.
 - A Chinese usage guide.
 - Hidden schema identifiers and a hidden label registry used to translate the Chinese options to English enum identifiers.
 
@@ -36,7 +36,7 @@ The initial workbook preserves the CURRENT assets, including the current difficu
 
 ## Runtime behavior
 
-Importing changes the persistent assets. While playing, future collision effects and new skill submissions read the new parameters. Existing submitted skills and already applied statuses retain their captured values. Current hand instances, charge progress, current charge requirement and empowered stock are not reset by the importer.
+Importing changes the persistent assets. While playing, future collision effects and new skill submissions read the new parameters. Existing submitted skills and already applied statuses retain their captured values. Current hand instances, charge progress, current charge requirement are not reset by the importer.
 
 ## Implementation
 
@@ -86,7 +86,7 @@ Verification passed: runtime/editor compilation; health interpolation at 0/30/60
 
 ## Empty opening hand and direct-hit Arc
 
-A new run now starts with five empty slots. Recharge begins at the configured base cost with zero progress; no cast surcharge or empowered hits are granted at startup. Opening launch wait retains its existing timer gate. When combat starts, natural recovery and qualified collisions earn charge normally and cards are refilled one at a time.
+A new run now starts with five empty slots. Recharge begins at the configured base cost with zero progress; no cast surcharge are granted at startup. Opening launch wait retains its existing timer gate. When combat starts, natural recovery and qualified collisions earn charge normally and cards are refilled one at a time.
 
 A held Arc enchantment now applies its damage once to the living, non-immune directly hit enemy as well as the configured number of nearby eligible enemies. The direct target does not consume a nearby-target slot. Multiple held Arc cards still affect nearby target count, not repeated direct strikes. Collision damage and Arc share the same attack record; lethal physical hits are not killed again, Arc damage does not grant extra collision charge, and Lightning enemies retain Arc immunity.
 

@@ -32,21 +32,22 @@ public static class EquipmentResolver
     public static void BallHit(GameManager gm, Enemy direct, Vector3 point, AttackRecord source)
     {
         int arcs=gm.HeldCount(Card.Equipment.Arc);
+        int arcDamage=gm.luck.HeldArcDamage(gm.LuckyHeldCount(Card.Equipment.Arc));
         if(arcs>0) {
             // The direct hit receives Arc damage separately and does not consume a nearby-target slot.
             if(direct && direct.CanReceive(Card.Equipment.Arc)){
                 if(gm.Vfx)gm.Vfx.Lightning(point,direct.transform.position,false);
-                direct.TakeElementDamage(gm.luck.passiveArcDamage,Card.Equipment.Arc,source);
+                direct.TakeElementDamage(arcDamage,Card.Equipment.Arc,source);
             }
             var targets=Nearby(gm,point,gm.luck.passiveArcRadius,Card.Equipment.Arc,direct);
             for(int i=0;i<Mathf.Min(gm.luck.ArcTargets(arcs),targets.Count);i++) {
                 var e=targets[i];if(gm.Vfx)gm.Vfx.Lightning(point,e.transform.position,false);
-                e.TakeElementDamage(gm.luck.passiveArcDamage,Card.Equipment.Arc,source);
+                e.TakeElementDamage(arcDamage,Card.Equipment.Arc,source);
             }
         }
         int sparks=gm.HeldCount(Card.Equipment.Spark);
         if(sparks>0) {
-            float dps=gm.luck.HeldSparkDps(sparks);
+            float dps=gm.luck.HeldFireDps(sparks,gm.LuckyHeldCount(Card.Equipment.Spark));
             if(direct && direct.CanReceive(Card.Equipment.Spark))direct.Ignite(false,gm.luck.passiveBurnDuration,source,dps,gm.luck.burnTickInterval);
             var targets=Nearby(gm,point,gm.luck.passiveSparkRadius,Card.Equipment.Spark,direct);
             for(int i=0;i<Mathf.Min(gm.luck.ExtraSparkTargets(sparks),targets.Count);i++)targets[i].Ignite(false,gm.luck.passiveBurnDuration,source,dps,gm.luck.burnTickInterval);
@@ -54,7 +55,7 @@ public static class EquipmentResolver
         int shocks=gm.HeldCount(Card.Equipment.Shockwave);
         if(shocks>0) {
             float radius=gm.luck.ShockRadius(shocks);bool affected=false;
-            foreach(var e in Nearby(gm,point,radius,Card.Equipment.Shockwave))affected|=e.Stun(gm.luck.passiveStunDuration,false);
+            foreach(var e in Nearby(gm,point,radius,Card.Equipment.Shockwave))affected|=e.Stun(gm.luck.HeldStun(gm.LuckyHeldCount(Card.Equipment.Shockwave)),false);
             if(affected && gm.Vfx)gm.Vfx.Ring(point,radius,false);
         }
     }

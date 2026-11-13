@@ -7,8 +7,6 @@ Implemented:
 - Continuous burning grants charge on its first actual damage tick only, including lethal ticks. Full-hand first ticks consume the opportunity. Reignition after both sources expire starts a new episode.
 - Natural recovery is separate from the rolling combat journal. Combat gains follow min(2.5, max(0.25, 6 - previous-second actual combat gains)). Casting and refilling preserve that journal.
 - Zero matching dice resolve Base skills. Duplicate-element bonuses apply in all tiers; snapshots, immunity, reveal timing and unified kill attribution remain.
-- Every accepted card grants one shared empowered physical hit immediately. Cooldown-only contacts do not consume it. Stock survives ball replacement and resets with the scene on restart.
-- UI shows Upgrade chance, Base results, POWER stock and separate skill/matching-dice statistics.
 
 Completed verification:
 - Standalone rule suite passed exhaustive 1–5 dice combinations; two dice have 25 Base, 10 Full Field and 1 Jackpot outcomes.

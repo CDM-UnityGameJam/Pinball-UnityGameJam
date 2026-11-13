@@ -34,8 +34,8 @@ public sealed class ConfigWorkbookImport : EditorWindow
             EditorGUILayout.LabelField($"Base spawn interval: {loaded.baseSpawnInterval}s · Descent: {loaded.baseDescentTime}s");
             EditorGUILayout.LabelField($"Global spawn: {loaded.spawnSpeedMultiplier}x · Move: {loaded.moveSpeedMultiplier}x · Stages: {loaded.stages.Length}");
             EditorGUILayout.LabelField($"Base enemy HP: {loaded.baseEnemyHealth} · Applies only to new spawns");
-            EditorGUILayout.LabelField("Card balance",EditorStyles.boldLabel);EditorGUILayout.LabelField($"Recharge: {loaded.cards.rechargeBaseCost} + {loaded.cards.rechargeCastCost}/card · Natural: {loaded.cards.rechargePerSecond}/s");
-            foreach(Card.Equipment e in Enum.GetValues(typeof(Card.Equipment)))EditorGUILayout.LabelField(e+" Base: "+loaded.cards.Plan(e,CastTier.Base,1).Summary(e));
+            EditorGUILayout.LabelField("Card balance",EditorStyles.boldLabel);EditorGUILayout.LabelField($"Hand: {loaded.cards.draws.handSize} · Lucky candidate: {loaded.cards.draws.luckyProbability:P1} · Natural: {loaded.cards.rechargePerSecond}/s");
+            foreach(Card.Equipment e in Enum.GetValues(typeof(Card.Equipment)))foreach(var tier in new[]{CastTier.Normal,CastTier.Lucky})EditorGUILayout.LabelField(e+" "+tier+": "+loaded.cards.Plan(e,tier,1).Summary(e));
             EditorGUILayout.EndScrollView();
             bool targets=difficulty&&cards&&AssetDatabase.Contains(difficulty)&&AssetDatabase.Contains(cards);
             using(new EditorGUI.DisabledScope(!targets))if(GUILayout.Button("Apply both configurations (Undo supported)")){

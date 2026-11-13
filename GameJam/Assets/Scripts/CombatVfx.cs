@@ -14,7 +14,7 @@ public class CombatVfx : MonoBehaviour
         if(materials.TryGetValue(element,out var material)) return material;
         var source=Gm.board.GetComponentInChildren<Renderer>().sharedMaterial;
         material=new Material(source);
-        Color color=element==0 ? new Color(.1f,.55f,1f) : element==1 ? new Color(1f,.25f,.015f) : new Color(.73f,.4f,1f);
+        Color color=element==0 ? new Color(.1f,.55f,1f) : element==1 ? new Color(1f,.25f,.015f) : Card.ColorFor(Card.Equipment.Shockwave);
         material.color=color;
         if(material.HasProperty("_BaseColor")) material.SetColor("_BaseColor",color);
         if(material.HasProperty("_EmissionColor")) { material.EnableKeyword("_EMISSION"); material.SetColor("_EmissionColor",color*3); }
@@ -55,8 +55,9 @@ public class CombatVfx : MonoBehaviour
     public void ActiveHit(Card.Equipment type,Vector3 target,CastTier tier)
     {
         if(tier==CastTier.Base){if(type==Card.Equipment.Arc)Lightning(target+Gm.board.forward*.7f,target,false);else Ring(target,.55f,false);return;}
-        if(type==Card.Equipment.Arc) Lightning(target+Gm.board.forward*(tier!=CastTier.Standard?3f:1.3f)+Gm.board.up*(tier!=CastTier.Standard?2f:.5f),target,true);
-        else Ring(target,tier!=CastTier.Standard?1.6f:.9f,true);
+        bool wide=tier==CastTier.Lucky||tier==CastTier.FullField||tier==CastTier.Jackpot;
+        if(type==Card.Equipment.Arc) Lightning(target+Gm.board.forward*(wide?3f:1.3f)+Gm.board.up*(wide?2f:.5f),target,true);
+        else Ring(target,wide?1.6f:.9f,true);
     }
     public void Ignite(Vector3 target,bool active)
     {

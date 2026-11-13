@@ -69,7 +69,7 @@ public static class ConfigWorkbookReader
             }
         }
         Sheet Find(string suffix,int version=1){string tag=Prefix+suffix+".v"+version;if(!sheets.TryGetValue(tag,out var sheet))throw new FormatException("Required worksheet missing: "+tag+". Use the updated workbook template.");return sheet;}
-        var difficulty=Find("difficulty",2);var scalar=Find("card-scalars");var held=Find("held");var active=Find("active");var labels=Find("labels");
+        var difficulty=Find("difficulty",2);var scalar=Find("card-scalars",2);var held=Find("held");var active=Find("active",2);var labels=Find("labels");
         var result=new ConfigWorkbookData{cards=new LuckTuning()};
         var dFields=new HashSet<string>();
         for(int row=7;row<=11;row++){
@@ -84,16 +84,25 @@ public static class ConfigWorkbookReader
         result.stages=stages.ToArray();
         var errors=DifficultyRules.Errors(result.baseSpawnInterval,result.baseDescentTime,result.spawnSpeedMultiplier,result.moveSpeedMultiplier,result.stages,result.baseEnemyHealth);
         if(errors.Count>0)throw new FormatException("Difficulty: "+string.Join(" ",errors));
-        var fields=typeof(LuckTuning).GetFields(BindingFlags.Public|BindingFlags.Instance).Where(f=>f.FieldType==typeof(float)||f.FieldType==typeof(int)).ToDictionary(f=>f.Name);
+        var retired=new HashSet<string>{"rechargeBaseCost","rechargeCastCost","activeArcDamage","activeShockDamage","activeBurnDps","diceRevealDelay","rechargeCombatBudget","rechargeCombatMinimum","empoweredCollisionDamage","empoweredHitsPerCard"};
+        var fields=typeof(LuckTuning).GetFields(BindingFlags.Public|BindingFlags.Instance).Where(f=>(f.FieldType==typeof(float)||f.FieldType==typeof(int))&&!retired.Contains(f.Name)).ToDictionary(f=>f.Name);
+        var drawFields=typeof(HandRules).GetFields().Where(f=>f.FieldType==typeof(float)||f.FieldType==typeof(int)).ToDictionary(f=>"draws."+f.Name);
         var seen=new HashSet<string>();
         for(int row=7;row<=scalar.lastRow;row++){
             string key=scalar.Input("A"+row);if(key.Length==0)continue;
             // Retired fields in earlier templates cannot re-enable recharge caps.
-            if(key=="rechargeCombatBudget"||key=="rechargeCombatMinimum")continue;
+            if(retired.Contains(key))continue;
+            if(drawFields.TryGetValue(key,out var drawField)){
+                if(!seen.Add(key))throw new FormatException("Duplicate draw setting: "+key);
+                if(drawField.FieldType==typeof(int))drawField.SetValue(result.cards.draws,scalar.Int("D"+row));else drawField.SetValue(result.cards.draws,scalar.Float("D"+row));continue;
+            }
             if(!fields.TryGetValue(key,out var field)||!seen.Add(key))throw new FormatException("Unknown or duplicate card setting: "+key);
             if(field.FieldType==typeof(int))field.SetValue(result.cards,scalar.Int("D"+row));else field.SetValue(result.cards,scalar.Float("D"+row));
         }
         foreach(string key in fields.Keys)if(!seen.Contains(key))throw new FormatException("Card setting missing: "+key);
+        foreach(string key in drawFields.Keys)if(!seen.Contains(key))throw new FormatException("Draw setting missing: "+key);
+        for(int i=0;i<3;i++){result.cards.draws.numberWeights[i]=scalar.Float("H"+(8+i));result.cards.draws.elementWeights[i]=scalar.Float("I"+(8+i));}
+        for(int i=0;i<5;i++)result.cards.draws.refillCosts[i]=scalar.Float("H"+(15+i));
         var counts=new HashSet<int>();
         for(int row=8;row<=held.lastRow;row++){
             if(held.Input("B"+row).Length==0&&held.Input("C"+row).Length==0&&held.Input("D"+row).Length==0&&held.Input("E"+row).Length==0)continue;
@@ -109,12 +118,13 @@ public static class ConfigWorkbookReader
         for(int row=7;row<=active.lastRow;row++){
             string key=active.Input("A"+row);if(key.Length==0)continue;
             string[] parts=key.Split('.');if(parts.Length!=2||!Enum.TryParse(parts[0],out Card.Equipment element)||!Enum.IsDefined(typeof(Card.Equipment),element)||!Enum.TryParse(parts[1],out CastTier tier)||!Enum.IsDefined(typeof(CastTier),tier)||key!=element+"."+tier||!tierRows.Add(key))throw new FormatException("Unknown or duplicate active tier: "+key);
-            var target=result.cards.Tiers(element)[(int)tier];string mode=active.Input("E"+row);
+            if(tier!=CastTier.Normal&&tier!=CastTier.Lucky)throw new FormatException("Active rows must use Normal or Lucky.");
+            var target=(tier==CastTier.Lucky?result.cards.luckySkills:result.cards.normalSkills)[(int)element];string mode=active.Input("E"+row);
             if(mode==limited){target.targetMode=SkillTargetMode.Limited;target.targetCount=active.Int("F"+row);}else if(mode==all){target.targetMode=SkillTargetMode.AllEligible;active.Blank("F"+row);}else throw new FormatException(key+": unknown target mode label.");
-            if(element==Card.Equipment.Spark){active.Blank("G"+row);target.burnDuration=active.Float("H"+row);active.Blank("I"+row);}
-            else{target.waves=active.Int("G"+row);active.Blank("H"+row);if(element==Card.Equipment.Shockwave){if(target.waves!=1)throw new FormatException(key+": Shockwave is fixed at one wave; enter 1.");target.stunDuration=active.Float("I"+row);}else active.Blank("I"+row);}
+            if(element==Card.Equipment.Spark){active.Blank("G"+row);target.burnDuration=active.Float("H"+row);active.Blank("I"+row);target.burnDps=active.Float("J"+row);}
+            else{target.damage=active.Int("J"+row);target.waves=active.Int("G"+row);active.Blank("H"+row);if(element==Card.Equipment.Shockwave){if(target.waves!=1)throw new FormatException(key+": Shockwave is fixed at one wave; enter 1.");target.stunDuration=active.Float("I"+row);}else active.Blank("I"+row);}
         }
-        if(tierRows.Count!=12)throw new FormatException("Active skills require all twelve element/tier rows.");
+        if(tierRows.Count!=6)throw new FormatException("Active skills require all six Normal/Lucky element rows.");
         if(sheets.TryGetValue(Prefix+"scoring.v1",out var scoring)){
             result.cards.scoring.timeInterval=scoring.Float("D7");result.cards.scoring.timePoints=scoring.Int("D8");result.cards.scoring.comboTimeout=scoring.Float("D9");
             var rewards=new List<ComboRewardTier>();

@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-// Click selection is independent of equipment ownership until the batch is accepted.
+// Group drag and number-key selection do not consume equipment until submission.
 public class Hud : MonoBehaviour
 {
     public static Hud Instance;
@@ -25,16 +25,16 @@ public class Hud : MonoBehaviour
     public static Color ButtonColor => GameManager.Instance ? GameManager.Instance.hud.buttonColor : new HudTuning().buttonColor;
     public static Color ButtonHoverColor => GameManager.Instance ? GameManager.Instance.hud.buttonHoverColor : new HudTuning().buttonHoverColor;
 
-    class SlotView { public RectTransform rect; public Image edge; public Text card, result, cooldown; }
+    class SlotView { public RectTransform rect; public Image edge; public Text card; }
     class EnemyLabel { public Text number, below, status; public RectTransform healthBack, healthFill; }
-    class FloatingText { public Text text; public Vector3 world; public float age; public AttackRecord source; }
+    class FloatingText { public Text text; public Vector3 world; public float age; }
 
     GameManager gm;
     Camera cam;
     Canvas canvas;
     Font font;
     RectTransform root, labelLayer, popupLayer, topBar, bottomBar, handArea, energyFill, ghost, dialog;
-    Text scoreText, livesText, timeText, currentText, previewText, energyText, countdownText, ghostCard, ghostResult, dialogText, spawnLabel, dangerLabel;
+    Text scoreText, livesText, timeText, energyText, countdownText, ghostCard, ghostResult, dialogText, spawnLabel;
     readonly RectTransform[] buttons = new RectTransform[2];
     readonly Text[] buttonTexts = new Text[2];
     SlotView[] slots;
@@ -44,15 +44,18 @@ public class Hud : MonoBehaviour
     readonly List<FloatingText> popups = new List<FloatingText>();
 
     readonly CardSelection selection=new CardSelection();
-    RectTransform castButton,dicePanel;
-    Text castButtonText,diceFaces,diceCards,diceResult;
+    readonly GroupKeyInput groupKeys=new GroupKeyInput();
+    bool pointerHeld,dragging,keyboardSelection;
+    Vector2 dragStartScreen,dragStartLocal,dragOffset;
+    Vector2[] slotHomes;
+    RectTransform keyboardHint;
+    Text keyboardHintText;
     public IList<Card> SelectedCards=>selection.Cards;
-    public bool SelectCard(int slot)=>gm.CanSubmit && selection.Toggle(gm.GetCard(slot));
-    public bool SubmitSelection()=>gm.UseCards(new List<Card>(selection.Cards));
+    public bool SelectCard(int slot)=>gm.CanSubmit && selection.ToggleGroup(gm.GetCard(slot),gm.HandSnapshot);
+    public bool SubmitSelection(){selection.KeepOnly(gm.HandSnapshot);return gm.UseCards(new List<Card>(selection.Cards));}
     void OnHandChanged()=>selection.KeepOnly(gm.HandSnapshot);
-    void OnBatchSubmitted(DiceBatch batch)=>selection.Clear();
-    Text effectText, metricsText, rechargeHintText,comboText;
-    FloatingText castToast;
+    void OnBatchSubmitted(DiceBatch batch){selection.Clear();ResetPointer();groupKeys.Reset();keyboardSelection=false;}
+    Text comboText;
 
     readonly HashSet<Enemy> previewTargets = new HashSet<Enemy>();
     public int PreviewTargetCount => previewTargets.Count;
@@ -80,7 +83,7 @@ public class Hud : MonoBehaviour
     {
         var mouse = Mouse.current;
         Vector2 pointer = mouse != null ? mouse.position.ReadValue() : Vector2.zero;
-        HandleSelection(mouse!=null && mouse.leftButton.wasPressedThisFrame,pointer);
+        HandleSelection(mouse,pointer);
         HandleDialog(mouse != null && mouse.leftButton.wasPressedThisFrame, pointer);
         RefreshPreview();
         RefreshBars();
@@ -88,16 +91,46 @@ public class Hud : MonoBehaviour
         RefreshBoardLabels();
         RefreshEnemyLabels();
         RefreshPopups();
-        RefreshDice();
     }
 
     // ---- Input ----
 
-    void HandleSelection(bool pressed,Vector2 pointer)
+    void ResetPointer(){pointerHeld=false;dragging=false;dragOffset=Vector2.zero;}
+    void OnApplicationFocus(bool focused){if(!focused){ResetPointer();groupKeys.Reset();selection.Clear();keyboardSelection=false;}}
+    void HandleSelection(Mouse mouse,Vector2 pointer)
     {
-        if(!pressed || !gm.CanSubmit)return;
-        if(Contains(castButton,pointer)){if(selection.Count>0)SubmitSelection();return;}
-        for(int i=0;i<slots.Length;i++)if(Contains(slots[i].rect,pointer)){SelectCard(i);return;}
+        var debugPanel=gm.GetComponent<DifficultyDebugPanel>();
+        if(!gm.CanSubmit||(debugPanel&&debugPanel.Visible)){if(pointerHeld)selection.Clear();ResetPointer();groupKeys.Reset();return;}
+        double now=Time.unscaledTimeAsDouble;
+        if(!pointerHeld){
+            if(groupKeys.Advance(now,selection.Number)==GroupKeyAction.Cancel){selection.Clear();keyboardSelection=false;}
+            var kb=Keyboard.current;
+            if(kb!=null)for(int n=1;n<=3;n++){
+                bool pressed=n==1?(kb.digit1Key.wasPressedThisFrame||kb.numpad1Key.wasPressedThisFrame):n==2?(kb.digit2Key.wasPressedThisFrame||kb.numpad2Key.wasPressedThisFrame):(kb.digit3Key.wasPressedThisFrame||kb.numpad3Key.wasPressedThisFrame);
+                if(!pressed)continue;
+                var action=groupKeys.Press(n,selection.Number,now);
+                if(action==GroupKeyAction.Select){keyboardSelection=selection.SelectNumber(n,gm.HandSnapshot);if(!keyboardSelection)groupKeys.Reset();}
+                else if(action==GroupKeyAction.Cast)SubmitSelection();
+                break;
+            }
+        }
+        if(mouse==null){ResetPointer();return;}
+        if(mouse.leftButton.wasPressedThisFrame){
+            for(int i=0;i<slots.Length;i++)if(Contains(slots[i].rect,pointer)&&gm.GetCard(i)!=null){
+                selection.SelectNumber(gm.GetCard(i).number,gm.HandSnapshot);groupKeys.Reset();keyboardSelection=false;
+                pointerHeld=true;dragging=false;dragStartScreen=pointer;dragOffset=Vector2.zero;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(handArea,pointer,null,out dragStartLocal);break;
+            }
+        }
+        if(!pointerHeld)return;
+        if(mouse.leftButton.isPressed||mouse.leftButton.wasReleasedThisFrame){
+            if((pointer-dragStartScreen).sqrMagnitude>=64)dragging=true;
+            if(dragging&&RectTransformUtility.ScreenPointToLocalPointInRectangle(handArea,pointer,null,out var local))dragOffset=local-dragStartLocal;
+        }
+        if(mouse.leftButton.wasReleasedThisFrame){
+            bool cast=dragging&&!Contains(handArea,pointer);ResetPointer();
+            if(cast)SubmitSelection();selection.Clear();keyboardSelection=false;
+        }else if(!mouse.leftButton.isPressed){ResetPointer();selection.Clear();}
     }
 
     void HandleDialog(bool pressed, Vector2 pointer)
@@ -133,7 +166,7 @@ public class Hud : MonoBehaviour
         foreach(var card in selection.Cards) {
             int copies=0;foreach(var selected in selection.Cards)if(selected.equipment==card.equipment)copies++;
             int limit=0;bool all=false;
-            foreach(var tier in selection.Count==1?new[]{CastTier.Base,CastTier.Standard}:new[]{CastTier.Base,CastTier.FullField,CastTier.Jackpot}){
+            foreach(var tier in new[]{selection.Number==gm.LuckyNumber?CastTier.Lucky:CastTier.Normal}){
                 var plan=gm.luck.Plan(card.equipment,tier,copies);all|=plan.allTargets;limit=Mathf.Max(limit,plan.targetCount);
             }
             int count=0;
@@ -144,87 +177,43 @@ public class Hud : MonoBehaviour
             }
         }
     }
-    public void ShowBatch(DiceBatch batch)
-    {
-        if(castToast!=null){if(castToast.text)Destroy(castToast.text.gameObject);popups.Remove(castToast);}
-        Popup(gm.board.TransformPoint(new Vector3(0,0,2)),DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets",batch.Tier==CastTier.Base?Dim:batch.Tier==CastTier.Jackpot?Gold:Blue);
-        castToast=popups[popups.Count-1];
-    }
-    void RefreshDice()
-    {
-        var batch=gm.LastBatch;
-        dicePanel.gameObject.SetActive(batch!=null && (!batch.Revealed || gm.CombatTime-batch.RevealAt<2.5));
-        if(batch==null)return;
-        var names=new List<string>();foreach(var c in batch.Cards)names.Add(c.ToString());
-        diceCards.text=string.Join("   |   ",names);
-        diceCards.color=batch.Revealed && batch.Tier!=CastTier.Base?Gold:TextColor;
-        var faces=new List<string>();
-        foreach(int value in batch.Dice)faces.Add(!batch.Revealed?"[ ? ]":value==batch.Number?"<color=#FFD56A>[ "+value+" ]</color>":"[ "+value+" ]");
-        diceFaces.text=string.Join("   ",faces);
-        diceResult.text=!batch.Revealed?"Rolling to match #"+batch.Number:DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets · "+batch.Kills+" kills";
-        diceResult.color=batch.Revealed && batch.Tier==CastTier.Jackpot?Gold:TextColor;
-    }
-    public void ShowMultiKill(AttackRecord source)
-    {
-        foreach(var p in popups) if(ReferenceEquals(p.source,source)) {
-            p.text.text=source.Label+" ×"+source.Kills+" MULTIKILL";p.age=0;return;
-        }
-        Popup(gm.board.TransformPoint(new Vector3(0,0,1)),source.Label+" ×"+source.Kills+" MULTIKILL",Gold);
-        popups[popups.Count-1].source=source;
-    }
-    string ElementStatus(Card.Equipment type)
-    {return (type==Card.Equipment.Arc?"Arc":type==Card.Equipment.Spark?"Spark":"Shockwave")+" ×"+gm.HeldCount(type);}
     void RefreshBars()
     {
-        foreach(var line in balanceHelp)if(line.Key)line.Key.text=BalanceHelp(line.Value);
         scoreText.text=gm.Score.ToString("N0");livesText.text=gm.Lives+" / "+gm.maxLives;timeText.text=FormatTime(gm.ActiveTime);
         comboText.text=gm.ComboHits>0?$"COMBO {gm.ComboHits} · {gm.ComboRemaining:0.0}s · Pending +{gm.luck.scoring.Reward(gm.ComboHits)}":"";
-        currentText.fontSize=22;currentText.text=gm.PendingBatch!=null?"Rolling "+gm.PendingBatch.Dice.Count+" dice":selection.Count==0?"Select cards":"Match #"+selection.Number+" · "+selection.Count+" selected";
-        var batch=gm.LastBatch;
-        previewText.text=batch==null?"No cast yet":!batch.Revealed?"Revealing dice...":DiceRules.Label(batch.Tier)+" · "+batch.CoverageCount+" targets · "+batch.Kills+" kills";
-        previewText.fontSize=17;previewText.color=batch!=null && batch.Revealed && batch.Tier==CastTier.Jackpot?Gold:Blue;
-        effectText.text="BALLS "+gm.BallCount+" · POWER "+gm.EmpoweredHits+" · "+ElementStatus(Card.Equipment.Arc)+" · "+ElementStatus(Card.Equipment.Spark)+" · "+ElementStatus(Card.Equipment.Shockwave);
-        effectText.fontSize=19;
-        energyText.text=gm.IsHandFull?"Equipment full":"Recharge: "+gm.RechargeProgress.ToString("0.#")+" / "+gm.RechargeRequired.ToString("0.#");
-        rechargeHintText.text="Per card cast: required charge +"+gm.luck.rechargeCastCost.ToString("0.#");
+        energyText.text=gm.IsHandFull?"Equipment full":"Recharge: "+gm.RechargeProgress.ToString("0.#")+" / "+gm.RechargeRequired.ToString("0.#")+" · Refill "+(gm.HandSize-gm.CardCount);
         energyFill.anchorMax=new Vector2(gm.RechargeRequired<=0?0:Mathf.Clamp01((float)(gm.RechargeProgress/gm.RechargeRequired)),1);
-        metricsText.text="RUN STATS\nBatches: "+gm.Metrics.batches+" · Cards: "+gm.Metrics.plays+" · Skills: "+gm.Metrics.skillReleases+" · Matches: "+gm.Metrics.diceMatches+"\nMean hand: "+gm.Metrics.AverageHand.ToString("0.00")+" · Low gear: "+gm.Metrics.lowEquipmentSeconds.ToString("0.0")+"s\nBase / Hit / Full / Jackpot: "+gm.Metrics.baseBatches+" / "+gm.Metrics.standardBatches+" / "+gm.Metrics.fullFieldBatches+" / "+gm.Metrics.jackpotBatches;
-        castButtonText.text="Cast "+selection.Count+" · Roll "+selection.Count+(selection.Count==1?" die":" dice");
-        castButton.GetComponent<Image>().color=selection.Count>0 && gm.CanSubmit?ButtonColor:PanelEdge;
-        castButtonText.color=selection.Count>0 && gm.CanSubmit?TextColor:Dim;
+        keyboardHint.gameObject.SetActive(keyboardSelection&&selection.Count>0&&gm.CanSubmit&&!pointerHeld);
+        keyboardHintText.text=$"Double-tap {selection.Number} to cast";
     }
     void RefreshSlots(Vector2 pointer)
     {
+        handArea.GetComponent<Image>().color=dragging?new Color(Blue.r,Blue.g,Blue.b,.14f):Color.clear;
         for(int i=0;i<slots.Length;i++) {
             var v=slots[i];var c=gm.GetCard(i);bool picked=c!=null && selection.Contains(c);
-            bool blocked=c!=null && selection.Number.HasValue && c.number!=selection.Number.Value;
+            v.rect.anchoredPosition=slotHomes[i]+(dragging&&picked?dragOffset:Vector2.zero);
+            bool blocked=false;
             v.edge.color=picked?Gold:blocked?PanelEdge:c==null?PanelEdge:Card.ColorFor(c.equipment);
-            v.card.color=blocked?Dim:c==null?Dim:Card.ColorFor(c.equipment);
-            v.card.fontSize=c!=null && c.equipment==Card.Equipment.Shockwave?22:29;
-            v.card.rectTransform.anchoredPosition=new Vector2(0,12);
-            v.card.text=c==null?"Empty":c.ToString();
-            v.cooldown.text=c==null?"":(picked?"SELECTED · ":"")+Card.IconFor(c.equipment)+(gm.NumberCount(c.number)>=2?"  PAIR":"");
-            v.cooldown.color=picked?Gold:blocked?Dim:TextColor;
-            v.result.text=c==null?"Awaiting charge":c.Description(gm.luck,gm.HeldCount(c.equipment));v.result.fontSize=14;v.result.color=blocked?Dim:TextColor;
-            v.result.rectTransform.sizeDelta=new Vector2(H.slotWidth-6,58);v.result.rectTransform.anchoredPosition=new Vector2(0,-34);
+            if(gm.IsLucky(c)&&gm.CombatTime-gm.LastDrawTime<.9)v.edge.color=Color.Lerp(Card.ColorFor(c.equipment),Gold,.6f+.4f*Mathf.Sin((float)(gm.CombatTime-gm.LastDrawTime)*20));
+            v.card.color=c==null?Dim:gm.IsLucky(c)?Gold:Card.ColorFor(c.equipment);
+            v.card.fontSize=29;
+            v.card.rectTransform.anchoredPosition=Vector2.zero;
+            v.card.text=c==null?"":c.number.ToString();
         }
+        if(dragging)for(int i=0;i<slots.Length;i++)if(selection.Contains(gm.GetCard(i)))slots[i].rect.SetAsLastSibling();
         ghost.gameObject.SetActive(selection.Count>0);
         if(selection.Count==0)return;
         ghostCard.text=selection.Count+" selected · #"+selection.Number;
         var lines=new List<string>();
-        lines.Add("Upgrade chance: "+DiceRules.HitChance(selection.Count).ToString("P1"));
-        lines.Add("Possible targets: "+previewTargets.Count+" · Power +"+((long)selection.Count*gm.luck.empoweredHitsPerCard));
+        lines.Add((selection.Number==gm.LuckyNumber?"Lucky":"Normal")+" · Targets: "+previewTargets.Count);
         for(int type=0;type<3;type++) {
             int spent=0;foreach(var c in selection.Cards)if((int)c.equipment==type)spent++;
             if(spent==0)continue;
-            var e=(Card.Equipment)type;int after=gm.HeldCount(e)-spent;
-            var tiers=selection.Count==1?new[]{CastTier.Base,CastTier.Standard}:new[]{CastTier.Base,CastTier.FullField,CastTier.Jackpot};
+            var e=(Card.Equipment)type;
+            var tiers=new[]{selection.Number==gm.LuckyNumber?CastTier.Lucky:CastTier.Normal};
             var plans=new List<string>();foreach(var tier in tiers){var p=gm.luck.Plan(e,tier,spent);plans.Add(DiceRules.Label(tier)+":"+(p.allTargets?"All":p.targetCount.ToString())+"/"+(e==Card.Equipment.Spark?p.burnDuration.ToString("0.##")+"s":p.waves+"w"));}
             lines.Add(e+" "+string.Join(" · ",plans));
-            lines.Add(e+": held "+gm.HeldCount(e)+" → "+after);
-            lines.Add(gm.EnchantmentSummary(e,after));
         }
-        lines.Add("Charge required: "+(gm.IsHandFull?gm.luck.rechargeBaseCost:gm.RechargeRequired).ToString("0.#")+" → "+gm.RechargeAfterBatch(selection.Count).ToString("0.#"));
         ghostResult.text=string.Join("\n",lines);ghostResult.fontSize=13;
     }
 
@@ -232,8 +221,6 @@ public class Hud : MonoBehaviour
     void RefreshBoardLabels()
     {
         spawnLabel.rectTransform.anchoredPosition = ToCanvas(gm.board.TransformPoint(H.refreshBoardLabels.spawnLabelPosition));
-        // Outside the left wall: inside the board, enemies about to cross would cover it.
-        dangerLabel.rectTransform.anchoredPosition = ToCanvas(gm.board.TransformPoint(new Vector3(H.refreshBoardLabels.dangerLabelX, 0f, gm.spawning.dangerZ)));
     }
 
     void RefreshEnemyLabels()
@@ -318,47 +305,29 @@ public class Hud : MonoBehaviour
         labelLayer = Layer("BoardLabels");
         popupLayer = Layer("Popups");
 
-        // Title row above the stats bar, as in the mockup.
-        Bold(Anchored(MakeText(root, "LUCK NUMBER", H.build.titleFontSize, TextColor, TextAnchor.UpperLeft, Vector2.zero, H.build.titleSize), H.build.titleAnchor, H.build.titlePosition));
-        effectText = Anchored(MakeText(root, "", H.build.effectsFontSize, Orange, TextAnchor.UpperRight, Vector2.zero, new Vector2(920,35)), H.build.effectsAnchor, H.build.effectsPosition);
-
         // Top: score, lives, active time.
         topBar = Panel(root, "TopBar", H.build.topBarAnchor, H.build.topBarPosition, H.build.topBarSize, PanelEdge);
-        scoreText = Stat(topBar, "SCORE", H.build.scoreX, H.scoreStat);
+        scoreText = Stat(topBar, "SCORE", H.build.scoreX, H.scoreStat,true);
         livesText = Stat(topBar, "LIVES", H.build.livesX, H.livesStat);
         timeText = Stat(topBar, "ACTIVE TIME", H.build.timeX, H.timeStat);
-        comboText=Anchored(MakeText(root,"",18,Gold,TextAnchor.UpperLeft,Vector2.zero,new Vector2(430,28)),new Vector2(0,1),new Vector2(70,-785));
+        comboText=Anchored(MakeText(root,"",18,Gold,TextAnchor.UpperLeft,Vector2.zero,new Vector2(430,28)),H.build.comboAnchor,H.build.comboPosition);
 
-        SidePanel(H.build.leftHelpAnchor,H.build.leftHelpPosition,H.leftHelp,TextAnchor.UpperLeft,new[] {
-            ("HOLD = BALL ENCHANTMENTS",TextColor,new[] {("Held cards combine by element",Green),("Enemy colors show their immunity",Dim),("Arc / Fire / Shock foes resist their own type",Dim),("$BallDamage",Dim)}),
-            ("PLAY ONE OR COMBINE",Gold,new[] {("Play one card or combine cards",Dim),("of the same number. Roll one die per card.",Dim),("A match upgrades them all.",Gold),("A / D: flippers · R: pause / restart",Dim)})
-        });
-        SidePanel(H.build.rightHelpAnchor,H.build.rightHelpPosition,H.rightHelp,TextAnchor.UpperLeft,new[] {
-            ("DICE RESULTS",TextColor,new[] {("No matching die: Base (skill guaranteed)",Dim),("One card + match: Hit",Blue),("2+ cards, one match: Full Field",Blue),("2+ matching dice: Jackpot",Gold),("$Stacking",Dim)}),
-            ("RECHARGE",Gold,new[] {("$RechargeCost",Gold),("$RechargeSources",Dim),("$RechargeBudget",Dim)})
-        });
-        metricsText=Anchored(MakeText(root,"",16,Dim,TextAnchor.UpperLeft,Vector2.zero,new Vector2(400,150)),new Vector2(0,1),new Vector2(70,-830));
 
         // Board callouts.
         spawnLabel = Free(MakeText(labelLayer, "ENEMY SPAWN AREA", H.build.spawnLabelFontSize, Dim, TextAnchor.MiddleCenter, Vector2.zero, H.build.spawnLabelSize));
-        dangerLabel = Free(MakeText(labelLayer, "DANGER LINE", H.build.dangerLabelFontSize, Danger, TextAnchor.MiddleRight, Vector2.zero, H.build.dangerLabelSize));
-        dangerLabel.rectTransform.pivot = H.build.dangerLabelPivot;
 
-        // Bottom: lucky number, current number, preview, energy bar.
+        // Bottom: recharge progress.
         float handWidth = slots.Length * H.slotWidth + (slots.Length - 1) * H.slotSpacing;
-        bottomBar = Panel(root, "BottomBar", H.build.bottomBarAnchor, H.build.bottomBarPosition, new Vector2(handWidth + H.build.bottomBarWidthPadding, H.build.bottomBarHeight), PanelEdge);
-        float left = -(handWidth + H.build.bottomContentWidthPadding) / 2f + H.build.bottomContentInset;
-        LeftText(MakeText(bottomBar, "CAST", H.build.luckyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.luckyY), H.build.luckyLabelSize));
-        currentText = Bold(LeftText(MakeText(bottomBar, "", H.build.currentFontSize, Green, TextAnchor.MiddleLeft, new Vector2(left + H.build.currentX, H.build.currentY), H.build.currentLabelSize)));
-        previewText = LeftText(MakeText(bottomBar, "", H.build.previewFontSize, Blue, TextAnchor.MiddleLeft, new Vector2(left + H.build.previewX, H.build.previewY), H.build.previewLabelSize));
+        bottomBar = Panel(root, "BottomBar", H.build.bottomBarAnchor, H.build.bottomBarPosition, new Vector2(H.build.rechargePanelWidth, H.build.bottomBarHeight), PanelEdge);
+        float left = -H.build.rechargePanelWidth / 2f + H.build.bottomContentInset;
         energyText = LeftText(MakeText(bottomBar, "", H.build.energyFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(left, H.build.energyY), H.build.energyLabelSize));
-        rechargeHintText = LeftText(MakeText(bottomBar,"",15,Dim,TextAnchor.MiddleLeft,new Vector2(left+230,-12),new Vector2(450,24)));
         var barBack = Box(bottomBar, "EnergyBar", H.build.energyBarAnchor, new Vector2(left + H.build.energyBarX + H.build.energyBarExtraX, -32), H.build.energyBarSize, H.energyBackground);
         energyFill = Box(barBack, "Fill", Vector2.zero, Vector2.zero, Vector2.zero, Green);
         energyFill.anchorMin = Vector2.zero; energyFill.anchorMax = H.build.energyFillAnchor;
         energyFill.offsetMin = energyFill.offsetMax = Vector2.zero;
 
-        // Five fixed slots. Compaction is visual only; cooldown follows Card identity.
+        // Fixed sorted slots; dragging moves every selected card by the same offset.
+        slotHomes=new Vector2[slots.Length];
         handArea = Box(root, "Hand", H.build.handAnchor, new Vector2(0f, H.slotBottom + H.slotHeight / 2f), new Vector2(handWidth + H.build.handWidthPadding, H.slotHeight + H.build.handHeightPadding), Color.clear);
         for (int i = 0; i < slots.Length; i++)
         {
@@ -366,21 +335,16 @@ public class Hud : MonoBehaviour
             var s = new SlotView();
             s.rect = Panel(handArea, "Slot" + (i + 1), H.build.slotAnchor, new Vector2(x, 0f), new Vector2(H.slotWidth, H.slotHeight), PanelEdge);
             s.edge = s.rect.GetComponent<Image>();
-            s.cooldown = MakeText(s.rect, "", H.build.slotCaptionFontSize, Dim, TextAnchor.MiddleCenter, H.build.slotCaptionPosition, new Vector2(H.slotWidth, H.build.slotCaptionHeight));
             s.card = Bold(MakeText(s.rect, "", H.refreshSlots.numberFontSize, TextColor, TextAnchor.MiddleCenter, H.build.slotCardPosition, new Vector2(H.slotWidth, H.build.slotCardHeight)));
-            s.result = MakeText(s.rect, "", H.build.slotResultFontSize, Dim, TextAnchor.MiddleCenter, H.build.slotResultPosition, new Vector2(H.slotWidth, H.build.slotResultHeight));
             slots[i] = s;
+            slotHomes[i]=s.rect.anchoredPosition;
         }
 
-        castButton=Box(root,"CastBatch",new Vector2(.5f,0),new Vector2(0,16),new Vector2(340,32),ButtonColor);
-        castButtonText=MakeText(castButton,"Cast 0 · Roll 0 dice",20,Dim,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(330,30));
-        ghost=Panel(root,"GroupPreview",new Vector2(1,1),new Vector2(-280,-800),new Vector2(440,275),Blue);
+        keyboardHint=Box(root,"KeyboardCastHint",H.build.castHintAnchor,H.build.castHintPosition,new Vector2(340,32),PanelEdge);
+        keyboardHintText=MakeText(keyboardHint,"",17,Gold,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(330,30));keyboardHint.gameObject.SetActive(false);
+        ghost=Panel(root,"GroupPreview",H.build.groupPreviewAnchor,H.build.groupPreviewPosition,new Vector2(440,275),Blue);
         ghostCard=Bold(MakeText(ghost,"",23,Blue,TextAnchor.MiddleCenter,new Vector2(0,115),new Vector2(425,35)));
         ghostResult=MakeText(ghost,"",15,TextColor,TextAnchor.MiddleCenter,new Vector2(0,-10),new Vector2(425,230));ghost.gameObject.SetActive(false);
-        dicePanel=Panel(root,"DiceReveal",new Vector2(.5f,1),new Vector2(0,-265),new Vector2(700,140),Gold);
-        diceCards=MakeText(dicePanel,"",17,TextColor,TextAnchor.MiddleCenter,new Vector2(0,45),new Vector2(680,28));
-        diceFaces=Bold(MakeText(dicePanel,"",31,TextColor,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(680,50)));
-        diceResult=MakeText(dicePanel,"",21,Gold,TextAnchor.MiddleCenter,new Vector2(0,-45),new Vector2(680,30));dicePanel.gameObject.SetActive(false);
 
         countdownText = Bold(MakeText(root, "", H.build.countdownFontSize, TextColor, TextAnchor.MiddleCenter, H.build.countdownPosition, H.build.countdownSize));
 
@@ -395,41 +359,12 @@ public class Hud : MonoBehaviour
         dialog.gameObject.SetActive(false);
     }
 
-    Text Stat(RectTransform bar, string caption, float x, HudStatTuning style)
+    Text Stat(RectTransform bar, string caption, float x, HudStatTuning style,bool centered=false)
     {
-        LeftText(MakeText(bar, caption, style.captionFontSize, Dim, TextAnchor.MiddleLeft, new Vector2(x, style.captionY), style.captionSize));
-        return Bold(LeftText(MakeText(bar, "", style.valueFontSize, TextColor, TextAnchor.MiddleLeft, new Vector2(x, style.valueY), style.valueSize)));
+        var align=centered?TextAnchor.MiddleCenter:TextAnchor.MiddleLeft;
+        LeftText(MakeText(bar, caption, style.captionFontSize, Dim, align, new Vector2(x, style.captionY), style.captionSize));
+        return Bold(LeftText(MakeText(bar, "", style.valueFontSize, TextColor, align, new Vector2(x, style.valueY), style.valueSize)));
     }
-
-    void SidePanel(Vector2 anchor, Vector2 pos, HudSidePanelTuning style, TextAnchor align, (string title, Color color, (string text, Color color)[] lines)[] sections)
-    {
-        float y = 0f;
-        var rt = Box(root, "Side", anchor, pos, style.size, Color.clear);
-        rt.pivot = new Vector2(anchor.x, 1f);
-        rt.anchoredPosition = pos;
-        foreach (var (title, color, lines) in sections)
-        {
-            Bold(TopLeft(MakeText(rt, title, Mathf.Min(style.titleFontSize, 21), color, align, Vector2.zero, style.titleSize), y));
-            y -= style.titleSpacing;
-            foreach (var (text, c) in lines)
-            {
-                var line=TopLeft(MakeText(rt, text.StartsWith("$")?BalanceHelp(text):text, Mathf.Min(style.lineFontSize, 17), c, align, Vector2.zero, style.lineSize), y);
-                if(text.StartsWith("$"))balanceHelp.Add(new KeyValuePair<Text,string>(line,text));
-                y -= style.lineSpacing;
-            }
-            y -= style.sectionSpacing;
-        }
-    }
-
-    readonly List<KeyValuePair<Text,string>> balanceHelp=new List<KeyValuePair<Text,string>>();
-    string BalanceHelp(string key){var t=gm.luck;switch(key){
-        case "$BallDamage":return $"Ball: {t.collisionDamage} · Empowered total: {t.empoweredCollisionDamage}";
-        case "$Stacking":return $"Extra card: Arc +{t.extraArcWaves}w · Fire +{t.extraBurnPerCard:0.##}s · Shock fixed 1w";
-        case "$RechargeCost":return $"{t.rechargeBaseCost:0.##} base +{t.rechargeCastCost:0.##} required / card";
-        case "$RechargeSources":return $"Natural {t.rechargePerSecond:0.##}/s · Ball contact +{t.rechargeHit:0.##}";
-        case "$RechargeBudget":return "No recharge rate cap · Skills / burns grant 0";
-        default:return key;
-    }}
 
     // ---- UI helpers ----
 
