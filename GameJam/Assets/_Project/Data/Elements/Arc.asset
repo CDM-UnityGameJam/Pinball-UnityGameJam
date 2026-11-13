@@ -16,6 +16,13 @@ MonoBehaviour:
   skillName: Thunderstorm
   color: {r: 0.1, g: 0.55, b: 1, a: 1}
   icon: {fileID: 0}
+  cardArt:
+  - {fileID: 21300000, guid: d658f318339ead34580ffafc76fd668b, type: 3}
+  - {fileID: 21300000, guid: 3a5670ef89c5aa84e9dae3c959c1c502, type: 3}
+  - {fileID: 21300000, guid: 70d06f39b24dace4ebd5b2d4b961bc00, type: 3}
+  - {fileID: 21300000, guid: 437edc48115aa574993b199b93471b3a, type: 3}
+  - {fileID: 21300000, guid: d0709b80f7174a643ac525a1219a7e06, type: 3}
+  - {fileID: 21300000, guid: 0243078b39dd53947acf59d96dd43d21, type: 3}
   passiveDescription: '#{number} foes in {radius}m
 
     {damage} dmg; excludes hit foe'

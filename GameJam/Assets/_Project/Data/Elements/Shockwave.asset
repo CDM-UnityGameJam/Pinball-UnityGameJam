@@ -16,6 +16,13 @@ MonoBehaviour:
   skillName: Impact
   color: {r: 0.35, g: 0.9, b: 1, a: 1}
   icon: {fileID: 0}
+  cardArt:
+  - {fileID: 21300000, guid: 30d44587e088af64d8177779f79ac9b6, type: 3}
+  - {fileID: 21300000, guid: f12b11ddc5ef74d4588a1f3357e66bc4, type: 3}
+  - {fileID: 21300000, guid: 0573a2c0f0a6d5d479e99e8875afdde7, type: 3}
+  - {fileID: 21300000, guid: f93d98c1d2d5de54dbe7195434be1c9b, type: 3}
+  - {fileID: 21300000, guid: 228ad1378efc58f4293f8ff8115885bb, type: 3}
+  - {fileID: 21300000, guid: 0c04fb9a6f0545f4db6cff648d7a2412, type: 3}
   passiveDescription: '#{number} stun: {seconds}s
 
     More #{number} cards: wider area'

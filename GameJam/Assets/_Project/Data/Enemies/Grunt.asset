@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Grunt
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.EnemyDefinition
   displayName: Grunt
-  prefab: {fileID: 7952590621124555846, guid: 9dbed01608f6e6c48a87a903141dd6a3, type: 3}
+  prefab: {fileID: 6119554588911399031, guid: 1518153cc7e1e344b8ec5c17e69cac3f, type: 3}
   health: 40
   radius: 0.75
   hitCooldown: 0.2

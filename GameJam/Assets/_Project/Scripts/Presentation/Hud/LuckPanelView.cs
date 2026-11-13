@@ -6,25 +6,39 @@ using UnityEngine;
 
 namespace Pinball.Presentation
 {
-    // Bottom bar: lucky number and its timer, the last cast, and the refill countdown and bar.
+    // Lucky number tiles (current and next), the last cast, and the refill countdown and bar.
+    // Every field except `lucky` is optional.
     public sealed class LuckPanelView : HudPresenter
     {
         public TMP_Text lucky, lastCast, refill;
+        [Tooltip("The number that becomes lucky when the timer runs out.")]
+        public TMP_Text next;
+        [Tooltip("Seconds until the lucky number changes.")]
+        public TMP_Text timer;
         [Tooltip("Fill whose right anchor tracks refill progress.")]
         public RectTransform refillFill;
+
+        int shownCurrent = int.MinValue, shownNext = int.MinValue;
 
         void Update()
         {
             if (!Ready) return;
-            lucky.text = $"{Context.Luck.Current}  Next {Context.Luck.Remaining:0.0}s";
-            lastCast.text = Describe(Context.Hand.LastPlay, out var color);
-            lastCast.color = color;
+            var luck = Context.Luck;
+            // Build the number strings only when they change; the timer uses TMP's allocation-free SetText.
+            if (luck.Current != shownCurrent) { shownCurrent = luck.Current; lucky.text = shownCurrent.ToString(); }
+            if (next && luck.Next != shownNext) { shownNext = luck.Next; next.text = shownNext.ToString(); }
+            if (timer) timer.SetText("{0:1}s", luck.Remaining);
+            if (lastCast)
+            {
+                lastCast.text = Describe(Context.Hand.LastPlay, out var color);
+                lastCast.color = color;
+            }
 
             var hand = Context.Hand;
             var deck = Context.config.deck;
-            refill.text = hand.IsFull ? "Equipment full" : $"Refill {hand.RefillRemaining:0.0}s";
+            if (refill) refill.text = hand.IsFull ? "Equipment full" : $"Refill {hand.RefillRemaining:0.0}s";
             float progress = hand.IsFull ? 0f : Mathf.Clamp01(1f - hand.RefillRemaining / (deck.refillInterval + deck.playRefillDelay));
-            refillFill.anchorMax = new Vector2(progress, refillFill.anchorMax.y);
+            if (refillFill) refillFill.anchorMax = new Vector2(progress, refillFill.anchorMax.y);
         }
 
         string Describe(CastResult cast, out Color color)

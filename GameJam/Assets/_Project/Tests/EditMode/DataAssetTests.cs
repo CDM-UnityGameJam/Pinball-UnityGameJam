@@ -163,9 +163,10 @@ namespace Pinball.Tests.EditMode
             Assert.That(profile.openingCount, Is.EqualTo(3));
             Assert.That(profile.openingColumnSpacing, Is.EqualTo(2f));
             Assert.That(profile.placementAttempts, Is.EqualTo(30));
-            Assert.That(profile.enemies.Count, Is.EqualTo(1));
-            Assert.That(profile.enemies[0].enemy.name, Is.EqualTo("Grunt"));
-            Assert.That(profile.enemies[0].weight, Is.EqualTo(1f));
+            // Three looks (Ball, Bottle, Cupcake monsters) of the one v0.3 enemy, at equal odds.
+            Assert.That(profile.enemies.Select(e => e.enemy.name),
+                Is.EqualTo(new[] { "Grunt", "Grunt_Bottle", "Grunt_Cupcake" }));
+            Assert.That(profile.enemies.All(e => e.weight == 1f));
             foreach (float minutes in new[] { 0f, 3f, 10f, 30f })
             {
                 Assert.That(profile.spawnIntervalOverTime.Evaluate(minutes), Is.EqualTo(1f));
@@ -173,10 +174,10 @@ namespace Pinball.Tests.EditMode
             }
         }
 
-        [Test]
-        public void GruntMatchesV03()
+        [TestCase("Grunt"), TestCase("Grunt_Bottle"), TestCase("Grunt_Cupcake")]
+        public void GruntMatchesV03(string asset)
         {
-            var grunt = Load<EnemyDefinition>("Enemies/Grunt.asset");
+            var grunt = Load<EnemyDefinition>("Enemies/" + asset + ".asset");
             Assert.That(grunt.health, Is.EqualTo(40));
             Assert.That(grunt.radius, Is.EqualTo(0.75f));
             Assert.That(grunt.hitCooldown, Is.EqualTo(0.2f).Within(1e-6f));

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 57d4f0eaefd94e5db1e61d06530f0988, type: 3}
-  m_Name: Sfx_LifeLost
+  m_Name: Sfx_CreatureGetHit
   m_EditorClassIdentifier: Pinball.Feedback::Pinball.Feedback.SfxCue
   sound:
     Guid:

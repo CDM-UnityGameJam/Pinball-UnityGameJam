@@ -20,6 +20,10 @@ MonoBehaviour:
   enemies:
   - enemy: {fileID: 11400000, guid: 7051301485a8a9d4586839dab044870f, type: 2}
     weight: 1
+  - enemy: {fileID: 11400000, guid: 66dbb5d5c8b85144fa146dca0336795c, type: 2}
+    weight: 1
+  - enemy: {fileID: 11400000, guid: 90559d3db78a80448bdfb48866ffe1b5, type: 2}
+    weight: 1
   spawnIntervalOverTime:
     serializedVersion: 2
     m_Curve:

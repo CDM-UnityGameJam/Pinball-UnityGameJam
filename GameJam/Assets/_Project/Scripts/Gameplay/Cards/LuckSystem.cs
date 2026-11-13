@@ -13,6 +13,10 @@ namespace Pinball.Gameplay
         double nextChangeAt;
 
         public int Current { get; private set; }
+        // Rolled one change ahead so the HUD can show it; becomes Current when the timer fires.
+        // Deliberate divergence from the old game: rolling ahead moves this draw earlier in the shared random
+        // stream, so seeded runs no longer replay the old prototype's roll order (see TuningMigration.md).
+        public int Next { get; private set; }
         public int? ForcedQuality { get; private set; }
         public float Remaining => (float)Math.Max(0, nextChangeAt - context.Clock.Now);
 
@@ -24,6 +28,7 @@ namespace Pinball.Gameplay
         {
             this.context = context;
             Current = LuckyNumberRule.First(Config.minNumber, Config.maxNumber, context.Random);
+            Next = RollNext(Current);
             nextChangeAt = context.Clock.Now + Mathf.Max(0.01f, Config.luckyRefreshInterval);
         }
 
@@ -55,16 +60,20 @@ namespace Pinball.Gameplay
         {
             if (number < Config.minNumber || number > Config.maxNumber || context.Run.State == RunState.GameOver) return false;
             Current = number;
+            if (Next == Current) Next = RollNext(Current); // keep the never-repeats rule
             LuckyNumberChanged?.Invoke(Current);
             return true;
         }
+
+        int RollNext(int from) => LuckyNumberRule.Next(from, Config.minNumber, Config.maxNumber, context.Random);
 
         public double NextEventAt => nextChangeAt;
 
         public void OnTime(double now)
         {
             if (nextChangeAt > now + RuleMath.TimeEpsilon) return;
-            Current = LuckyNumberRule.Next(Current, Config.minNumber, Config.maxNumber, context.Random);
+            Current = Next;
+            Next = RollNext(Current);
             nextChangeAt = now + Mathf.Max(0.01f, Config.luckyRefreshInterval);
             LuckyNumberChanged?.Invoke(Current);
         }

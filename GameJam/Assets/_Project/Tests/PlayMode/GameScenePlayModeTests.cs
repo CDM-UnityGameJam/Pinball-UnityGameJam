@@ -86,6 +86,22 @@ namespace Pinball.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator HeldFlipperDropsToRestWhenTheBallIsLost()
+        {
+            yield return WaitUntilPlaying();
+            var flipper = context.Board.flippers[0];
+            flipper.SetPressedOverride(true);
+            for (int i = 0; i < 5; i++) yield return new WaitForFixedUpdate();
+            Assert.That(flipper.Angle, Is.EqualTo(flipper.upAngle));
+            yield return DrainTheBall();
+            Assert.That(context.Run.State, Is.EqualTo(RunState.Launching));
+            Assert.That(flipper.Angle, Is.EqualTo(flipper.restAngle), "snapped down although time is frozen");
+            Assert.That(Quaternion.Angle(flipper.transform.rotation,
+                flipper.transform.parent.rotation * Quaternion.Euler(0f, flipper.restAngle, 0f)), Is.LessThan(0.01f));
+            flipper.SetPressedOverride(null);
+        }
+
+        [UnityTest]
         public IEnumerator DrainCostsALifeAndWaitsToRelaunch()
         {
             yield return WaitUntilPlaying();

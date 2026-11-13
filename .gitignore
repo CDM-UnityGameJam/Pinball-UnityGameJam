@@ -43,3 +43,8 @@ GameJam/Assets/StreamingAssets.meta
 # FMOD's editor cache of the locally built banks (timestamps change on every machine); FMOD regenerates it.
 GameJam/Assets/Plugins/FMOD/Cache/Editor/FMODStudioCache.asset
 GameJam/Assets/Plugins/FMOD/Cache/Editor/FMODStudioCache.asset.meta
+# Unity Test Framework bootstrap scene left behind by interrupted PlayMode runs, and MCP screenshots.
+GameJam/Assets/InitTestScene*.unity
+GameJam/Assets/InitTestScene*.unity.meta
+GameJam/Assets/Screenshots/
+GameJam/Assets/Screenshots.meta

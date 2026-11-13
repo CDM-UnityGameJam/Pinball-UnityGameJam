@@ -271,7 +271,7 @@ MonoBehaviour:
   healthBar: {fileID: 4555211946750071697}
   healthFill: {fileID: 1377644188870799905}
   healthFillImage: {fileID: 6044890875446666014}
-  statusOffset: {x: 0, y: 12}
+  statusOffset: {x: 0, y: 34}
   healthTextOffset: {x: 0, y: -12}
 --- !u!1 &5348536675831846800
 GameObject:

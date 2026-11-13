@@ -14,6 +14,7 @@ namespace Pinball.Presentation
         public TMP_Text numberLabel;
         [Tooltip("The outer ring (body).")] public Renderer ring;
         [Tooltip("The inner cap; shows hit flash, burn and stun.")] public Renderer cap;
+        [Tooltip("Optional monster sprite; tinted for preview, hit, burn and stun.")] public SpriteRenderer body;
 
         [Title("Colours")]
         public Color ringColor = new Color32(201, 71, 90, 255);
@@ -24,6 +25,10 @@ namespace Pinball.Presentation
         public Color burnColor = new Color(1f, 0.32f, 0.03f);
         public Color stunColor = new Color(0.3f, 0.7f, 1f);
         [MinValue(0), SuffixLabel("s")] public float flashSeconds = 0.12f;
+        [Tooltip("Monster sprite tint while flashing from a hit (sprites can only be darkened, not whitened).")]
+        public Color hitTint = new Color(1f, 0.35f, 0.35f);
+        [Range(0, 1), Tooltip("How strongly state colours tint the monster sprite.")]
+        public float bodyTintStrength = 0.55f;
 
         [Title("Hooks")]
         [Tooltip("Every hit that deals damage. Passes the enemy's position.")]
@@ -91,11 +96,16 @@ namespace Pinball.Presentation
             if (flashLeft > 0f) flashLeft -= Time.unscaledDeltaTime;
             Paint(ring, Previewed ? previewColor : ringColor);
             Paint(cap, flashLeft > 0f ? flashColor : burning ? burnColor : stunned ? stunColor : capColor);
+            if (body)
+            {
+                Color? tint = flashLeft > 0f ? hitTint : burning ? burnColor : stunned ? stunColor : Previewed ? previewColor : (Color?)null;
+                body.color = tint.HasValue ? Color.Lerp(Color.white, tint.Value, bodyTintStrength) : Color.white;
+            }
         }
 
         void Paint(Renderer target, Color color)
         {
-            if (!target) return;
+            if (!target || !target.enabled) return;
             target.GetPropertyBlock(block);
             block.SetColor(BaseColor, color);
             target.SetPropertyBlock(block);

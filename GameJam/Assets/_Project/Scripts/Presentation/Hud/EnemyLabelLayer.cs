@@ -13,6 +13,8 @@ namespace Pinball.Presentation
         [Required] public HandView hand;
         [Tooltip("Canvas offset of the health bar from the enemy's near edge.")]
         public Vector2 belowOffset = new Vector2(0f, -6f);
+        [Tooltip("World height (along the camera's up) of the number and status above the enemy's top, e.g. the monster sprite's height. Scales with perspective.")]
+        [Min(0f)] public float labelHeight;
 
         readonly Dictionary<Enemy, EnemyLabelView> labels = new Dictionary<Enemy, EnemyLabelView>();
         readonly List<Enemy> alive = new List<Enemy>();
@@ -36,16 +38,18 @@ namespace Pinball.Presentation
             if (!Ready) return;
             Context.Enemies.FrontFirst(alive);
             var boardForward = Context.Board.Forward;
+            var cameraUp = Hud.WorldCamera.transform.up;
             foreach (var enemy in alive)
             {
                 if (!labels.TryGetValue(enemy, out var label)) labels[enemy] = label = pool.Get();
                 var up = enemy.transform.up * enemy.centerHeight;
                 var forward = boardForward * enemy.Radius;
                 var position = enemy.transform.position;
+                var top = Hud.WorldToCanvas(position + up + cameraUp * labelHeight);
                 label.Show(
-                    numberAt: Hud.WorldToCanvas(position + up),
+                    numberAt: top,
                     barAt: Hud.WorldToCanvas(position - up - forward) + belowOffset,
-                    statusAt: Hud.WorldToCanvas(position + up + forward),
+                    statusAt: labelHeight > 0f ? top : Hud.WorldToCanvas(position + up + forward),
                     enemy, hand.IsPreviewed(enemy), Theme);
             }
             gone.Clear();

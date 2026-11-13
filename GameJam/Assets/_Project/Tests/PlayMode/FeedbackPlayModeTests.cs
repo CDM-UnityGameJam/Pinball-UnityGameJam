@@ -184,7 +184,8 @@ namespace Pinball.Tests.PlayMode
             var view = e.GetComponent<EnemyView>();
             int calls = 0;
             view.onBallHit.DynamicCalls += _ => calls++;
-            Assert.That(view.onBallHit.PersistentCallsList.Count, Is.EqualTo(1), "wired to the SFX player on the prefab");
+            // Both creature sounds play on a ball hit: the pinball impact and the creature's "get hit" voice.
+            Assert.That(view.onBallHit.PersistentCallsList.Count, Is.EqualTo(2), "wired to both SFX players on the prefab");
             Hit(e);
             Assert.That(calls, Is.EqualTo(1));
             yield break;

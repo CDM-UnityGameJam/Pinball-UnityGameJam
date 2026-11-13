@@ -17,6 +17,14 @@ namespace Pinball.Gameplay
         public string skillName;
         public Color color = Color.white;
         [PreviewField(48)] public Sprite icon;
+        [Tooltip("Card illustration per number: index 0 is Luck Config's minNumber. Missing entries fall back to the text card.")]
+        [PreviewField(48)] public Sprite[] cardArt = new Sprite[0];
+
+        public Sprite CardArt(int number, int minNumber)
+        {
+            int i = number - minNumber;
+            return cardArt != null && i >= 0 && i < cardArt.Length ? cardArt[i] : null;
+        }
 
         [Title("Text")]
         [Multiline(3), Tooltip("Card text for the held (passive) effect. Tokens such as {number} are filled in by the UI.")]

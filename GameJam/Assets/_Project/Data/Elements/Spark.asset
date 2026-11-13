@@ -16,6 +16,13 @@ MonoBehaviour:
   skillName: Inferno
   color: {r: 1, g: 0.25, b: 0.015, a: 1}
   icon: {fileID: 0}
+  cardArt:
+  - {fileID: 21300000, guid: f9b1d29336c9fe24087667fa7a534356, type: 3}
+  - {fileID: 21300000, guid: 733a36a0f43b31d42ae28e8d18f2c26f, type: 3}
+  - {fileID: 21300000, guid: 81b1bc1b51997d9438e0ffa531d8876f, type: 3}
+  - {fileID: 21300000, guid: ac781aa3d13942649896ce47319952e3, type: 3}
+  - {fileID: 21300000, guid: 007043676bea57548b6ae214937c4bf5, type: 3}
+  - {fileID: 21300000, guid: fdcdc741a7b140d43adf8200c5a85da4, type: 3}
   passiveDescription: '#{number} burn: {dps} DPS / {seconds}s
 
     Same-number spread'

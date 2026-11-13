@@ -29,6 +29,17 @@ namespace Pinball.Gameplay
         // Drive the flipper from code (tests, touch zones, AI) instead of the input action. Null = input.
         public void SetPressedOverride(bool? pressed) => pressedOverride = pressed;
 
+        // Snap down at once. Used on a new launch, when time is frozen and FixedUpdate can't lower it.
+        public void ResetToRest()
+        {
+            if (!body) return; // never awoken (inactive flipper): nothing to reset
+            angle = restAngle;
+            IsPressed = false;
+            var rotation = transform.parent.rotation * Quaternion.Euler(0f, angle, 0f);
+            transform.rotation = rotation;
+            body.rotation = rotation;
+        }
+
         void Awake()
         {
             body = GetComponent<Rigidbody>();

@@ -68,14 +68,15 @@ namespace Pinball.Tests.PlayMode
         {
             yield return StartPlaying();
             var top = Find<TopBarView>();
-            Assert.That(top.lives.text, Is.EqualTo("3 / 3"));
+            Assert.That(top.hearts.Length, Is.EqualTo(ctx.config.lives), "one heart per life");
+            foreach (var heart in top.hearts) Assert.That(heart.color, Is.EqualTo(top.heart));
             Assert.That(top.score.text, Is.EqualTo("0"));
-            Assert.That(top.time.text, Is.EqualTo("00:00"));
             var luck = Find<LuckPanelView>();
-            Assert.That(luck.lucky.text, Does.StartWith($"{ctx.Luck.Current}  Next"));
+            Assert.That(luck.lucky.text, Is.EqualTo(ctx.Luck.Current.ToString()));
+            Assert.That(luck.next.text, Is.EqualTo(ctx.Luck.Next.ToString()));
+            Assert.That(ctx.Luck.Next, Is.Not.EqualTo(ctx.Luck.Current), "the next number never repeats the current one");
             Assert.That(luck.lastCast.text, Is.EqualTo("Active skill: not used"));
             Assert.That(luck.refill.text, Is.EqualTo("Equipment full"));
-            Assert.That(Find<ElementStatusView>().text.text, Is.EqualTo("Arc [#2×1, #4×1] · Spark [#5×1, #6×1] · Shockwave [#6×1]"));
 
             var e = ctx.Spawner.Spawn(grunt, 3, new Vector3(0, 0, 4));
             e.Health.SetCurrent(4);
@@ -84,8 +85,43 @@ namespace Pinball.Tests.PlayMode
             ctx.Clock.Advance(65f);
             yield return null;
             Assert.That(top.score.text, Is.EqualTo("50"));
-            Assert.That(top.lives.text, Is.EqualTo("2 / 3"));
-            Assert.That(top.time.text, Is.EqualTo("01:05"));
+            Assert.That(top.hearts[2].color, Is.EqualTo(top.lostHeart), "the lost life's heart dims");
+            Assert.That(top.hearts[1].color, Is.EqualTo(top.heart));
+        }
+
+        [UnityTest]
+        public IEnumerator NextLuckyNumberBecomesCurrent()
+        {
+            yield return StartPlaying();
+            int next = ctx.Luck.Next;
+            ctx.Clock.Advance(ctx.config.luck.luckyRefreshInterval + 0.01f);
+            yield return null;
+            Assert.That(ctx.Luck.Current, Is.EqualTo(next), "the shown next number is the one that comes up");
+            Assert.That(Find<LuckPanelView>().lucky.text, Is.EqualTo(next.ToString()));
+        }
+
+        [UnityTest]
+        public IEnumerator ComboCountsHitsAndResetsOnTheLastDrain()
+        {
+            yield return StartPlaying();
+            var combo = Find<ComboView>();
+            Assert.That(combo.group.activeSelf, Is.False, "hidden at zero");
+            var ball = ctx.Balls.Active[0];
+            ball.Body.isKinematic = false;
+            for (int i = 0; i < 3; i++)
+            {
+                var e = ctx.Spawner.Spawn(grunt, 3, new Vector3(-4f + i * 4f, 0f, 4f));
+                Assert.That(e.Contact.TryBallHit(ball, e.transform.position));
+            }
+            yield return null;
+            Assert.That(ctx.Streak.Count, Is.EqualTo(3));
+            Assert.That(combo.group.activeSelf);
+            Assert.That(combo.count.text, Is.EqualTo("3"));
+
+            ball.Body.linearVelocity = Vector3.zero;
+            ball.Body.position = ctx.Board.drain.transform.position;
+            for (int i = 0; i < 30 && ctx.Streak.Count > 0; i++) yield return new WaitForFixedUpdate();
+            Assert.That(ctx.Streak.Count, Is.EqualTo(0), "the last ball draining resets the streak");
         }
 
         [UnityTest]
@@ -170,10 +206,42 @@ namespace Pinball.Tests.PlayMode
             Assert.That(five.GetComponent<EnemyView>().Previewed, Is.False);
             var labels = Find<EnemyLabelLayer>();
             Assert.That(labels.LabelOf(two).number.color, Is.EqualTo(hud.theme.gold));
-            hand.Release(HandScreenPoint);
+            hand.Release(HandScreenPoint + new Vector2(hand.clickSlop + 100f, 0f)); // dragged off, back over the hand
             yield return null;
             Assert.That(ghost.panel.gameObject.activeSelf, Is.False);
             Assert.That(two.GetComponent<EnemyView>().Previewed, Is.False);
+            Assert.That(hand.SelectedSlot, Is.EqualTo(-1), "a drag is not a click");
+        }
+
+        [UnityTest]
+        public IEnumerator ClickSelectsAndASecondClickCasts()
+        {
+            yield return StartPlaying();
+            var two = ctx.Spawner.Spawn(grunt, 2, new Vector3(-2, 0, 4));
+            hand.Press(2, HandScreenPoint); // a #2 Arc
+            Assert.That(hand.Release(HandScreenPoint), Is.False, "first click only selects");
+            Assert.That(hand.SelectedSlot, Is.EqualTo(2));
+            yield return null;
+            Assert.That(hand.slots[2].hint == null || hand.slots[2].hint.activeSelf, "hint shown on the selected card");
+            Assert.That(two.GetComponent<EnemyView>().Previewed, "selection previews matching enemies");
+            hand.Press(2, HandScreenPoint);
+            Assert.That(hand.Release(HandScreenPoint), "second click casts");
+            Assert.That(ctx.Hand.Count, Is.EqualTo(4));
+            Assert.That(hand.SelectedSlot, Is.EqualTo(-1));
+        }
+
+        [UnityTest]
+        public IEnumerator ClickingAnotherCardMovesTheSelectionAndItTimesOut()
+        {
+            yield return StartPlaying();
+            hand.Press(1, HandScreenPoint); hand.Release(HandScreenPoint);
+            hand.Press(3, HandScreenPoint);
+            Assert.That(hand.Release(HandScreenPoint), Is.False, "a different card is selected, not cast");
+            Assert.That(hand.SelectedSlot, Is.EqualTo(3));
+            Assert.That(ctx.Hand.Count, Is.EqualTo(5));
+            float until = Time.unscaledTime + hand.selectSeconds + 0.5f;
+            while (Time.unscaledTime < until) yield return null;
+            Assert.That(hand.SelectedSlot, Is.EqualTo(-1), "selection expires");
         }
 
         [UnityTest]
@@ -190,8 +258,9 @@ namespace Pinball.Tests.PlayMode
             Assert.That(layer.LabelOf(a).number.text, Is.EqualTo("3"));
             Assert.That(layer.LabelOf(a).health.text, Is.EqualTo("36/40"));
             Assert.That(layer.LabelOf(b).status.text, Is.EqualTo("Stunned"));
-            var screen = hud.WorldToCanvas(a.transform.position + a.transform.up * a.centerHeight);
-            Assert.That(Vector2.Distance(layer.LabelOf(a).number.rectTransform.anchoredPosition, screen), Is.LessThan(1f), "number sits on the enemy");
+            var screen = hud.WorldToCanvas(a.transform.position + a.transform.up * a.centerHeight
+                + hud.WorldCamera.transform.up * layer.labelHeight);
+            Assert.That(Vector2.Distance(layer.LabelOf(a).number.rectTransform.anchoredPosition, screen), Is.LessThan(1f), "number sits above the enemy");
             a.Remove();
             yield return null;
             Assert.That(layer.Count, Is.EqualTo(1));

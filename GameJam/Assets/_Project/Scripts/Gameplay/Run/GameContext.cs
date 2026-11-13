@@ -34,11 +34,15 @@ namespace Pinball.Gameplay
         public CastScheduler Casts { get; private set; }
         public CombatResolver Combat { get; private set; }
         public MultiballSystem Multiball { get; private set; }
+        public HitStreak Streak { get; private set; }
         public CombatFeedback Feedback { get; } = new CombatFeedback();
         public IRandom Random { get; private set; } = UnityRandom.Shared;
         public BoardRoot Board => board;
 
         public bool IsInitialized => Run != null;
+
+        // The last ball on the table drained (a drained extra multiball ball does not count).
+        public event System.Action LastBallDrained;
 
         // Tests and tools: when true, nothing advances the combat clock, marches enemies or spawns on its own;
         // call Clock.Advance / March.Step yourself. Physics still runs.
@@ -59,6 +63,7 @@ namespace Pinball.Gameplay
             Hand = new HandSystem(this);
             Combat = new CombatResolver(this);
             Multiball = new MultiballSystem(this);
+            Streak = new HitStreak(this);
 
             // When several deadlines fall on the same moment they fire in this order (old TickGameplay):
             // enemy statuses (front first), cast waves, lucky number, hand refill.
@@ -129,6 +134,7 @@ namespace Pinball.Gameplay
         {
             if (Balls.Count == 0) Balls.Spawn(board.launchPoint.Position);
             else foreach (var ball in Balls.Active) ball.Park(board.launchPoint.Position);
+            foreach (var flipper in board.flippers) if (flipper) flipper.ResetToRest();
             Run.BeginLaunch();
             ApplyTimeFlow();
         }
@@ -148,6 +154,7 @@ namespace Pinball.Gameplay
             if (!Run.IsPlaying || !Balls.Remove(ball)) return;
             if (Balls.Count > 0) return;
             Stats.drains++;
+            LastBallDrained?.Invoke();
             Run.LoseLives(config.drainLifeCost, "Ball drain");
             if (Run.State == RunState.Playing) BeginLaunch();
         }
