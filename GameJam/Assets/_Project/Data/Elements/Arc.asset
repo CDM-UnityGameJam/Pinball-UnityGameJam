@@ -17,6 +17,13 @@ MonoBehaviour:
   color: {r: 0.12, g: 0.55, b: 1, a: 1}
   symbol: "\u03DF"
   icon: {fileID: 0}
+  cardFaces:
+  - {fileID: 21300000, guid: 82c30909e794d274580186d78e1deac6, type: 3}
+  - {fileID: 21300000, guid: eebfd4ad70a7be84c9b29c54be429dca, type: 3}
+  - {fileID: 21300000, guid: 9eec5ef0d31f1954fa35cc4154942717, type: 3}
+  - {fileID: 21300000, guid: 33c962324e75c7c44ae425ab9aa6031f, type: 3}
+  - {fileID: 21300000, guid: 4e5a371f96de1f3468bf1feb8767fb1e, type: 3}
+  - {fileID: 21300000, guid: 383be3aaf80de704a9bd17acd5712862, type: 3}
   passiveDescription: "Arc: {damage} dmg \xB7 Hit + {targets} nearby\n{radius}m \xB7 Arc foes immune"
   activeDescription: 
   passive:
@@ -49,6 +56,7 @@ MonoBehaviour:
   ballAuraPrefab: {fileID: 970350062076337266, guid: ed4b6c27aa0c0fe459f901f76f9fa7d6, type: 3}
   passiveHitVfx: {fileID: 11400000, guid: e1c59c443a0c21c4684dd01489ca9be5, type: 2}
   activeHitVfx: {fileID: 11400000, guid: bdb7ebaadd8eadc40b69e89ba98c53fc, type: 2}
+  matchedHitVfx: {fileID: 11400000, guid: d77fa25a8e23ff343961a21de5599124, type: 2}
   passiveHitSfx: {fileID: 0}
   activeHitSfx: {fileID: 0}
   castSfx: {fileID: 0}

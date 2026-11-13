@@ -19,6 +19,9 @@ namespace Pinball.Gameplay
         [Tooltip("Short glyph shown on cards and on enemies of this element.")]
         public string symbol;
         [PreviewField(48)] public Sprite icon;
+        [Tooltip("Card art by number: entry 0 is card 1.")]
+        [PreviewField(60), ListDrawerSettings(ShowFoldout = false)]
+        public Sprite[] cardFaces = new Sprite[0];
 
         [Title("Text")]
         [Multiline(2), Tooltip("Card text for the held (passive) effect. Module tokens such as {radius} are filled in by the UI.")]
@@ -45,8 +48,15 @@ namespace Pinball.Gameplay
         [Title("Feedback")]
         [AssetsOnly, Tooltip("Shown on the ball while this element's enchantment is active.")]
         public GameObject ballAuraPrefab;
-        public VfxCue passiveHitVfx, activeHitVfx;
+        public VfxCue passiveHitVfx;
+        [Tooltip("Active skill hit on each target when no die matched (Base).")]
+        public VfxCue activeHitVfx;
+        [Tooltip("Active skill hit on each target when a die matched the card's number (Hit, Full Field, Jackpot). Falls back to Active Hit Vfx.")]
+        public VfxCue matchedHitVfx;
         public SfxCue passiveHitSfx, activeHitSfx, castSfx;
+
+        public Sprite CardFace(int number) =>
+            cardFaces != null && number >= 1 && number <= cardFaces.Length ? cardFaces[number - 1] : null;
 
         public SkillPlan Plan(CastTier tier, int copies) =>
             SkillPlanner.Plan(tiers, tier, copies, extraWavesPerCopy, extraBurnSecondsPerCopy);

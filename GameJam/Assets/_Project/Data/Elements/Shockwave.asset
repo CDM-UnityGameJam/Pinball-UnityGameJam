@@ -17,6 +17,13 @@ MonoBehaviour:
   color: {r: 0.73, g: 0.4, b: 1, a: 1}
   symbol: "\u25CB"
   icon: {fileID: 0}
+  cardFaces:
+  - {fileID: 21300000, guid: 216fdd6dcfe91e244859f877696c7518, type: 3}
+  - {fileID: 21300000, guid: 4b037b8f8acf3394da049a81dbe4fca1, type: 3}
+  - {fileID: 21300000, guid: 310ada12adefbb0499168fe454d3a11e, type: 3}
+  - {fileID: 21300000, guid: 32756bcc11f686448acdad297f588758, type: 3}
+  - {fileID: 21300000, guid: 9a64c6a149af9b947b1d2ff652a2e5c0, type: 3}
+  - {fileID: 21300000, guid: c6931642d7e60664699cb6fcd5a976d4, type: 3}
   passiveDescription: "Area stun: {seconds}s \xB7 {radius}m\nShockwave foes immune"
   activeDescription: 
   passive:
@@ -49,6 +56,7 @@ MonoBehaviour:
   ballAuraPrefab: {fileID: 4038151492101809808, guid: f096c84dd1d6a004e9636cd47c58cc2b, type: 3}
   passiveHitVfx: {fileID: 11400000, guid: 82d4d0adf2de2204ba5da8b265dbde16, type: 2}
   activeHitVfx: {fileID: 11400000, guid: a21cf9960ef0a774b921c0dd4029265b, type: 2}
+  matchedHitVfx: {fileID: 11400000, guid: 14990a37779e463499fee27b84668cbb, type: 2}
   passiveHitSfx: {fileID: 0}
   activeHitSfx: {fileID: 0}
   castSfx: {fileID: 0}

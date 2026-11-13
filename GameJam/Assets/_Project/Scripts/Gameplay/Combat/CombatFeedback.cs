@@ -21,7 +21,7 @@ namespace Pinball.Gameplay
         public readonly Vector3 position;          // the target, or the pulse centre
         public readonly Vector3? from;             // where the effect came from (the ball contact for passives)
         public readonly float radius;              // PassivePulse radius
-        public readonly bool strong;               // active ignite/burn, or a high-Q active hit
+        public readonly bool strong;               // active ignite/burn, or an active hit whose dice matched
 
         public CombatFeedbackEvent(FeedbackKind kind, ElementDefinition element, Enemy target, Vector3 position,
             Vector3? from = null, float radius = 0f, bool strong = false)

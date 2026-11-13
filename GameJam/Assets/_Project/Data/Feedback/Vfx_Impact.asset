@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17502b121b91465cb260dea7f9a8a246, type: 3}
   m_Name: Vfx_Impact
   m_EditorClassIdentifier: Pinball.Feedback::Pinball.Feedback.VfxCue
-  prefab: {fileID: 4891774587013902184, guid: cbbd87c78e71c5b4e9c5e378bc194d99, type: 3}
+  prefab: {fileID: 1290268316522308613, guid: c4eb26611d0690e4f8f92098e24e8d98, type: 3}
   offset: {x: 0, y: 0, z: 0}
   minInterval: 0

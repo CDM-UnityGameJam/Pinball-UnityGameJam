@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17502b121b91465cb260dea7f9a8a246, type: 3}
   m_Name: Vfx_Thunderstorm
   m_EditorClassIdentifier: Pinball.Feedback::Pinball.Feedback.VfxCue
-  prefab: {fileID: 4998324311887691000, guid: 486cfd77c6ddb4341a204b40f8d47c27, type: 3}
+  prefab: {fileID: 5649895475333945950, guid: a886366a7624ac540b339c21048e0343, type: 3}
   offset: {x: 0, y: 0, z: 0}
   minInterval: 0

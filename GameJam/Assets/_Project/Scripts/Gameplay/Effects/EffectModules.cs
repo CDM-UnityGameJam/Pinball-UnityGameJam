@@ -62,12 +62,12 @@ namespace Pinball.Gameplay
             get { foreach (var e in cast.targets) if (e && e.CanReceive(cast.element)) yield return e; }
         }
 
-        // Count one target as reached by the batch and play its hit feedback. Full Field and Jackpot play strong.
+        // Count one target as reached by the batch and play its hit feedback. Strong = a die matched the number.
         public void Hit(Enemy target)
         {
             cast.batch.Cover(target);
             context.Feedback.Raise(new CombatFeedbackEvent(FeedbackKind.ActiveHit, cast.element, target, target.transform.position,
-                strong: cast.batch.tier >= CastTier.FullField));
+                strong: cast.batch.tier != CastTier.Base));
         }
     }
 

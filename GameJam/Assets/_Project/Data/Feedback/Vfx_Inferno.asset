@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17502b121b91465cb260dea7f9a8a246, type: 3}
   m_Name: Vfx_Inferno
   m_EditorClassIdentifier: Pinball.Feedback::Pinball.Feedback.VfxCue
-  prefab: {fileID: 8145331041220912392, guid: 017fb1cf2064a4e489018e54bf811166, type: 3}
+  prefab: {fileID: 6872535555661363123, guid: 471858c298b239e41867aefdde30bfe1, type: 3}
   offset: {x: 0, y: 0, z: 0}
   minInterval: 0

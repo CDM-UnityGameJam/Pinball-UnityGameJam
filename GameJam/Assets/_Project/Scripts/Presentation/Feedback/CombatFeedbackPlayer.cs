@@ -72,7 +72,8 @@ namespace Pinball.Presentation
                     if (e.element.passiveHitSfx) e.element.passiveHitSfx.Play(e.position);
                     break;
                 case FeedbackKind.ActiveHit:
-                    if (e.element.activeHitVfx) e.element.activeHitVfx.Play(request);
+                    var hit = e.strong && e.element.matchedHitVfx ? e.element.matchedHitVfx : e.element.activeHitVfx;
+                    if (hit) hit.Play(request);
                     if (e.element.activeHitSfx) e.element.activeHitSfx.Play(e.position);
                     break;
                 case FeedbackKind.Ignite:

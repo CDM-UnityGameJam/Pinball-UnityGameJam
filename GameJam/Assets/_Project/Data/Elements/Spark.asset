@@ -17,6 +17,13 @@ MonoBehaviour:
   color: {r: 1, g: 0.24, b: 0.15, a: 1}
   symbol: "\u25B2"
   icon: {fileID: 0}
+  cardFaces:
+  - {fileID: 21300000, guid: 5b4681ed2c2fb3142b0663eda5427ff7, type: 3}
+  - {fileID: 21300000, guid: 32e0992a8e6344445be8b8b7f9ce2b62, type: 3}
+  - {fileID: 21300000, guid: 3964a33f611eebb48a7684cc6ee1021c, type: 3}
+  - {fileID: 21300000, guid: 1964a345d50fe484ea732b174325bf01, type: 3}
+  - {fileID: 21300000, guid: 6124b51d31c0bc646adf12d46a7b6806, type: 3}
+  - {fileID: 21300000, guid: 4c63422dd4aeaf741b36097284e4d0b8, type: 3}
   passiveDescription: "Burn: {dps} DPS \xB7 {seconds}s\nFractions add up per tick"
   activeDescription: 
   passive:
@@ -48,7 +55,8 @@ MonoBehaviour:
   extraBurnSecondsPerCopy: 2
   ballAuraPrefab: {fileID: 5272690643811955074, guid: c0185c33657a3ed4cab5ae3e9d966ad6, type: 3}
   passiveHitVfx: {fileID: 0}
-  activeHitVfx: {fileID: 0}
+  activeHitVfx: {fileID: 11400000, guid: dd189f517603ce040b6538ecc0fffdc2, type: 2}
+  matchedHitVfx: {fileID: 11400000, guid: 86614c918f309d544a52c4d74dc460ba, type: 2}
   passiveHitSfx: {fileID: 0}
   activeHitSfx: {fileID: 0}
   castSfx: {fileID: 0}
