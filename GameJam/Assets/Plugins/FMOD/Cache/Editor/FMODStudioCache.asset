@@ -54,6 +54,33 @@ MonoBehaviour:
   MinDistance: 1
   MaxDistance: 20
   Length: 0
+--- !u!114 &-8551864472287765117
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ceb653cd98e289a4e8697a1af55201f2, type: 3}
+  m_Name: event:/SFX_ctr_shake
+  m_EditorClassIdentifier: FMODUnityEditor::FMODUnity.EditorEventRef
+  Path: event:/SFX_ctr_shake
+  Guid:
+    Data1: 694572384
+    Data2: 1130833333
+    Data3: 210701241
+    Data4: 1880654851
+  Banks:
+  - {fileID: 1097781801689346437}
+  IsStream: 0
+  Is3D: 0
+  IsOneShot: 1
+  Parameters: []
+  MinDistance: 1
+  MaxDistance: 20
+  Length: 0
 --- !u!114 &-6413914612050861193
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -81,6 +108,33 @@ MonoBehaviour:
   MinDistance: 1
   MaxDistance: 20
   Length: 96000
+--- !u!114 &-6145004806491089537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ceb653cd98e289a4e8697a1af55201f2, type: 3}
+  m_Name: event:/SFX_ctr_burnt
+  m_EditorClassIdentifier: FMODUnityEditor::FMODUnity.EditorEventRef
+  Path: event:/SFX_ctr_burnt
+  Guid:
+    Data1: -345537865
+    Data2: 1084544810
+    Data3: 94287514
+    Data4: 768290138
+  Banks:
+  - {fileID: 1097781801689346437}
+  IsStream: 0
+  Is3D: 0
+  IsOneShot: 1
+  Parameters: []
+  MinDistance: 1
+  MaxDistance: 20
+  Length: 0
 --- !u!114 &-5543296409528805141
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -162,6 +216,33 @@ MonoBehaviour:
   MinDistance: 1
   MaxDistance: 20
   Length: 0
+--- !u!114 &-3499982248075883932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ceb653cd98e289a4e8697a1af55201f2, type: 3}
+  m_Name: event:/SFX_ctr_eletrified
+  m_EditorClassIdentifier: FMODUnityEditor::FMODUnity.EditorEventRef
+  Path: event:/SFX_ctr_eletrified
+  Guid:
+    Data1: 1319791261
+    Data2: 1102788106
+    Data3: -1387130214
+    Data4: -607792764
+  Banks:
+  - {fileID: 1097781801689346437}
+  IsStream: 0
+  Is3D: 0
+  IsOneShot: 1
+  Parameters: []
+  MinDistance: 1
+  MaxDistance: 20
+  Length: 0
 --- !u!114 &-3095890310317422466
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -177,10 +258,10 @@ MonoBehaviour:
   Path: FMOD/Desktop/Master.strings.bank
   Name: Master.strings
   StudioPath: bank:/Master.strings
-  lastModified: 639300727282871624
+  lastModified: 639301270698022321
   FileSizes:
   - Name: 
-    Value: 1384
+    Value: 1508
   Exists: 1
 --- !u!114 &-2906518786834775397
 MonoBehaviour:
@@ -320,13 +401,16 @@ MonoBehaviour:
   - {fileID: 3476087467839543473}
   - {fileID: -8833535457240843345}
   - {fileID: -4592461965942186294}
+  - {fileID: -8551864472287765117}
+  - {fileID: -3499982248075883932}
+  - {fileID: -6145004806491089537}
   EditorParameters: []
   MasterBanks:
   - {fileID: 1097781801689346437}
   StringsBanks:
   - {fileID: -3095890310317422466}
   cacheVersion: 131860
-  cacheTime: 639300727282871624
+  cacheTime: 639301270698022321
   SerializableEventsDict:
   - key: event:/SFX_pnb_hitCreature
     index: 0
@@ -356,6 +440,12 @@ MonoBehaviour:
     index: 12
   - key: event:/SFX_ui_card_slide
     index: 13
+  - key: event:/SFX_ctr_shake
+    index: 14
+  - key: event:/SFX_ctr_eletrified
+    index: 15
+  - key: event:/SFX_ctr_burnt
+    index: 16
 --- !u!114 &1097781801689346437
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -371,7 +461,7 @@ MonoBehaviour:
   Path: FMOD/Desktop/Master.bank
   Name: Master
   StudioPath: bank:/Master
-  lastModified: 639300727282871624
+  lastModified: 639301270698014062
   FileSizes: []
   Exists: 1
 --- !u!114 &3476087467839543473

@@ -16,6 +16,12 @@ public class GameManager : MonoBehaviour
     public SfxCue pinballHitCreature;
     [Tooltip("Enemy reaction played alongside the ball contact sound. Defaults to SFX_ctr_getHit.")]
     public SfxCue creatureGetHit;
+    [Tooltip("Enemy burn application, from passive or active Spark powers.")]
+    public SfxCue creatureBurnt;
+    [Tooltip("Enemy lightning damage, from passive or active Arc powers.")]
+    public SfxCue creatureElectrified;
+    [Tooltip("Enemy stun application, from passive or active Shockwave powers.")]
+    public SfxCue creatureShake;
     [Tooltip("Played once when a card batch is successfully cast. Defaults to SFX_ui_card_powerUp.")]
     public SfxCue cardPowerUp;
     [Tooltip("Played when score increases. Defaults to SFX_ui_score.")]
@@ -110,6 +116,9 @@ public class GameManager : MonoBehaviour
         if (!pinballHit) pinballHit = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hit");
         if (!pinballHitCreature) pinballHitCreature = Resources.Load<SfxCue>("PinballAudio/SFX_pnb_hitCreature");
         if (!creatureGetHit) creatureGetHit = Resources.Load<SfxCue>("PinballAudio/SFX_ctr_getHit");
+        if (!creatureBurnt) creatureBurnt = Resources.Load<SfxCue>("PinballAudio/SFX_ctr_burnt");
+        if (!creatureElectrified) creatureElectrified = Resources.Load<SfxCue>("PinballAudio/SFX_ctr_electrified");
+        if (!creatureShake) creatureShake = Resources.Load<SfxCue>("PinballAudio/SFX_ctr_shake");
         if (!cardPowerUp) cardPowerUp = Resources.Load<SfxCue>("PinballAudio/SFX_ui_card_powerUp");
         if (!scoreIncrease) scoreIncrease = Resources.Load<SfxCue>("PinballAudio/SFX_ui_score");
         DifficultyDebug.Reset();

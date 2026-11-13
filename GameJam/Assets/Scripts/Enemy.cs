@@ -177,7 +177,12 @@ public class Enemy : MonoBehaviour
     }
 
     public void TakeElementDamage(int damage,Card.Equipment element,AttackRecord source=null)
-    {if(CanReceive(element))TakeDamage(damage,source);}
+    {
+        var gm=GameManager.Instance;
+        if(!CanReceive(element) || !gm.IsPlaying || damage<=0)return;
+        if(element==Card.Equipment.Arc && gm.creatureElectrified)gm.creatureElectrified.Play(transform.position);
+        TakeDamage(damage,source);
+    }
     public void TakeDamage(int damage,AttackRecord source = null)
     {
         if (!Alive || !GameManager.Instance.IsPlaying) return;
@@ -218,9 +223,14 @@ public class Enemy : MonoBehaviour
         if(!IsBurning){nextBurnTick=Now+System.Math.Max(.000001,interval);burnDamage.Reset();}
         double until=Now+duration;
         if(active) {
-            if(until>=activeBurnUntil){activeBurnUntil=until;activeBurnSource=source;activeDps=dps;activeInterval=interval;}
-        } else if(until>=passiveBurnUntil){passiveBurnUntil=until;passiveBurnSource=source;passiveDps=dps;passiveInterval=interval;}
+            if(until>=activeBurnUntil){activeBurnUntil=until;activeBurnSource=source;activeDps=dps;activeInterval=interval;PlayBurnSound();}
+        } else if(until>=passiveBurnUntil){passiveBurnUntil=until;passiveBurnSource=source;passiveDps=dps;passiveInterval=interval;PlayBurnSound();}
         if(GameManager.Instance.Vfx) GameManager.Instance.Vfx.Ignite(transform.position,active);
+    }
+    void PlayBurnSound()
+    {
+        var cue=GameManager.Instance.creatureBurnt;
+        if(cue)cue.Play(transform.position);
     }
     public bool Stun(float duration,bool active)
     {return Stun(duration,active,GameManager.Instance.luck.passiveStunImmunity);}
@@ -229,8 +239,11 @@ public class Enemy : MonoBehaviour
         if(!CanReceive(Card.Equipment.Shockwave) || !GameManager.Instance.IsPlaying || duration<=0) return false;
         // Agreed rule: passive stun cannot refresh an ongoing stun; active stun may extend it.
         if(!active && (IsStunned || Now<immuneUntil-.000001)) return false;
+        double previousStunUntil=stunUntil;
         stunUntil=System.Math.Max(stunUntil,Now+duration);
         immuneUntil=System.Math.Max(immuneUntil,stunUntil+immunity);
+        if(stunUntil>previousStunUntil && GameManager.Instance.creatureShake)
+            GameManager.Instance.creatureShake.Play(transform.position);
         return true;
     }
     public void TickStatus()
