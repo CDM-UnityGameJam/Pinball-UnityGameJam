@@ -11,6 +11,9 @@ namespace Pinball.Gameplay
 
         public Vector3 Position => transform.position;
 
+        // `degrees` from forward, turning about the board's up (positive = to the right).
+        public Vector3 DirectionAt(float degrees) => transform.rotation * Quaternion.Euler(0f, degrees, 0f) * Vector3.forward;
+
         // sample01 = 0 is the full spread to one side, 0.5 straight, 1 the other side.
         public Vector3 Direction(float spreadDegrees, float sample01) =>
             transform.rotation * Quaternion.Euler(0f, Mathf.Lerp(-spreadDegrees, spreadDegrees, sample01), 0f) * Vector3.forward;

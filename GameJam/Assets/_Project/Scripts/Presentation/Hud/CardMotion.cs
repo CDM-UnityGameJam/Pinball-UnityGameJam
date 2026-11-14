@@ -49,6 +49,10 @@ namespace Pinball.Presentation
         public bool HasCard { get; set; }
         // Canvas offset applied straight to the visual (no spring) while the card's group is dragged.
         public Vector2 DragOffset { get; set; }
+        // Where the card wants to sit relative to its slot and how far it rolls (degrees) while its group is
+        // gathered together. Springs, so the group pulls in and spreads back out smoothly.
+        public Vector2 Gather { get; set; }
+        public float GatherRoll { get; set; }
 
         // Normalised pointer position over the card, -1..1 on each axis.
         public Vector2 Pointer { get; set; }
@@ -59,7 +63,8 @@ namespace Pinball.Presentation
 
         readonly List<CardTilt> tilts = new List<CardTilt>();
         float lift, liftVel, scale = 1f, scaleVel, glow, glowVel, sheen, sheenVel;
-        Vector2 tilt, tiltVel;
+        Vector2 tilt, tiltVel, gather, gatherVel;
+        float gatherRoll, gatherRollVel;
         float phase;
 
         void Awake()
@@ -91,11 +96,14 @@ namespace Pinball.Presentation
             Spring(ref tilt.y, ref tiltVel.y, targetTilt.y, dt);
             Spring(ref glow, ref glowVel, targetGlow, dt);
             Spring(ref sheen, ref sheenVel, targetSheen, dt);
+            Spring(ref gather.x, ref gatherVel.x, Gather.x, dt);
+            Spring(ref gather.y, ref gatherVel.y, Gather.y, dt);
+            Spring(ref gatherRoll, ref gatherRollVel, GatherRoll, dt);
 
             float bob = HasCard ? Mathf.Sin(t * 2f + phase) * idleBob : 0f;
-            visual.anchoredPosition = DragOffset + new Vector2(0f, lift + bob);
+            visual.anchoredPosition = DragOffset + gather + new Vector2(0f, lift + bob);
             visual.localScale = Vector3.one * scale;
-            visual.localRotation = Quaternion.Euler(0f, 0f, -tilt.y * roll);
+            visual.localRotation = Quaternion.Euler(0f, 0f, -tilt.y * roll + gatherRoll);
             if (shadow)
             {
                 shadow.anchoredPosition = new Vector2(tilt.y * 0.4f, -6f - lift * 0.15f);

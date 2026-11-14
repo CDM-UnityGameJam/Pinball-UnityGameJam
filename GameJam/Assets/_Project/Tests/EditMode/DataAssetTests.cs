@@ -48,7 +48,10 @@ namespace Pinball.Tests.EditMode
             Assert.That(m.maxBalls, Is.EqualTo(3), "scene");
             Assert.That(m.ballOnMultiKill, "scene");
             Assert.That(m.entryHold, Is.EqualTo(1f), "scene");
-            Assert.That(m.entrySpeed, Is.EqualTo(4f), "scene");
+            // Rebuild change: the old scene dropped extra balls at 4 m/s nearly straight down, which fell through the
+            // flipper gap whenever no enemy was in the way. Now they head 30-65 degrees to a random side, faster.
+            Assert.That(m.entrySpeed, Is.EqualTo(10f));
+            Assert.That(m.entryAngle, Is.EqualTo(new Vector2(30f, 65f)));
         }
 
         [Test]

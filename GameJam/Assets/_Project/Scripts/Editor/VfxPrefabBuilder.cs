@@ -14,6 +14,9 @@ namespace Pinball.Editor
     // Played cards (Prefabs/VFX, per target): Hit_Fire / Hit_Lightning / Hit_Tremor when no die matched, and
     // the bigger *_Matched versions when a die matched the card's number.
     //
+    // Enemy death (Prefabs/VFX/Death_Pop, cue Data/Feedback/Vfx_DeathPop): a glow flash, a ring, a star burst and
+    // a few puffs in the HUD's cream / yellow / pink. Pinball > VFX > Build Death Pop rebuilds just that one.
+    //
     // Pinball > VFX > Build Element Effects rebuilds everything (bakes missing textures, creates materials,
     // overwrites the prefabs in place so their GUIDs survive, and points the element cues at them).
     // Tune by editing the numbers below and re-running, or edit the prefabs directly and stop using the menu.
@@ -53,8 +56,51 @@ namespace Pinball.Editor
             Wire("Spark", "Vfx_Inferno", fire, "Vfx_InfernoMatched", fireMatched, "Aura_Spark");
             Wire("Arc", "Vfx_Thunderstorm", bolt, "Vfx_ThunderstormMatched", boltMatched, "Aura_Arc");
             Wire("Shockwave", "Vfx_Impact", tremor, "Vfx_ImpactMatched", tremorMatched, "Aura_Shockwave");
+            BuildDeathPopPrefab();
             AssetDatabase.SaveAssets();
             Debug.Log("Built element VFX prefabs and wired the element cues.");
+        }
+
+        [MenuItem("Pinball/VFX/Build Death Pop")]
+        public static void BuildDeathPop()
+        {
+            if (!AssetDatabase.LoadAssetAtPath<Texture2D>($"{Textures}/Vfx_Star.png")) VfxShapeBaker.BakeAll();
+            System.IO.Directory.CreateDirectory(Materials);
+            BuildDeathPopPrefab();
+            AssetDatabase.SaveAssets();
+            Debug.Log("Built the death pop VFX and its cue.");
+        }
+
+        static VfxCue BuildDeathPopPrefab() => Cue("Vfx_DeathPop", Save($"{VfxPrefabs}/Death_Pop.prefab", DeathPop()));
+
+        // ---------- Enemy death ----------
+
+        static readonly Color PopCream = Hex("FFF6C8"), PopYellow = Hex("F3D036"), PopPink = Hex("FF6FB5"), PopMagenta = Hex("CA50AC");
+
+        static GameObject DeathPop()
+        {
+            var root = Root("Death_Pop");
+            Emit(root, "Flash", "Vfx_Glow", p =>
+            {
+                p.burst = 1; p.life = (0.22f, 0.22f); p.size = (3.2f, 3.2f); p.speed = (0f, 0f); p.lift = 0.5f;
+                p.colorA = p.colorB = WithAlpha(PopCream, 0.8f); p.shrink = true;
+            });
+            Emit(root, "Ring", "Vfx_Ring", p =>
+            {
+                p.flat = true; p.burst = 1; p.life = (0.32f, 0.32f); p.size = (0.6f, 0.6f); p.speed = (0f, 0f); p.grow = 4.5f;
+                p.colorA = p.colorB = PopPink; p.fadeTo = PopMagenta;
+            });
+            Emit(root, "Stars", "Vfx_Star", p =>
+            {
+                p.burst = 9; p.life = (0.35f, 0.55f); p.size = (0.22f, 0.38f); p.speed = (3.5f, 6.5f); p.cone = 85f; p.lift = 0.4f;
+                p.gravity = 0.04f; p.spinSpeed = 600f; p.colorA = PopYellow; p.colorB = PopPink; p.shrink = true;
+            });
+            Emit(root, "Puffs", "Vfx_Blob", p =>
+            {
+                p.burst = 6; p.life = (0.3f, 0.45f); p.size = (0.45f, 0.75f); p.speed = (1f, 2.4f); p.sphere = 0.25f; p.lift = 0.4f;
+                p.colorA = PopCream; p.colorB = Color.white; p.fadeTo = PopPink; p.swell = true;
+            });
+            return root;
         }
 
         // ---------- Held cards: ball auras ----------

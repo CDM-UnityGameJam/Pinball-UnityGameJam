@@ -42,7 +42,7 @@ SpriteRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 916335661355862939}
   m_Enabled: 1
-  m_CastShadows: 0
+  m_CastShadows: 1
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
@@ -59,7 +59,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
+  - {fileID: 2100000, guid: 1ce5da98f255fe04ea7d0b2fa040a801, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -509,7 +509,7 @@ MonoBehaviour:
   body: {fileID: 2413683014837614350}
   ringColor: {r: 0.7882353, g: 0.2784314, b: 0.3529412, a: 1}
   previewColor: {r: 0.9137255, g: 0.7254902, b: 0.28627452, a: 1}
-  capColor: {r: 0.3529412, g: 0.14901961, b: 0.19607843, a: 1}
+  capShade: 0.35
   flashColor: {r: 1, g: 1, b: 1, a: 1}
   burnColor: {r: 1, g: 0.32, b: 0.03, a: 1}
   stunColor: {r: 0.3, g: 0.7, b: 1, a: 1}

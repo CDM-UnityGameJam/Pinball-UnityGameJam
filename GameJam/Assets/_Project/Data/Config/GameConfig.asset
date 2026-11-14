@@ -21,12 +21,10 @@ MonoBehaviour:
     maxBalls: 3
     ballOnMultiKill: 1
     entryHold: 1
-    entrySpeed: 4
+    entrySpeed: 10
+    entryAngle: {x: 30, y: 65}
     entryClearance: 0.1
   ballHitDamage: 4
-  empoweredHitDamage: 8
-  empoweredHitsPerCard: 1
-  diceRevealDelay: 0.45
   status:
     burnTickInterval: 0.5
     passiveStunImmunity: 1

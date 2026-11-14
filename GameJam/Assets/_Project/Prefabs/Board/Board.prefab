@@ -834,6 +834,7 @@ GameObject:
   - component: {fileID: 4167505239313092796}
   - component: {fileID: 5728532875710942063}
   - component: {fileID: 158966054121640948}
+  - component: {fileID: 8509990615854990773}
   m_Layer: 7
   m_Name: WallL
   m_TagString: Untagged
@@ -897,6 +898,27 @@ MonoBehaviour:
   cooldown: 0.1
   onKick:
     _PersistentCalls: []
+--- !u!114 &8509990615854990773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1387703585614867881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3a192024b938364db0b7b7c66d87764, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Pinball.Presentation::Pinball.Presentation.KickerView
+  kicker: {fileID: 158966054121640948}
+  visual: {fileID: 9217418958609505173}
+  punch: 0.22
+  bulge: 0.35
+  stiffness: 420
+  damping: 14
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashStrength: 0.7
+  flashSeconds: 0.15
 --- !u!1 &2013018564382933323
 GameObject:
   m_ObjectHideFlags: 0
@@ -1088,6 +1110,7 @@ GameObject:
   - component: {fileID: 5177778623667484673}
   - component: {fileID: 6609196988284199617}
   - component: {fileID: 2973117875471128977}
+  - component: {fileID: 351386900335293854}
   m_Layer: 7
   m_Name: WallR
   m_TagString: Untagged
@@ -1151,6 +1174,27 @@ MonoBehaviour:
   cooldown: 0.1
   onKick:
     _PersistentCalls: []
+--- !u!114 &351386900335293854
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2021079104078802062}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3a192024b938364db0b7b7c66d87764, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Pinball.Presentation::Pinball.Presentation.KickerView
+  kicker: {fileID: 2973117875471128977}
+  visual: {fileID: 579579621433523122}
+  punch: 0.22
+  bulge: 0.35
+  stiffness: 420
+  damping: 14
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashStrength: 0.7
+  flashSeconds: 0.15
 --- !u!1 &2153601672553532320
 GameObject:
   m_ObjectHideFlags: 0
@@ -2474,7 +2518,7 @@ Transform:
   m_GameObject: {fileID: 4491402202327074060}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
-  m_LocalPosition: {x: 0, y: 0.7149999, z: 11}
+  m_LocalPosition: {x: 0, y: 0.7149999, z: 10.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

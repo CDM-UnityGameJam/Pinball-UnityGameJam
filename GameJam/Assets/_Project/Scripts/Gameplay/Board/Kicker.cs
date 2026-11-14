@@ -1,3 +1,4 @@
+using System;
 using Sirenix.OdinInspector;
 using UltEvents;
 using UnityEngine;
@@ -25,6 +26,9 @@ namespace Pinball.Gameplay
         [Title("Hooks")]
         public UltEvent onKick;
 
+        // (contact point) after a kick launched a ball. For views such as KickerView.
+        public event Action<Vector3> Kicked;
+
         Collider wall;
         double lastKick = double.NegativeInfinity;
 
@@ -48,6 +52,7 @@ namespace Pinball.Gameplay
             float speed = Mathf.Max(kickSpeed, Vector3.ProjectOnPlane(ball.Body.linearVelocity, board.Up).magnitude * speedMultiplier);
             ball.Body.linearVelocity = direction * speed;
             onKick?.Invoke();
+            Kicked?.Invoke(contact);
         }
 
         // 0 at the end of the wall nearest the board centre, 1 at the far end.

@@ -56,12 +56,19 @@ namespace Pinball.Tests.PlayMode
 
         T Find<T>() where T : Component => hud.GetComponentInChildren<T>(true);
 
+        // The text as displayed (rich-text tags removed).
+        static string Shown(TMPro.TMP_Text text)
+        {
+            text.ForceMeshUpdate();
+            return text.GetParsedText();
+        }
+
         [UnityTest]
         public IEnumerator CountdownShowsUntilLaunchThenRelaunch()
         {
             var countdown = Find<CountdownView>().text;
             Assert.That(countdown.gameObject.activeSelf);
-            Assert.That(countdown.text, Is.EqualTo("3"));
+            Assert.That(Shown(countdown), Is.EqualTo("3"));
             yield return StartPlaying();
             Assert.That(countdown.gameObject.activeSelf, Is.False);
             ctx.Board.drain.SendMessage("OnTriggerEnter", ctx.Balls.Active[0].GetComponent<Collider>());
@@ -69,7 +76,7 @@ namespace Pinball.Tests.PlayMode
             ctx.Clock.Advance(1.2f);
             yield return null;
             Assert.That(countdown.gameObject.activeSelf, "the replacement countdown shows");
-            Assert.That(countdown.text, Does.Contain("RELAUNCH").And.EndsWith("2"));
+            Assert.That(Shown(countdown), Does.Contain("RELAUNCH").And.EndsWith("2"));
         }
 
         [UnityTest]
@@ -94,7 +101,9 @@ namespace Pinball.Tests.PlayMode
             var e = ctx.Spawner.Spawn(grunt, Arc, new Vector3(0, 0, 4), health: 4);
             e.Health.TakeDamage(4);
             ctx.Clock.Advance(65f);
-            yield return null;
+            // The shown score rolls up to the real one over TopBarView.rollTime.
+            float end = Time.realtimeSinceStartup + 2f;
+            while (top.score.text != (50 + 13 * 5).ToString() && Time.realtimeSinceStartup < end) yield return null;
             Assert.That(top.score.text, Is.EqualTo((50 + 13 * 5).ToString()), "a kill plus 13 time rewards");
             if (top.time) Assert.That(top.time.text, Is.EqualTo("01:05"));
         }
@@ -125,6 +134,12 @@ namespace Pinball.Tests.PlayMode
             Assert.That(hand.SelectedNumber, Is.EqualTo(2));
             yield return null;
             Assert.That(hand.slots[2].edge.color, Is.EqualTo(hud.theme.gold), "the whole group is highlighted");
+            if (hand.slots[0].numberHighlight)
+            {
+                Assert.That(hand.slots[1].numberHighlight.gameObject.activeSelf && hand.slots[2].numberHighlight.gameObject.activeSelf,
+                    "the shared number is ringed on every card of the group");
+                Assert.That(hand.slots[0].numberHighlight.gameObject.activeSelf, Is.False, "#1 is not part of it");
+            }
             Assert.That(hand.Release(screen), Is.False, "a click without a drag never casts");
             Assert.That(ctx.Hand.Count, Is.EqualTo(5));
             Assert.That(hand.Selection, Is.Empty);
@@ -245,6 +260,31 @@ namespace Pinball.Tests.PlayMode
             Assert.That(texts, Has.Member("+50"));
             Assert.That(texts, Has.Member("+10"), "contact charge while a card is missing");
             Assert.That(texts, Has.Member("COMBO +50"), "five counted hits, then the timeout");
+        }
+
+        [UnityTest]
+        public IEnumerator LosingALifeFlashesTheVignetteAndThudsTheCamera()
+        {
+            yield return StartPlaying();
+            var vignette = Find<LifeLostVignetteView>();
+            var shake = Object.FindAnyObjectByType<CameraShake>();
+            Assume.That(vignette, Is.Not.Null, "Hud.prefab has the vignette");
+            Assert.That(vignette.Showing, Is.False);
+            var rest = Camera.main.transform.position;
+            ctx.Run.LoseLives(1, "Enemy breach");
+            yield return null;
+            yield return null;
+            Assert.That(vignette.Showing, "the vignette flashes");
+            if (shake)
+            {
+                Assert.That(shake.Thudding, "the camera thuds");
+                Assert.That(Camera.main.transform.position, Is.Not.EqualTo(rest));
+            }
+            float end = Time.realtimeSinceStartup + 3f;
+            while ((vignette.Showing || (shake && shake.Thudding)) && Time.realtimeSinceStartup < end) yield return null;
+            yield return null;
+            Assert.That(vignette.Showing, Is.False, "and fades out");
+            Assert.That(Vector3.Distance(Camera.main.transform.position, rest), Is.LessThan(1e-4f), "the camera returns to rest");
         }
 
         [UnityTest]

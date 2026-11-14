@@ -52,8 +52,11 @@ namespace Pinball.Gameplay
         public bool ballOnMultiKill = true;
         [MinValue(0), SuffixLabel("s"), Tooltip("Gameplay seconds an extra ball is held at the entry before it drops in.")]
         public float entryHold = 1f;
-        [MinValue(0), SuffixLabel("m/s"), Tooltip("Speed an extra ball drops in at, along the entry's forward.")]
-        public float entrySpeed = 4f;
+        [MinValue(0), SuffixLabel("m/s"), Tooltip("Speed an extra ball is sent into the table at.")]
+        public float entrySpeed = 10f;
+        [MinMaxSlider(0, 89, true), SuffixLabel("deg"), Tooltip("An extra ball heads this many degrees away from straight " +
+            "down the table, to a random side, so it reaches a wall or flipper instead of falling through the middle.")]
+        public Vector2 entryAngle = new Vector2(30f, 65f);
         [MinValue(0), SuffixLabel("m"), Tooltip("Free space needed around the entry (beyond two ball radii) before a held ball drops.")]
         public float entryClearance = 0.1f;
     }

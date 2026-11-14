@@ -172,7 +172,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 40}
-  m_SizeDelta: {x: 300, y: 160}
+  m_SizeDelta: {x: 520, y: 260}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7116132481675387987
 CanvasRenderer:
@@ -204,15 +204,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: 3
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 776d2819c9b224a4c8f7dda6251f3700, type: 2}
-  m_sharedMaterial: {fileID: 4612125692045938111, guid: 776d2819c9b224a4c8f7dda6251f3700, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 59083cbad77c4e34790bef05b32f5f5b, type: 2}
+  m_sharedMaterial: {fileID: 2100000, guid: 4cdf291d396408345853dc31414aa099, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.9098039, g: 0.9254902, b: 0.9490196, a: 1}
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -229,8 +229,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 120
-  m_fontSizeBase: 120
+  m_fontSize: 150
+  m_fontSizeBase: 150
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -928,6 +928,7 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 4334884383678494449}
   - {fileID: 3465683972808338602}
   - {fileID: 4155187003655908783}
   - {fileID: 3720589210900035980}
@@ -1683,6 +1684,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Pinball.Presentation::Pinball.Presentation.LuckPanelView
   hand: {fileID: 5435091945469406209}
   luckyNumber: {fileID: 8931650317012774358}
+  flipTime: 0.35
   status: {fileID: 0}
   lastCast: {fileID: 5043009019106633782}
   charge: {fileID: 4351984585394017236}
@@ -2456,11 +2458,11 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4901308980344876935}
-  - {fileID: 3314974918118657353}
-  - {fileID: 824378428322554137}
-  - {fileID: 4217241709495434006}
   - {fileID: 3343275604163678521}
+  - {fileID: 4217241709495434006}
+  - {fileID: 824378428322554137}
+  - {fileID: 3314974918118657353}
+  - {fileID: 4901308980344876935}
   - {fileID: 7660410088621989256}
   m_Father: {fileID: 1312177982380630434}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -2497,6 +2499,9 @@ MonoBehaviour:
   - {fileID: -7770708628911056511, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   doubleTapSeconds: 0.3
   dragThreshold: 8
+  gatherAmount: 0.55
+  gatherFan: 5
+  gatherDrop: 8
 --- !u!1 &5423738057307593145
 GameObject:
   m_ObjectHideFlags: 0
@@ -3110,6 +3115,13 @@ MonoBehaviour:
   - {fileID: 5425091917179326498}
   heart: {r: 1, g: 1, b: 1, a: 1}
   lostHeart: {r: 1, g: 1, b: 1, a: 0.25}
+  rollTime: 0.35
+  punchMax: 0.35
+  punchMin: 0.08
+  punchFullGain: 500
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  punchStiffness: 380
+  punchDamping: 16
 --- !u!1 &6026883028897963625
 GameObject:
   m_ObjectHideFlags: 0
@@ -3629,7 +3641,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Pinball.Presentation::Pinball.Presentation.CountdownView
   text: {fileID: 9110677940724200495}
-  relaunchCaptionSize: 24
+  relaunchCaptionSize: 44
+  numberColor: {r: 0.9529412, g: 0.8156863, b: 0.21176471, a: 1}
+  captionColor: {r: 0.7921569, g: 0.3137255, b: 0.6745098, a: 1}
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  popScale: 1.6
+  popTime: 0.3
 --- !u!1 &7024212520852583501
 GameObject:
   m_ObjectHideFlags: 0
@@ -4132,6 +4149,101 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &7838996521166452535
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4334884383678494449}
+  - component: {fileID: 1643191612223543409}
+  - component: {fileID: 4683504527418064029}
+  - component: {fileID: 6073735571764628346}
+  m_Layer: 0
+  m_Name: LifeLostVignette
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &4334884383678494449
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7838996521166452535}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1312177982380630434}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &1643191612223543409
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7838996521166452535}
+  m_CullTransparentMesh: 1
+--- !u!114 &4683504527418064029
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7838996521166452535}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 0.3, b: 0.35, a: 0}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: -2631856780022775825, guid: a0ae6df1d82331b4fab01b876adb107c, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!114 &6073735571764628346
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7838996521166452535}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bd6292f49e88094a968d6f12e048c03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Pinball.Presentation::Pinball.Presentation.LifeLostVignetteView
+  vignette: {fileID: 4683504527418064029}
+  color: {r: 0, g: 0, b: 0, a: 0}
+  rise: 0.06
+  fade: 1.1
+  peak: 0.85
+  gameOverPeak: 1
+  gameOverHold: 0.35
 --- !u!1 &7897809786941852196
 GameObject:
   m_ObjectHideFlags: 0
@@ -4189,7 +4301,23 @@ MonoBehaviour:
   castResultAt: {x: 0, y: 0, z: 2}
   multiKillAt: {x: 0, y: 0, z: 1}
   chargeBackOffset: 1.2
-  hitColor: {r: 1, g: 1, b: 1, a: 1}
+  hitColor: {r: 1, g: 0.93, b: 0.55, a: 1}
+  hitColorMedium: {r: 1, g: 0.62, b: 0.2, a: 1}
+  hitColorBig: {r: 1, g: 0.28, b: 0.42, a: 1}
+  mediumHitDamage: 12
+  bigHitDamage: 30
+  bigHitSuffix: '!'
+  bigHitFlash: 0.12
+  bigHitShake: 6
+  popTime: 0.22
+  holdShare: 0.55
+  hitSize: {x: 0.85, y: 1.6}
+  hitFullDamage: 40
+  hitDrift: 22
+  hitTilt: 10
+  hitOvershoot: 1.45
+  killOvershoot: 1.7
+  bannerOvershoot: 1.6
   extraBallText: +BALL
 --- !u!1 &8148161564449893441
 GameObject:
@@ -4523,6 +4651,11 @@ MonoBehaviour:
     text: <color=#F3D036>Lucky</color> streak!
   - streak: 40
     text: <color=#F3D036>UNSTOPPABLE</color>
+  wobbleDegrees: 9
+  wobbleStiffness: 260
+  wobbleDamping: 9
+  burstScale: 1.6
+  calloutPopTime: 0.25
 --- !u!1 &8864917772774896327
 GameObject:
   m_ObjectHideFlags: 0

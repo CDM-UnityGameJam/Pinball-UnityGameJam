@@ -23,6 +23,10 @@ namespace Pinball.Presentation
         [Tooltip("Plain backing shown for empty slots and elements without art.")]
         public Image fill;
         public CardMotion motion;
+        [Tooltip("Shown over the card's printed number while its group is picked up or selected; pulses.")]
+        public RectTransform numberHighlight;
+        [Min(0)] public float highlightPulse = 0.12f;
+        [Min(0)] public float highlightSpeed = 6f;
 
         HandView hand;
         int slot;
@@ -62,9 +66,17 @@ namespace Pinball.Presentation
         }
 
         // held / luckyHeld: cards of this element in hand, and of those with the lucky number.
-        // dragOffset: canvas offset while the group is dragged.
-        internal void Show(HandCard card, int held, int luckyHeld, bool lucky, bool selected, Vector2 dragOffset, UiTheme theme)
+        // dragOffset: canvas offset while the group is dragged; gather / gatherRoll: pull toward the group's centre.
+        internal void Show(HandCard card, int held, int luckyHeld, bool lucky, bool selected, Vector2 dragOffset,
+            Vector2 gather, float gatherRoll, UiTheme theme)
         {
+            if (numberHighlight)
+            {
+                bool show = selected && card != null;
+                if (numberHighlight.gameObject.activeSelf != show) numberHighlight.gameObject.SetActive(show);
+                if (show)
+                    numberHighlight.localScale = Vector3.one * (1f + highlightPulse * Mathf.Sin(Time.unscaledTime * highlightSpeed));
+            }
             var face = card != null && card.Element ? card.Element.CardFace(card.Number) : null;
             if (art)
             {
@@ -86,6 +98,8 @@ namespace Pinball.Presentation
                 motion.Selected = selected;
                 motion.Blocked = false;
                 motion.DragOffset = dragOffset;
+                motion.Gather = gather;
+                motion.GatherRoll = gatherRoll;
                 if (selected != wasSelected) motion.Pop();
             }
             wasSelected = selected;

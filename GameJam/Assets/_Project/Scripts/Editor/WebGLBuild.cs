@@ -30,6 +30,16 @@ namespace Pinball.Editor
             PlayerSettings.defaultWebScreenWidth = 1280;
             PlayerSettings.defaultWebScreenHeight = 720;
 
+            // URP keeps only the pipeline assets and shader variants of the *active* platform's quality levels, so a
+            // build for another platform than the active one strips what its player needs. Switch first; the switch
+            // reimports assets and reloads scripts, so run the menu item again afterwards.
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.WebGL)
+            {
+                Debug.Log("Switching the active platform to WebGL first. Run this menu item again when the editor is ready.");
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
+                return;
+            }
+
             int quality = QualitySettings.GetQualityLevel();
             var pipeline = GraphicsSettings.defaultRenderPipeline;
             try
@@ -46,6 +56,11 @@ namespace Pinball.Editor
                 });
                 if (report.summary.result != BuildResult.Succeeded)
                     throw new BuildFailedException("Web build failed: " + report.summary.result);
+                // An editor started before the WebGL module was installed can report success without writing
+                // anything ("Build target 'WebGL' not supported"). Restart the editor in that case.
+                if (!File.Exists(Path.Combine(output, "index.html")))
+                    throw new BuildFailedException("Web build wrote no files to " + output +
+                        ". If the WebGL module was just installed, restart the Unity editor and build again.");
                 Debug.Log("Web build succeeded: " + output);
             }
             finally

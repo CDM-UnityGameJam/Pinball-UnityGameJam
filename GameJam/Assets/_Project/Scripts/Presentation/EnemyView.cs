@@ -33,6 +33,15 @@ namespace Pinball.Presentation
         [Range(0, 1), Tooltip("How strongly state colours tint the monster sprite.")]
         public float bodyTintStrength = 0.55f;
 
+        [Title("Hit squash")]
+        [Tooltip("The monster sprite squashes wide and short on every damaging hit, then springs back. Only the sprite " +
+                 "moves; the collider never changes. Strength grows with the hit's damage up to Squash Max.")]
+        [Range(0, 0.5f)] public float squashMin = 0.04f;
+        [Range(0, 0.5f)] public float squashMax = 0.1f;
+        [MinValue(1), Tooltip("Damage that gives the full Squash Max.")] public float squashFullDamage = 30f;
+        [MinValue(1)] public float squashStiffness = 320f;
+        [MinValue(0)] public float squashDamping = 14f;
+
         [Title("Hooks")]
         [Tooltip("Every hit that deals damage. Passes the enemy's position.")]
         public UltEvent<Vector3> onHit;
@@ -47,6 +56,8 @@ namespace Pinball.Presentation
         float flashLeft;
         ElementDefinition shownElement;
         bool wasBurning, wasStunned;
+        Vector3 bodyRest;
+        float squash, squashVel;
 
         // Set by the HUD while the selected cards would target this enemy.
         public bool Previewed { get; set; }
@@ -58,6 +69,12 @@ namespace Pinball.Presentation
             shownElement = null;
             wasBurning = wasStunned = false;
             Previewed = false;
+            if (body)
+            {
+                if (bodyRest == Vector3.zero) bodyRest = body.transform.localScale;
+                body.transform.localScale = bodyRest;
+            }
+            squash = squashVel = 0f;
             enemy.Health.Damaged += OnDamaged;
             enemy.Health.Died += OnDied;
             enemy.Breached += OnBreached;
@@ -77,6 +94,11 @@ namespace Pinball.Presentation
         void OnDamaged(int amount, AttackRecord source)
         {
             flashLeft = flashSeconds;
+            // Kick the spring's velocity so it overshoots into a squash and settles back.
+            float strength = Mathf.Lerp(squashMin, squashMax, Mathf.Clamp01(amount / squashFullDamage));
+            // Peak squash is about `strength`; hits landing mid-squash never push it past that.
+            float kick = strength * Mathf.Sqrt(squashStiffness) * 1.6f;
+            squashVel = Mathf.Max(squashVel, kick);
             onHit?.Invoke(transform.position);
         }
 
@@ -105,6 +127,19 @@ namespace Pinball.Presentation
                 Color? tint = flashLeft > 0f ? hitTint : burning ? burnColor : stunned ? stunColor : Previewed ? previewColor : (Color?)null;
                 body.color = tint.HasValue ? Color.Lerp(Color.white, tint.Value, bodyTintStrength) : Color.white;
             }
+            UpdateSquash();
+        }
+
+        // Damped spring on unscaled time (keeps settling while paused). Wide-and-short, volume roughly kept.
+        void UpdateSquash()
+        {
+            if (!body) return;
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            squashVel += (-squash * squashStiffness - squashVel * squashDamping) * dt;
+            squash += squashVel * dt;
+            if (Mathf.Abs(squash) < 1e-4f && Mathf.Abs(squashVel) < 1e-3f) squash = squashVel = 0f;
+            float s = Mathf.Clamp(squash, -0.5f, 0.5f);
+            body.transform.localScale = new Vector3(bodyRest.x * (1f + s), bodyRest.y * (1f - s), bodyRest.z);
         }
 
         void Paint(Renderer target, Color color)

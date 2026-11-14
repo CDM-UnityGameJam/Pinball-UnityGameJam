@@ -37,6 +37,14 @@ namespace Pinball.Presentation
         [Min(0), Tooltip("Pixels the pointer must move before a press becomes a drag.")]
         public float dragThreshold = 8f;
 
+        [Title("Dragged group")]
+        [Range(0, 1), Tooltip("How far each dragged card moves toward the group's centre (1 = all on one spot).")]
+        public float gatherAmount = 0.55f;
+        [Tooltip("Degrees each card is rolled per slot away from the group's centre, so the group fans like a held hand.")]
+        public float gatherFan = 5f;
+        [Tooltip("Canvas units the outer cards of a dragged group drop per slot from the centre.")]
+        public float gatherDrop = 8f;
+
         readonly List<HandCard> selection = new List<HandCard>();
         readonly List<Enemy> enemies = new List<Enemy>();
         readonly HashSet<Enemy> targets = new HashSet<Enemy>();
@@ -189,12 +197,33 @@ namespace Pinball.Presentation
             if (!PointerHeld) ReadKeys();
 
             var hand = Context.Hand;
+            // Centre of the dragged group, in slot order, so its cards can close up around it.
+            float centreX = 0f, centreIndex = 0f;
+            int picked = 0;
+            if (Dragging)
+                for (int i = 0; i < slots.Count; i++)
+                {
+                    if (!IsSelected(hand[i])) continue;
+                    centreX += ((RectTransform)slots[i].transform).anchoredPosition.x;
+                    centreIndex += i;
+                    picked++;
+                }
+            if (picked > 0) { centreX /= picked; centreIndex /= picked; }
             for (int i = 0; i < slots.Count; i++)
             {
                 var card = hand[i];
-                bool picked = IsSelected(card);
+                bool isPicked = IsSelected(card);
+                var gather = Vector2.zero;
+                float roll = 0f;
+                if (isPicked && Dragging && picked > 1)
+                {
+                    float x = ((RectTransform)slots[i].transform).anchoredPosition.x;
+                    float side = i - centreIndex;
+                    gather = new Vector2((centreX - x) * gatherAmount, -Mathf.Abs(side) * gatherDrop);
+                    roll = -side * gatherFan;
+                }
                 slots[i].Show(card, card != null ? hand.HeldCount(card.Element) : 0, card != null ? hand.LuckyHeldCount(card.Element) : 0,
-                    hand.IsLucky(card), picked, picked && Dragging ? DragOffset : Vector2.zero, Theme);
+                    hand.IsLucky(card), isPicked, isPicked && Dragging ? DragOffset : Vector2.zero, gather, roll, Theme);
             }
             if (handAreaTint) handAreaTint.enabled = Dragging;
             bool hint = KeySelection && selection.Count > 0 && hand.CanPlay;

@@ -9,8 +9,10 @@ namespace Pinball.Gameplay
     //   Up to GameConfig.multiball.maxBalls on the table (balls waiting to enter count); a ball earned while
     //   the table is full is lost, not banked.
     // - Earned balls enter one at a time at the board's ExtraBallEntry (top centre, above the enemies):
-    //   held still for `entryHold` gameplay seconds, then, once no other ball sits on the entry, dropped
-    //   down the table. A bottom launch would only reach mid-table while the player is busy with another ball.
+    //   held still for `entryHold` gameplay seconds, then, once no other ball sits on the entry, sent down the
+    //   table at `entrySpeed`, angled `entryAngle` degrees to a random side. Straight down it fell through the gap
+    //   between the flippers whenever no enemy was in the way. A bottom launch would only reach mid-table while
+    //   the player is busy with another ball.
     // - Drains never cost lives (GameContext.OnDrained).
     public sealed class MultiballSystem
     {
@@ -70,8 +72,16 @@ namespace Pinball.Gameplay
             var entry = context.Board.extraBallEntry;
             var ball = held;
             held = null;
-            var direction = entry.Direction(context.config.launchSpreadDegrees, context.Random.Value());
-            ball.Launch(entry.Position, direction * Rules.entrySpeed);
+            ball.Launch(entry.Position, EntryDirection(entry) * Rules.entrySpeed);
+        }
+
+        // A random angle in entryAngle, to a random side.
+        Vector3 EntryDirection(BallLaunchPoint entry)
+        {
+            var range = Rules.entryAngle;
+            float side = context.Random.Value() < 0.5f ? -1f : 1f;
+            float angle = Mathf.Lerp(Mathf.Min(range.x, range.y), Mathf.Max(range.x, range.y), context.Random.Value());
+            return entry.DirectionAt(side * angle);
         }
 
         // No other ball overlapping the entry, so a dropped ball never starts inside another.
