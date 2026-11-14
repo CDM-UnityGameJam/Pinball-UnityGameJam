@@ -18,10 +18,13 @@ namespace Pinball.Presentation
         public VfxCue igniteVfx;
         [Tooltip("Same, for skill (active) burns.")]
         public VfxCue igniteStrongVfx;
+        [Tooltip("An enemy starts or refreshes burning (not on burn ticks).")]
         public SfxCue igniteSfx;
+        [Tooltip("A stun lands on an enemy, at the enemy.")]
+        public SfxCue stunSfx;
 
         [Title("Cards and score")]
-        [Tooltip("A batch of cards was played.")]
+        [Tooltip("A group of cards was played.")]
         public SfxCue cardsPlayedSfx;
         [Tooltip("The score went up (kills, time, combos).")]
         public SfxCue scoreSfx;
@@ -81,6 +84,9 @@ namespace Pinball.Presentation
                     var cue = e.strong && igniteStrongVfx ? igniteStrongVfx : igniteVfx;
                     if (cue) cue.Play(request);
                     if (e.kind == FeedbackKind.Ignite && igniteSfx) igniteSfx.Play(e.position);
+                    break;
+                case FeedbackKind.Stun:
+                    if (stunSfx) stunSfx.Play(e.position);
                     break;
             }
         }

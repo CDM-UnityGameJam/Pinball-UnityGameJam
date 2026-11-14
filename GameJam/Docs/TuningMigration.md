@@ -82,3 +82,7 @@ Box versions were tried first and rejected, because a fast ball hops where separ
 - Enemy visuals moved to `Enemy_Base.prefab`: hitbox (convex cylinder 1.5 x 0.25 x 1.5), ring and cap meshes, `centerHeight` 0.25, and `EnemyView` colours (ring #C9475A, cap #5A2632, flash white for 0.12 s, burn (1, 0.32, 0.03), stun (0.3, 0.7, 1)). Health-bar labels and popups wait for Phase 6.
 - `SpawnZone` / `DangerLine` / `SpawnBlocker` (one on each return-lane outlet, radius 0.7) replace `normalSpawnZ`, `dangerZ`, the arc numbers and `SideReturnLane.BlocksSpawn`.
 - Measured against the old scene with the same enemy placement and launch: the ball's path and the damage dealt are identical (0.000 m difference) for a head-on and an off-centre hit.
+
+## Deliberate divergences
+
+- **Next lucky number (HUD).** `LuckSystem` rolls the next lucky number one change ahead (`LuckSystem.Next`) so the HUD can show it. The lucky-number sequence still follows `LuckyNumberRule.Next`, but each roll now happens one change earlier on the shared `UnityRandom` stream, so a seeded run no longer replays the old prototype's interleaving of lucky, Q and hand rolls.

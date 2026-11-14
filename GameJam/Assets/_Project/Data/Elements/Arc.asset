@@ -52,8 +52,8 @@ MonoBehaviour:
   passiveHitVfx: {fileID: 11400000, guid: e1c59c443a0c21c4684dd01489ca9be5, type: 2}
   activeHitVfx: {fileID: 11400000, guid: bdb7ebaadd8eadc40b69e89ba98c53fc, type: 2}
   luckyHitVfx: {fileID: 11400000, guid: d77fa25a8e23ff343961a21de5599124, type: 2}
-  passiveHitSfx: {fileID: 0}
-  activeHitSfx: {fileID: 0}
+  passiveHitSfx: {fileID: 11400000, guid: dc9b2ffc4b1c30f4095a6cd41bacd81e, type: 2}
+  activeHitSfx: {fileID: 11400000, guid: dc9b2ffc4b1c30f4095a6cd41bacd81e, type: 2}
   castSfx: {fileID: 0}
   references:
     version: 2

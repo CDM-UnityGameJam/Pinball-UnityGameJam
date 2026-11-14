@@ -46,8 +46,12 @@ namespace Pinball.Gameplay
         }
 
         // Returns true if the stun landed (passive stuns can be refused, see StunStatus).
-        public bool Stun(ElementDefinition element, float seconds, bool active) =>
-            CanApply(element) && stun.TryStun(Now, seconds, active, Rules.passiveStunImmunity);
+        public bool Stun(ElementDefinition element, float seconds, bool active)
+        {
+            if (!CanApply(element) || !stun.TryStun(Now, seconds, active, Rules.passiveStunImmunity)) return false;
+            enemy.Context.Feedback.Raise(new CombatFeedbackEvent(FeedbackKind.Stun, element, enemy, transform.position, strong: active));
+            return true;
+        }
 
         internal void Tick(double now)
         {

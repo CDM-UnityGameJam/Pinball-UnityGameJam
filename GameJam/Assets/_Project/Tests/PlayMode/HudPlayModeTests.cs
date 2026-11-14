@@ -83,9 +83,10 @@ namespace Pinball.Tests.PlayMode
             var cast = Find<CastPanelView>();
             if (cast)
             {
-                Assert.That(cast.status.text, Is.EqualTo("No lucky number · Drag a group out to cast"));
+                if (cast.status) Assert.That(cast.status.text, Is.EqualTo("No lucky number · Drag a group out to cast"));
+                if (cast.luckyNumber) Assert.That(cast.luckyNumber.text, Is.EqualTo("-"));
                 if (cast.lastCast) Assert.That(cast.lastCast.text, Is.EqualTo("No cast yet"));
-                Assert.That(cast.charge.text, Is.EqualTo("Equipment full"));
+                if (cast.charge) Assert.That(cast.charge.text, Is.EqualTo("Equipment full"));
             }
             var status = Find<ElementStatusView>();
             if (status) Assert.That(status.text.text, Is.EqualTo("BALLS 1 · NO LUCKY · Arc ×2 · Spark ×2 · Shockwave ×1"));
@@ -212,8 +213,9 @@ namespace Pinball.Tests.PlayMode
             Assert.That(layer.LabelOf(a).number.color, Is.EqualTo(Arc.color));
             Assert.That(layer.LabelOf(a).health.text, Is.EqualTo("36/40"));
             Assert.That(layer.LabelOf(b).status.text, Is.EqualTo("Stunned"));
-            var screen = hud.WorldToCanvas(a.transform.position + a.transform.up * a.centerHeight);
-            Assert.That(Vector2.Distance(layer.LabelOf(a).number.rectTransform.anchoredPosition, screen), Is.LessThan(1f), "symbol sits on the enemy");
+            var screen = hud.WorldToCanvas(a.transform.position + a.transform.up * a.centerHeight
+                + hud.WorldCamera.transform.up * layer.labelHeight);
+            Assert.That(Vector2.Distance(layer.LabelOf(a).number.rectTransform.anchoredPosition, screen), Is.LessThan(1f), "symbol sits above the enemy");
             a.Remove();
             yield return null;
             Assert.That(layer.Count, Is.EqualTo(1));

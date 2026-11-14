@@ -95,14 +95,15 @@ namespace Pinball.Tests.EditMode
                 (180f, 1.8f, 1.5f, 5f), (300f, 3f, 1.7f, 7f), (480f, 5f, 1.8f, 10f),
             }));
             Assert.That(DifficultyCurve.Check(profile.stages), Is.Null);
-            Assert.That(profile.enemies.Count, Is.EqualTo(1));
-            Assert.That(profile.enemies[0].enemy.name, Is.EqualTo("Grunt"));
+            // Three looks (Ball, Bottle, Cupcake monsters) of the one v0.7 enemy, at equal odds.
+            Assert.That(profile.enemies.Select(e => e.enemy.name), Is.EqualTo(new[] { "Grunt", "Grunt_Bottle", "Grunt_Cupcake" }));
+            Assert.That(profile.enemies.All(e => e.weight == 1f));
         }
 
-        [Test]
-        public void GruntMatchesV07()
+        [TestCase("Grunt"), TestCase("Grunt_Bottle"), TestCase("Grunt_Cupcake")]
+        public void GruntMatchesV07(string asset)
         {
-            var grunt = Load<EnemyDefinition>("Enemies/Grunt.asset");
+            var grunt = Load<EnemyDefinition>("Enemies/" + asset + ".asset");
             Assert.That(grunt.health, Is.EqualTo(20), "difficulty base enemy health");
             Assert.That(grunt.descendSeconds, Is.EqualTo(50f), "difficulty base descent time");
             Assert.That(grunt.elementRule, Is.EqualTo(EnemyDefinition.ElementRule.RandomFromGame));
