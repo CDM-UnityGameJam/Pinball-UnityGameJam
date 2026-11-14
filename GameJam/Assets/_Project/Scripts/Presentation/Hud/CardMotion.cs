@@ -47,6 +47,8 @@ namespace Pinball.Presentation
         public bool Selected { get; set; }
         public bool Blocked { get; set; }
         public bool HasCard { get; set; }
+        // Canvas offset applied straight to the visual (no spring) while the card's group is dragged.
+        public Vector2 DragOffset { get; set; }
 
         // Normalised pointer position over the card, -1..1 on each axis.
         public Vector2 Pointer { get; set; }
@@ -91,7 +93,7 @@ namespace Pinball.Presentation
             Spring(ref sheen, ref sheenVel, targetSheen, dt);
 
             float bob = HasCard ? Mathf.Sin(t * 2f + phase) * idleBob : 0f;
-            visual.anchoredPosition = new Vector2(0f, lift + bob);
+            visual.anchoredPosition = DragOffset + new Vector2(0f, lift + bob);
             visual.localScale = Vector3.one * scale;
             visual.localRotation = Quaternion.Euler(0f, 0f, -tilt.y * roll);
             if (shadow)

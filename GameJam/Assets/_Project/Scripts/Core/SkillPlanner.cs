@@ -1,15 +1,12 @@
 using System;
-using System.Collections.Generic;
 
 namespace Pinball.Core
 {
-    // The dice result of one played batch, weakest first.
+    // How a played group casts: the lucky number's group casts Lucky skills, every other group Normal ones.
     public enum CastTier
     {
-        Base,      // no die matched: the skills still fire, at their smallest
-        Hit,       // one card, its die matched
-        FullField, // two or more cards, exactly one die matched
-        Jackpot,   // two or more dice matched
+        Normal,
+        Lucky,
     }
 
     // How strongly one element's active skill fires at one tier.
@@ -19,41 +16,42 @@ namespace Pinball.Core
         public bool allTargets;
         public int targetCount;
         public int waves;
+        public int damage;
         public float burnSeconds;
+        public float burnDps;
         public float stunSeconds;
 
-        public ActiveTier(bool allTargets, int targetCount, int waves, float burnSeconds, float stunSeconds)
+        public ActiveTier(bool allTargets, int targetCount, int waves, int damage, float burnSeconds, float burnDps, float stunSeconds)
         {
-            this.allTargets = allTargets; this.targetCount = targetCount; this.waves = waves;
-            this.burnSeconds = burnSeconds; this.stunSeconds = stunSeconds;
+            this.allTargets = allTargets; this.targetCount = targetCount; this.waves = waves; this.damage = damage;
+            this.burnSeconds = burnSeconds; this.burnDps = burnDps; this.stunSeconds = stunSeconds;
         }
     }
 
-    // The resolved strength of one element's cast in a batch.
+    // The resolved strength of one element's cast in a group.
     public struct SkillPlan
     {
         public bool allTargets;
-        public int targetCount, waves;
-        public float burnSeconds, stunSeconds;
+        public int targetCount, waves, damage;
+        public float burnSeconds, burnDps, stunSeconds;
     }
 
-    // Port of the v0.6 LuckTuning.Plan: the tier row, plus a bonus for every extra card of the same element
-    // in the batch (more waves, longer burn).
+    // Port of the v0.7 LuckTuning.Plan: the tier's row, plus a bonus for every extra card of the same element
+    // in the group (more waves, longer burn).
     public static class SkillPlanner
     {
-        public const int TierCount = 4;
-
-        public static SkillPlan Plan(IReadOnlyList<ActiveTier> tiers, CastTier tier, int copies, int extraWavesPerCopy, float extraBurnSecondsPerCopy)
+        public static SkillPlan Plan(ActiveTier row, int copies, int extraWavesPerCopy, float extraBurnSecondsPerCopy)
         {
-            if (copies < 1 || tiers == null || (int)tier >= tiers.Count) return default;
-            var row = tiers[(int)tier];
+            if (copies < 1) return default;
             int extra = copies - 1;
             return new SkillPlan
             {
                 allTargets = row.allTargets,
                 targetCount = Math.Max(1, row.targetCount),
                 waves = (int)Math.Min(int.MaxValue, Math.Max(1L, row.waves + (long)extra * Math.Max(0, extraWavesPerCopy))),
+                damage = Math.Max(0, row.damage),
                 burnSeconds = row.burnSeconds + extra * Math.Max(0f, extraBurnSecondsPerCopy),
+                burnDps = Math.Max(0f, row.burnDps),
                 stunSeconds = row.stunSeconds,
             };
         }

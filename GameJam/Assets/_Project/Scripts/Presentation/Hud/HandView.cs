@@ -1,83 +1,205 @@
 using System.Collections.Generic;
 using Pinball.Core;
 using Pinball.Gameplay;
+using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Pinball.Presentation
 {
-    // The hand, card selection and the Cast button. Port of the v0.6 Hud selection rules:
-    // - Click a card to select it, click again to unselect. The first card locks the number: cards with another
-    //   number are greyed out and can't be selected. Up to five cards; elements can mix.
-    // - Selected cards stay in the hand (they still enchant the ball) until the batch is cast.
-    // - The Cast button plays the selection: one die per card. Nothing can be selected or cast while a batch
-    //   waits for its dice.
-    // - A card that leaves the hand drops out of the selection; casting clears it.
-    // - Enemies the selection could target are highlighted (the widest tier it can reach).
+    // The hand and how groups are cast. Port of the v0.7 Hud selection rules:
+    // - A cast is always a whole group: every held card with one number.
+    // - Mouse: pressing a card picks up its group (highlighted). Dragging moves the whole group; releasing outside
+    //   the hand area casts it, releasing inside puts it back. A click without a drag never casts.
+    // - Keys (groupKeys[i] = number i + 1): one press selects that group and shows the hint; a double-tap of the
+    //   same key within doubleTapSeconds casts it. A single tap on the selected group cancels once the window
+    //   runs out. Another number switches groups; holding a key never repeats.
+    // - Picking up a group with the mouse drops pending taps; pausing or losing focus drops everything.
+    // - Selected and dragged cards stay in the hand (they still enchant the ball) until cast.
+    // - Enemies the selected group would target are highlighted.
     public sealed class HandView : HudPresenter
     {
         public List<CardView> slots = new List<CardView>();
-        public Button castButton;
-        public TMP_Text castLabel;
-        public Image castButtonImage;
-        public Color castReadyColor = new Color32(43, 52, 72, 255);
+        [Required, Tooltip("Releasing a dragged group outside this rectangle casts it.")]
+        public RectTransform handArea;
+        [Tooltip("Tinted while a group is dragged (optional).")]
+        public Graphic handAreaTint;
+        [Tooltip("Shown while a group is selected by key: \"Double-tap N to cast\" (optional).")]
+        public GameObject keyHint;
+        public TMP_Text keyHintText;
+
+        [Title("Input")]
+        [Tooltip("Element i selects the group with number i + 1.")]
+        public List<InputActionReference> groupKeys = new List<InputActionReference>();
+        [Min(0.05f), SuffixLabel("s")] public float doubleTapSeconds = 0.3f;
+        [Min(0), Tooltip("Pixels the pointer must move before a press becomes a drag.")]
+        public float dragThreshold = 8f;
 
         readonly List<HandCard> selection = new List<HandCard>();
         readonly List<Enemy> enemies = new List<Enemy>();
         readonly HashSet<Enemy> targets = new HashSet<Enemy>();
         readonly HashSet<EnemyView> previewed = new HashSet<EnemyView>();
         readonly Dictionary<Enemy, EnemyView> views = new Dictionary<Enemy, EnemyView>();
+        GroupKeyInput keys;
+        Vector2 pressedAt, pressedLocal;
 
         public IReadOnlyList<HandCard> Selection => selection;
         public int? SelectedNumber => selection.Count == 0 ? (int?)null : selection[0].Number;
         public int PreviewCount => targets.Count;
+        public bool PointerHeld { get; private set; }
+        public bool Dragging { get; private set; }
+        public bool KeySelection { get; private set; }
+        // Canvas-space offset of the dragged group from where it was picked up.
+        public Vector2 DragOffset { get; private set; }
 
         protected override void OnBind()
         {
+            keys = new GroupKeyInput(doubleTapSeconds);
             for (int i = 0; i < slots.Count; i++) slots[i].Bind(this, i);
-            Context.Hand.Changed += () => selection.RemoveAll(c => !Context.Hand.Contains(c));
-            Context.Hand.BatchPlayed += _ => selection.Clear();
-            if (castButton) castButton.onClick.AddListener(() => Cast());
+            Context.Hand.Changed += KeepHeldOnly;
+            Context.Hand.BatchPlayed += _ => ClearAll();
+            Context.Run.PauseChanged += _ => ClearAll();
         }
 
-        // Returns true if the card's selection changed.
-        public bool Toggle(int slot)
+        void OnEnable()
         {
-            if (!Ready || !Context.Hand.CanPlay) return false;
-            var card = Context.Hand[slot];
-            if (card == null) return false;
-            if (selection.Remove(card)) return true;
-            if (selection.Count >= DiceRules.MaxCards || (SelectedNumber.HasValue && card.Number != SelectedNumber.Value)) return false;
-            selection.Add(card);
-            return true;
+            foreach (var key in groupKeys) if (key && key.action != null) key.action.Enable();
         }
 
-        // Play the selection. Returns true if the batch was accepted.
-        public bool Cast() => Ready && selection.Count > 0 && Context.Hand.TryPlay(new List<HandCard>(selection));
+        void OnApplicationFocus(bool focused)
+        {
+            if (!focused && Hud != null) ClearAll();
+        }
+
+        bool CanAct => Ready && Context.Hand.CanPlay;
+
+        // Select every held card with this number. False if none is held.
+        public bool SelectNumber(int number)
+        {
+            if (!Ready) return false;
+            Context.Hand.Group(number, selection);
+            return selection.Count > 0;
+        }
 
         public bool IsSelected(HandCard card) => card != null && selection.Contains(card);
+
+        // Cast the selected group. True if it was accepted.
+        public bool Cast()
+        {
+            if (!CanAct || selection.Count == 0) return false;
+            KeepHeldOnly();
+            return Context.Hand.TryPlay(new List<HandCard>(selection));
+        }
+
+        // Mouse ----------------------------------------------------------------------------------------------
+
+        public void Press(int slot, Vector2 screen)
+        {
+            if (!CanAct || Context.Hand[slot] == null || !SelectNumber(Context.Hand[slot].Number)) return;
+            keys.Reset();
+            KeySelection = false;
+            PointerHeld = true;
+            Dragging = false;
+            DragOffset = Vector2.zero;
+            pressedAt = screen;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(handArea, screen, null, out pressedLocal);
+        }
+
+        public void Move(Vector2 screen)
+        {
+            if (!PointerHeld) return;
+            if ((screen - pressedAt).sqrMagnitude >= dragThreshold * dragThreshold) Dragging = true;
+            if (Dragging && RectTransformUtility.ScreenPointToLocalPointInRectangle(handArea, screen, null, out var local))
+                DragOffset = local - pressedLocal;
+        }
+
+        // Returns true if the group was cast.
+        public bool Release(Vector2 screen)
+        {
+            if (!PointerHeld) return false;
+            Move(screen);
+            bool cast = Dragging && !RectTransformUtility.RectangleContainsScreenPoint(handArea, screen, null);
+            bool played = cast && Cast();
+            ClearAll();
+            return played;
+        }
+
+        // Keys -----------------------------------------------------------------------------------------------
+
+        void ReadKeys()
+        {
+            double now = Time.unscaledTimeAsDouble;
+            if (keys.Advance(now, SelectedNumber) == GroupKeyAction.Cancel) ClearAll();
+            for (int i = 0; i < groupKeys.Count; i++)
+            {
+                var key = groupKeys[i];
+                if (!key || key.action == null || !key.action.WasPressedThisFrame()) continue;
+                PressKey(i + 1, now);
+            }
+        }
+
+        // One press of the number key for `number` (public so tests can drive it).
+        public GroupKeyAction PressKey(int number, double now)
+        {
+            if (!CanAct || PointerHeld) return GroupKeyAction.None;
+            var action = keys.Press(number, SelectedNumber, now);
+            if (action == GroupKeyAction.Select)
+            {
+                KeySelection = SelectNumber(number);
+                if (!KeySelection) { selection.Clear(); keys.Reset(); }
+            }
+            else if (action == GroupKeyAction.Cast) Cast();
+            return action;
+        }
+
+        public GroupKeyAction AdvanceKeys(double now)
+        {
+            var action = keys.Advance(now, SelectedNumber);
+            if (action == GroupKeyAction.Cancel) ClearAll();
+            return action;
+        }
+
+        // ----------------------------------------------------------------------------------------------------
+
+        void ClearAll()
+        {
+            selection.Clear();
+            keys?.Reset();
+            KeySelection = false;
+            PointerHeld = false;
+            Dragging = false;
+            DragOffset = Vector2.zero;
+        }
+
+        // A refill or cast changed the hand: a selected group follows its number (new cards of it join).
+        void KeepHeldOnly()
+        {
+            if (selection.Count == 0) return;
+            int number = selection[0].Number;
+            Context.Hand.Group(number, selection);
+            if (selection.Count == 0) ClearAll();
+        }
 
         void Update()
         {
             if (!Ready) return;
+            if (!Context.Hand.CanPlay && (selection.Count > 0 || PointerHeld)) ClearAll();
+            if (!PointerHeld) ReadKeys();
+
             var hand = Context.Hand;
             for (int i = 0; i < slots.Count; i++)
             {
                 var card = hand[i];
-                bool blocked = card != null && SelectedNumber.HasValue && card.Number != SelectedNumber.Value;
-                slots[i].Show(card, card != null ? hand.HeldCount(card.Element) : 0, card != null && hand.HeldCountOfNumber(card.Number) >= 2,
-                    IsSelected(card), blocked, Theme);
+                bool picked = IsSelected(card);
+                slots[i].Show(card, card != null ? hand.HeldCount(card.Element) : 0, card != null ? hand.LuckyHeldCount(card.Element) : 0,
+                    hand.IsLucky(card), picked, picked && Dragging ? DragOffset : Vector2.zero, Theme);
             }
-
-            bool ready = selection.Count > 0 && hand.CanPlay;
-            if (castLabel)
-            {
-                castLabel.text = $"Cast {selection.Count} · Roll {selection.Count} {(selection.Count == 1 ? "die" : "dice")}";
-                castLabel.color = ready ? Theme.text : Theme.dim;
-            }
-            if (castButtonImage) castButtonImage.color = ready ? castReadyColor : Theme.panelEdge;
-            if (castButton) castButton.interactable = ready;
+            if (handAreaTint) handAreaTint.enabled = Dragging;
+            bool hint = KeySelection && selection.Count > 0 && hand.CanPlay;
+            if (keyHint && keyHint.activeSelf != hint) keyHint.SetActive(hint);
+            if (hint && keyHintText) keyHintText.text = $"Double-tap {SelectedNumber} to cast";
 
             UpdatePreview();
         }
@@ -89,25 +211,18 @@ namespace Pinball.Presentation
             targets.Clear();
             if (selection.Count == 0 || !Context.Run.IsPlaying) return;
             Context.Enemies.FrontFirst(enemies);
-            var tiers = DiceRules.PossibleTiers(selection.Count);
+            var tier = selection[0].Number == Context.Hand.LuckyNumber ? CastTier.Lucky : CastTier.Normal;
             foreach (var element in Context.config.elements)
             {
                 int copies = 0;
                 foreach (var c in selection) if (c.Element == element) copies++;
                 if (copies == 0) continue;
-                bool all = false;
-                int limit = 0;
-                foreach (var tier in tiers)
-                {
-                    var plan = element.Plan(tier, copies);
-                    all |= plan.allTargets;
-                    limit = Mathf.Max(limit, plan.targetCount);
-                }
+                var plan = element.Plan(tier, copies);
                 int count = 0;
                 foreach (var enemy in enemies)
                 {
                     if (!enemy.CanReceive(element)) continue;
-                    if (!all && count >= limit) break;
+                    if (!plan.allTargets && count >= plan.targetCount) break;
                     count++;
                     targets.Add(enemy);
                 }

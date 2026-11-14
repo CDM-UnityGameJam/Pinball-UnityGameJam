@@ -1,4 +1,24 @@
-# Luck Number v0.6 port (from integration/v05-multiball-side-kickers)
+# Luck Number v0.6 / v0.7 port (from integration/v05-multiball-side-kickers)
+
+## v0.7 "lucky groups" (integration up to `001ed3b`)
+
+The dice are gone. The rebuild now plays the rules from `7d388bf` (`HandRules`, `HandInteractionRules`, `Docs/LuckyGroups.md`
+on that branch); the sections below about dice, tiers and empowered hits describe v0.6 and are kept for history.
+
+| v0.7 rule (old code) | Rebuild |
+|---|---|
+| Card numbers 1-3; hand sorted by number, stable (`HandOrder.Sort`) | `DeckConfig.numberWeights`, `GroupRules.SortByNumber`, `HandSystem.Sort` |
+| A cast is a whole group: every held card of one number (`DiceRules.ValidGroup`, `UseCard`) | `GroupRules.ValidGroup`, `HandSystem.TryPlay(slot / cards)` |
+| Free full opening hand, no lucky number; refills draw every empty slot and pick luck with p = 0.2 per new card unless the lucky number is still held (`DrawToFull`, `PickLucky`) | `HandSystem.DrawToFull`, `GroupRules.PickLucky`, `DeckConfig.luckyProbability` |
+| Lucky group casts Lucky skills, others Normal; casting is immediate; last lucky card cleared after the cast is captured | `CastBatch.tier`, `ElementDefinition.normal / lucky`, `CastScheduler.Cast` |
+| Refill cost by empty slots 100/250/450/700/1000, progress kept across casts, cleared on refill; natural 3/s, contact +10 | `DeckConfig.refillCosts`, `Core/ChargeAccount.cs` |
+| Held lucky cards: Arc +2 damage, burn +1 DPS, stun +0.25 s each (`HeldArcDamage`, `HeldFireDps`, `HeldStun`) | `luckyDamageBonus` / `luckyDpsBonus` / `luckyStunBonus` on the passive modules |
+| Empowered hits removed; ball damage always 4 | `CombatResolver` |
+| Difficulty: base health 20, descent 50 s, spawn every 3 s, new stage multipliers (`DefaultDifficulty.asset`) | `Grunt.asset`, `SpawnProfile_Default.asset` |
+| Drag a group out of the hand to cast; keys 1/2/3 select, double-tap within 0.3 s casts (`GroupKeyInput`) | `HandView`, `Core/GroupKeyInput.cs`, `SelectGroup1-3` actions |
+
+Not ported from v0.7: the Excel workbook changes and the F8 panel (as before).
+
 
 The rebuild now plays the rules implemented on `integration/v05-multiball-side-kickers` (up to `920da67`), not v0.3.
 Source of truth was that branch's **code, `Pinball.unity` and `Settings/DefaultCardBalance.asset` / `Settings/DefaultDifficulty.asset`**;

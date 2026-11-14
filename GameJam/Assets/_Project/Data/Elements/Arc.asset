@@ -30,33 +30,28 @@ MonoBehaviour:
     rid: 1859406402477359193
   active:
     rid: 1859406402477359194
-  tiers:
-  - allTargets: 0
+  normal:
+    allTargets: 1
     targetCount: 4
-    waves: 1
-    burnSeconds: 0
-    stunSeconds: 0
-  - allTargets: 0
-    targetCount: 6
     waves: 2
+    damage: 40
     burnSeconds: 0
+    burnDps: 6
     stunSeconds: 0
-  - allTargets: 1
+  lucky:
+    allTargets: 1
     targetCount: 4
     waves: 3
+    damage: 45
     burnSeconds: 0
-    stunSeconds: 0
-  - allTargets: 1
-    targetCount: 4
-    waves: 4
-    burnSeconds: 0
+    burnDps: 6
     stunSeconds: 0
   extraWavesPerCopy: 1
   extraBurnSecondsPerCopy: 0
   ballAuraPrefab: {fileID: 970350062076337266, guid: ed4b6c27aa0c0fe459f901f76f9fa7d6, type: 3}
   passiveHitVfx: {fileID: 11400000, guid: e1c59c443a0c21c4684dd01489ca9be5, type: 2}
   activeHitVfx: {fileID: 11400000, guid: bdb7ebaadd8eadc40b69e89ba98c53fc, type: 2}
-  matchedHitVfx: {fileID: 11400000, guid: d77fa25a8e23ff343961a21de5599124, type: 2}
+  luckyHitVfx: {fileID: 11400000, guid: d77fa25a8e23ff343961a21de5599124, type: 2}
   passiveHitSfx: {fileID: 0}
   activeHitSfx: {fileID: 0}
   castSfx: {fileID: 0}
@@ -68,11 +63,11 @@ MonoBehaviour:
       data:
         radius: 5
         damage: 4
+        luckyDamageBonus: 2
         damageHitEnemy: 1
         nearbyTargets:
-          byHeld: 030000000400000006000000080000000d000000i
+          byHeld: 05000000070000000a0000000f00000019000000i
     - rid: 1859406402477359194
       type: {class: WaveDamageSkill, ns: Pinball.Gameplay, asm: Pinball.Gameplay}
       data:
-        damagePerWave: 20
         waveInterval: 0.25

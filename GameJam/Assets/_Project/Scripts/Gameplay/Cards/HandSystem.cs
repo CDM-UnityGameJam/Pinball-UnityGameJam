@@ -5,28 +5,30 @@ using UnityEngine;
 
 namespace Pinball.Gameplay
 {
-    // The hand: fixed slots, playing batches, and charge-driven refills (rules in Pinball.Core.ChargeAccount).
-    // Port of the v0.6 GameManager hand code:
-    // - Cards stay packed to the left: playing cards shifts the ones after them (CardShifted).
-    // - Held cards enchant the ball by element, whatever their number (CombatResolver reads HeldCount).
-    // - Playing a batch (1..5 cards, same number): snapshot enemies front first, roll one die per card, remove
-    //   the cards, add the per-card charge cost, stock empowered hits, and hand the batch to the CastScheduler,
-    //   which reveals the dice after the reveal delay. Only one batch can wait for its reveal at a time.
+    // The hand: fixed slots, the lucky number, playing groups, and charge-driven refills (rules in
+    // Pinball.Core.GroupRules / ChargeAccount). Port of the v0.7 GameManager hand code:
+    // - A run starts with a full hand drawn for free and no lucky number.
+    // - The hand is always sorted by number (stable within a number); every move raises CardShifted.
+    // - Held cards enchant the ball by element, whatever their number (CombatResolver reads HeldCount). Held
+    //   cards of the lucky number add each element's lucky bonus (LuckyHeldCount).
+    // - Playing a group (every held card of one number): snapshot enemies front first, build one cast per
+    //   element at Normal or Lucky tier, remove the cards, clear the lucky number if its last card left, set the
+    //   requirement for the new number of empty slots (progress kept), then cast at once.
     // - While a card is missing, charge builds from natural recovery (every combat step) and from ball contacts
-    //   (CombatResolver, after the contact's damage and enchantments). Each full charge draws a card.
+    //   (CombatResolver, after the contact's damage and enchantments). A full charge draws every empty slot at
+    //   once, picks the lucky number from the new cards (unless the hand still holds it) and resets charge.
     public sealed class HandSystem
     {
         readonly GameContext context;
         readonly HandCard[] slots;
         readonly ChargeAccount charge = new ChargeAccount();
+        readonly List<int> drawn = new List<int>();
 
         public HandSystem(GameContext context)
         {
             this.context = context;
-            var deck = Deck;
-            slots = new HandCard[Mathf.Max(1, deck.handSize)];
-            for (int i = 0; i < Mathf.Min(slots.Length, deck.startingHand.Count); i++) slots[i] = new HandCard(deck.startingHand[i]);
-            if (IsFull) charge.FullHand(); else charge.StartMissing(deck.baseCost);
+            slots = new HandCard[Mathf.Clamp(Deck.handSize, 1, GroupRules.MaxCards)];
+            DrawToFull(false);
             context.Clock.Stepped += OnStep;
         }
 
@@ -42,29 +44,47 @@ namespace Pinball.Gameplay
         }
 
         public bool IsFull => Count == Size;
-        // True while a batch or a contact is being resolved; nothing else may change the hand then.
+        public int Missing => Size - Count;
+        // True while a group or a contact is being resolved; nothing else may change the hand then.
         public bool Resolving { get; internal set; }
-        public int EmpoweredHits { get; private set; }
+
+        // 0 = no lucky number.
+        public int LuckyNumber { get; private set; }
+        // Refills (and the opening draw) so far; the HUD uses it to spot new cards.
+        public int DrawCount { get; private set; }
 
         public double ChargeProgress => charge.Progress;
         public double ChargeRequired => charge.Required;
-        public double ChargeAfterBatch(int count) => charge.RequiredAfterBatch(IsFull, count, Deck.baseCost, Deck.perCardCost);
+        // The requirement after playing `count` more cards now.
+        public double ChargeAfterCast(int count) => GroupRules.RefillCost(Deck.refillCosts, Missing + count);
 
         // Raised before a slot's content changes, so a selection can drop a card that left.
         public event Action<int> SlotReplaced;
-        // (from, to) when playing cards shifts another one left.
+        // (from, to) when sorting moves a card to another slot.
         public event Action<int, int> CardShifted;
-        // Any change to which cards are held.
+        // Any change to which cards are held or to the lucky number.
         public event Action Changed;
         // (world point, amount) for charge earned from a ball contact.
         public event Action<Vector3, double> ContactCharged;
-        // A batch was accepted (its dice are not revealed yet).
-        public event Action<DiceBatch> BatchPlayed;
+        // A group was accepted, before its skills fire.
+        public event Action<CastBatch> BatchPlayed;
+        // Every empty slot was drawn (not raised for the free opening hand).
+        public event Action Refilled;
+
+        public bool IsLucky(HandCard card) => card != null && LuckyNumber != 0 && card.Number == LuckyNumber;
 
         public int HeldCount(ElementDefinition element)
         {
             int n = 0;
             foreach (var c in slots) if (c != null && c.Element == element) n++;
+            return n;
+        }
+
+        // Held cards of this element that carry the lucky number.
+        public int LuckyHeldCount(ElementDefinition element)
+        {
+            int n = 0;
+            foreach (var c in slots) if (c != null && c.Element == element && IsLucky(c)) n++;
             return n;
         }
 
@@ -77,38 +97,34 @@ namespace Pinball.Gameplay
 
         public bool Contains(HandCard card) => card != null && Array.IndexOf(slots, card) >= 0;
 
-        public bool CanPlay => context.Run.IsPlaying && !Resolving && context.Casts.PendingBatch == null;
-
-        public bool IsValidBatch(IList<HandCard> cards) => DiceRules.ValidSelection(cards, slots, c => c.Number);
-
-        // Debug: the next batch rolls these faces (it must have exactly that many cards).
-        public int[] ForcedDice { get; private set; }
-        public bool ForceNextDice(int[] faces)
+        // Every held card with this number, in slot order.
+        public List<HandCard> Group(int number, List<HandCard> into = null)
         {
-            if (faces == null || !DiceRules.ValidFaces(faces, faces.Length)) return false;
-            ForcedDice = (int[])faces.Clone();
-            return true;
+            into ??= new List<HandCard>();
+            into.Clear();
+            foreach (var c in slots) if (c != null && c.Number == number) into.Add(c);
+            return into;
         }
 
-        // Play a batch. False (and nothing changes) unless playing, no batch is waiting for its reveal, and
-        // the cards are 1..5 distinct held cards with the same number.
-        public bool TryPlay(IList<HandCard> cards, int[] forcedDice = null)
+        public bool CanPlay => context.Run.IsPlaying && !Resolving;
+
+        public bool IsValidGroup(IList<HandCard> cards) => GroupRules.ValidGroup(cards, slots, c => c.Number);
+
+        // Play the group of the card in `slot`.
+        public bool TryPlay(int slot)
         {
-            if (!CanPlay || !IsValidBatch(cards)) return false;
-            if (forcedDice == null && ForcedDice != null)
-            {
-                // A debug roll with the wrong count refuses the batch rather than being silently dropped.
-                if (ForcedDice.Length != cards.Count) return false;
-                forcedDice = ForcedDice;
-                ForcedDice = null;
-            }
-            if (forcedDice != null && !DiceRules.ValidFaces(forcedDice, cards.Count)) return false;
+            var card = this[slot];
+            return card != null && TryPlay(Group(card.Number));
+        }
+
+        // Play a group. False (and nothing changes) unless playing and the cards are every held card of one number.
+        public bool TryPlay(IList<HandCard> cards)
+        {
+            if (!CanPlay || !IsValidGroup(cards)) return false;
             var played = new HandCard[cards.Count];
             cards.CopyTo(played, 0);
             var snapshot = context.Enemies.FrontFirst(new List<Enemy>());
-            var dice = forcedDice != null ? (int[])forcedDice.Clone() : DiceRules.Roll(played.Length, context.Random);
-            var batch = new DiceBatch(played, dice, context.Clock.Now + Mathf.Max(0f, context.config.diceRevealDelay), snapshot, context.config.elements);
-            bool wasFull = IsFull;
+            var batch = new CastBatch(played, played[0].Number == LuckyNumber, snapshot, context.config.elements);
             Resolving = true;
             try
             {
@@ -118,24 +134,16 @@ namespace Pinball.Gameplay
                     SlotReplaced?.Invoke(i);
                     slots[i] = null;
                 }
-                Compact();
-                charge.PlayBatch(wasFull, played.Length, Deck.baseCost, Deck.perCardCost);
-                EmpoweredHits = (int)Math.Min(int.MaxValue, EmpoweredHits + (long)played.Length * Math.Max(0, context.config.empoweredHitsPerCard));
+                Sort();
+                if (LuckyNumber != 0 && HeldCountOfNumber(LuckyNumber) == 0) LuckyNumber = 0;
+                charge.SetRequirement(GroupRules.RefillCost(Deck.refillCosts, Missing));
                 context.Stats.RecordBatch(played.Length);
-                context.Casts.Accept(batch);
                 Changed?.Invoke();
                 BatchPlayed?.Invoke(batch);
+                context.Casts.Cast(batch);
             }
             finally { Resolving = false; }
-            return true;
-        }
-
-        // Uses one empowered hit if any. Returns true if one was used.
-        internal bool ConsumeEmpoweredHit()
-        {
-            if (EmpoweredHits <= 0) return false;
-            EmpoweredHits--;
-            context.Stats.empoweredUsed++;
+            ResolveCharge();
             return true;
         }
 
@@ -155,44 +163,85 @@ namespace Pinball.Gameplay
         double Earn(double amount)
         {
             if (!context.Run.IsPlaying || IsFull) return 0;
-            charge.StartMissing(Deck.baseCost);
+            charge.SetRequirement(GroupRules.RefillCost(Deck.refillCosts, Missing));
             double earned = charge.Earn(amount);
-            DrawWhileCharged();
+            ResolveCharge();
             return earned;
         }
 
-        void DrawWhileCharged()
+        void ResolveCharge()
         {
-            bool drew = false;
-            while (!IsFull && charge.TryConsume(Deck.baseCost))
-            {
-                Insert(new HandCard(Draw()));
-                drew = true;
-            }
-            if (IsFull) charge.FullHand();
-            if (drew) Changed?.Invoke();
+            if (!IsFull && charge.Ready) DrawToFull(true);
         }
 
-        // Put a card in the first empty slot (debug tools, rewards). Keeps charge progress.
+        // Fill every empty slot. A refill (not the free opening hand) picks the lucky number from the new
+        // cards unless the hand still holds the current one; the opening hand has none.
+        void DrawToFull(bool refill)
+        {
+            bool keepLucky = refill && LuckyNumber != 0 && HeldCountOfNumber(LuckyNumber) > 0;
+            drawn.Clear();
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] != null) continue;
+                var card = Draw();
+                if (!card.element) continue;
+                SlotReplaced?.Invoke(i);
+                slots[i] = new HandCard(card);
+                drawn.Add(card.number);
+            }
+            Sort();
+            if (drawn.Count > 0)
+            {
+                if (!keepLucky) LuckyNumber = refill ? GroupRules.PickLucky(drawn, Deck.luckyProbability, context.Random) : 0;
+                DrawCount++;
+            }
+            charge.FullHand();
+            if (refill)
+            {
+                context.Stats.refills++;
+                Refilled?.Invoke();
+            }
+            Changed?.Invoke();
+        }
+
+        // Put a card in an empty slot (debug tools, rewards). Keeps charge progress.
         public bool Grant(CardSpec card)
         {
-            if (!card.element || !Insert(new HandCard(card))) return false;
+            if (!card.element || IsFull) return false;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] != null) continue;
+                SlotReplaced?.Invoke(i);
+                slots[i] = new HandCard(card);
+                break;
+            }
+            Sort();
             if (IsFull) charge.FullHand();
+            else charge.SetRequirement(GroupRules.RefillCost(Deck.refillCosts, Missing));
             Changed?.Invoke();
             return true;
         }
 
-        // Debug: fill the charge so the next missing card arrives now.
-        public bool FillCharge()
+        // Debug: set the lucky number (0 = none). It needn't be held.
+        public bool SetLuckyNumber(int number)
         {
-            if (!context.Run.IsPlaying || Resolving || IsFull) return false;
-            charge.StartMissing(Deck.baseCost);
-            charge.Earn(Math.Max(0, charge.Required - charge.Progress));
-            DrawWhileCharged();
+            if (number < 0 || context.Run.State == RunState.GameOver) return false;
+            LuckyNumber = number;
+            Changed?.Invoke();
             return true;
         }
 
-        // Replace the whole hand (tests and debug tools).
+        // Debug: fill the charge so the empty slots are drawn now.
+        public bool FillCharge()
+        {
+            if (!context.Run.IsPlaying || Resolving || IsFull) return false;
+            charge.SetRequirement(GroupRules.RefillCost(Deck.refillCosts, Missing));
+            charge.Earn(Math.Max(0, charge.Required - charge.Progress));
+            ResolveCharge();
+            return true;
+        }
+
+        // Replace the whole hand (tests and debug tools); sorted like any hand. The lucky number is unchanged.
         internal void SetHand(params CardSpec[] cards)
         {
             for (int i = 0; i < slots.Length; i++)
@@ -200,67 +249,42 @@ namespace Pinball.Gameplay
                 SlotReplaced?.Invoke(i);
                 slots[i] = i < cards.Length ? new HandCard(cards[i]) : null;
             }
+            Sort();
             charge.FullHand();
-            if (!IsFull) charge.StartMissing(Deck.baseCost);
+            if (!IsFull) charge.SetRequirement(GroupRules.RefillCost(Deck.refillCosts, Missing));
             Changed?.Invoke();
         }
 
-        internal void ClearEmpoweredHits() => EmpoweredHits = 0;
-
+        // Number first, then element, like the old Card.Random(tuning).
         public CardSpec Draw()
         {
             var deck = Deck;
-            ElementDefinition element = null;
-            float total = 0f;
-            foreach (var w in deck.elementWeights) if (w.element) total += Mathf.Max(0f, w.weight);
-            float pick = context.Random.Value() * total;
-            foreach (var w in deck.elementWeights)
-            {
-                if (!w.element || w.weight <= 0f) continue;
-                element = w.element;
-                if (pick < w.weight) break;
-                pick -= w.weight;
-            }
             int number = 1;
-            total = 0f;
-            foreach (var w in deck.numberWeights) total += Mathf.Max(0f, w.weight);
-            pick = context.Random.Value() * total;
-            foreach (var w in deck.numberWeights)
+            if (deck.numberWeights.Count > 0)
             {
-                if (w.weight <= 0f) continue;
-                number = w.number;
-                if (pick < w.weight) break;
-                pick -= w.weight;
+                var weights = new float[deck.numberWeights.Count];
+                for (int i = 0; i < weights.Length; i++) weights[i] = deck.numberWeights[i].weight;
+                number = deck.numberWeights[GroupRules.Weighted(weights, context.Random.Value())].number;
+            }
+            ElementDefinition element = null;
+            if (deck.elementWeights.Count > 0)
+            {
+                var weights = new float[deck.elementWeights.Count];
+                for (int i = 0; i < weights.Length; i++) weights[i] = deck.elementWeights[i].element ? deck.elementWeights[i].weight : 0f;
+                element = deck.elementWeights[GroupRules.Weighted(weights, context.Random.Value())].element;
             }
             return new CardSpec(element, number);
         }
 
-        bool Insert(HandCard card)
+        void Sort()
         {
-            if (card == null || !card.Element || IsFull) return false;
-            for (int i = 0; i < slots.Length; i++)
+            var before = (HandCard[])slots.Clone();
+            GroupRules.SortByNumber(slots, c => c.Number);
+            for (int to = 0; to < slots.Length; to++)
             {
-                if (slots[i] != null) continue;
-                SlotReplaced?.Invoke(i);
-                slots[i] = card;
-                return true;
-            }
-            return false;
-        }
-
-        void Compact()
-        {
-            int next = 0;
-            for (int i = 0; i < slots.Length; i++)
-            {
-                if (slots[i] == null) continue;
-                if (i != next)
-                {
-                    slots[next] = slots[i];
-                    slots[i] = null;
-                    CardShifted?.Invoke(i, next);
-                }
-                next++;
+                if (slots[to] == null) continue;
+                int from = Array.IndexOf(before, slots[to]);
+                if (from != to) CardShifted?.Invoke(from, to);
             }
         }
     }

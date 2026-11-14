@@ -10,13 +10,13 @@ namespace Pinball.Gameplay
     {
         [Required] public GameContext context;
 
-        [Title("Dice")]
-        [Tooltip("Faces for the next batch, one per card, e.g. 4 6 for two cards. Used once.")]
-        public List<int> nextDice = new List<int>();
+        [Title("Luck")]
+        [MinValue(0), Tooltip("0 = no lucky number.")]
+        public int luckyNumber = 1;
 
         [Title("Cards")]
         public ElementDefinition cardElement;
-        [MinValue(1)] public int cardNumber = 6;
+        [MinValue(1)] public int cardNumber = 1;
 
         [Title("Enemies")]
         public EnemyDefinition enemy;
@@ -26,11 +26,11 @@ namespace Pinball.Gameplay
 
         bool Ready => Application.isPlaying && context && context.IsInitialized;
 
-        [Button, EnableIf(nameof(Ready)), Tooltip("The next batch with exactly this many cards rolls these faces.")]
-        void ForceNextDice() => context.Hand.ForceNextDice(nextDice.ToArray());
+        [Button, EnableIf(nameof(Ready)), Tooltip("Make this number lucky now (0 clears it).")]
+        void SetLuckyNumber() => context.Hand.SetLuckyNumber(luckyNumber);
 
         [ShowInInspector, ReadOnly, ShowIf(nameof(Ready))]
-        string ForcedDice => Ready && context.Hand.ForcedDice != null ? string.Join(", ", context.Hand.ForcedDice) : "Random";
+        string CurrentLucky => Ready && context.Hand.LuckyNumber != 0 ? context.Hand.LuckyNumber.ToString() : "None";
 
         [Button, EnableIf(nameof(Ready))]
         void AddCard()
@@ -39,11 +39,8 @@ namespace Pinball.Gameplay
             context.Hand.Grant(new CardSpec(element, cardNumber));
         }
 
-        [Button, EnableIf(nameof(Ready)), Tooltip("Fill the charge so the next card arrives now.")]
+        [Button, EnableIf(nameof(Ready)), Tooltip("Fill the charge so the empty slots are drawn now.")]
         void FillCharge() => context.Hand.FillCharge();
-
-        [Button, EnableIf(nameof(Ready))]
-        void ClearEmpoweredHits() => context.Hand.ClearEmpoweredHits();
 
         [Button, EnableIf(nameof(Ready)), Tooltip("Queue an extra ball (respects the multiball cap).")]
         void AddBall() => context.Multiball.AddBall();

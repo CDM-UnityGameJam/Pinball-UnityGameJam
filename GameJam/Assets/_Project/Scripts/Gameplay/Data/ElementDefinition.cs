@@ -2,6 +2,7 @@ using Pinball.Core;
 using Pinball.Feedback;
 using Sirenix.OdinInspector;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Pinball.Gameplay
 {
@@ -37,30 +38,28 @@ namespace Pinball.Gameplay
         [SerializeReference, Required, HideLabel, BoxGroup("Active")]
         public IActiveSkill active;
 
-        [InfoBox("One row per dice tier: Base, Hit, Full Field, Jackpot.")]
-        [ValidateInput(nameof(FourTiers), "Exactly four tiers: Base, Hit, Full Field, Jackpot.")]
-        public ActiveTier[] tiers = new ActiveTier[SkillPlanner.TierCount];
-        [MinValue(0), Tooltip("Extra waves for every extra card of this element in the same batch.")]
+        [InfoBox("A played group casts the Normal row, or the Lucky row when its number is the lucky number.")]
+        [HideLabel, BoxGroup("Normal cast")] public ActiveTier normal = new ActiveTier(true, 4, 1, 12, 0f, 6f, 0f);
+        [HideLabel, BoxGroup("Lucky cast")] public ActiveTier lucky = new ActiveTier(true, 4, 1, 12, 0f, 6f, 0f);
+        [MinValue(0), Tooltip("Extra waves for every extra card of this element in the same group.")]
         public int extraWavesPerCopy;
-        [MinValue(0), SuffixLabel("s"), Tooltip("Extra burn seconds for every extra card of this element in the same batch.")]
+        [MinValue(0), SuffixLabel("s"), Tooltip("Extra burn seconds for every extra card of this element in the same group.")]
         public float extraBurnSecondsPerCopy;
 
         [Title("Feedback")]
         [AssetsOnly, Tooltip("Shown on the ball while this element's enchantment is active.")]
         public GameObject ballAuraPrefab;
         public VfxCue passiveHitVfx;
-        [Tooltip("Active skill hit on each target when no die matched (Base).")]
+        [Tooltip("Active skill hit on each target of a Normal cast.")]
         public VfxCue activeHitVfx;
-        [Tooltip("Active skill hit on each target when a die matched the card's number (Hit, Full Field, Jackpot). Falls back to Active Hit Vfx.")]
-        public VfxCue matchedHitVfx;
+        [FormerlySerializedAs("matchedHitVfx"), Tooltip("Active skill hit on each target of a Lucky cast. Falls back to Active Hit Vfx.")]
+        public VfxCue luckyHitVfx;
         public SfxCue passiveHitSfx, activeHitSfx, castSfx;
 
         public Sprite CardFace(int number) =>
             cardFaces != null && number >= 1 && number <= cardFaces.Length ? cardFaces[number - 1] : null;
 
         public SkillPlan Plan(CastTier tier, int copies) =>
-            SkillPlanner.Plan(tiers, tier, copies, extraWavesPerCopy, extraBurnSecondsPerCopy);
-
-        bool FourTiers(ActiveTier[] value) => value != null && value.Length == SkillPlanner.TierCount;
+            SkillPlanner.Plan(tier == CastTier.Lucky ? lucky : normal, copies, extraWavesPerCopy, extraBurnSecondsPerCopy);
     }
 }

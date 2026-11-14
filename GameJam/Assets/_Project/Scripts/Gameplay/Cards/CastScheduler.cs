@@ -4,13 +4,11 @@ using Pinball.Core;
 
 namespace Pinball.Gameplay
 {
-    // Reveals played batches and runs their skill waves on the combat clock. Port of the v0.6 RevealBatch /
-    // SkillCast:
-    // - A batch reveals its dice `diceRevealDelay` after it was played. Then every element in it casts once,
-    //   at the batch's tier (Base when no die matched: a skill always fires).
-    // - Each cast hits the targets it locked when the batch was played (minus enemies of its element, which
+    // Casts played groups and runs their skill waves on the combat clock. Port of the v0.7 RevealBatch / SkillCast:
+    // - Casting is immediate: every element in the group casts once, at the group's tier (Normal or Lucky).
+    // - Each cast hits the targets it locked when the group was played (minus enemies of its element, which
     //   are immune); enemies that spawn later never join, dead ones are never replaced.
-    // - The first wave fires on the reveal, later ones every WaveInterval.
+    // - The first wave fires on the cast, later ones every WaveInterval.
     public sealed class CastScheduler : ICombatTimer
     {
         readonly GameContext context;
@@ -18,37 +16,23 @@ namespace Pinball.Gameplay
 
         public CastScheduler(GameContext context) => this.context = context;
 
-        // The batch waiting for its dice (at most one).
-        public DiceBatch PendingBatch { get; private set; }
-        public DiceBatch LastBatch { get; private set; }
+        public CastBatch LastBatch { get; private set; }
         public int ActiveCasts => active.Count;
 
-        public event Action<DiceBatch> BatchRevealed;
+        // After a group's first waves fired.
+        public event Action<CastBatch> BatchCast;
         public event Action<SkillCast> WaveFired;
 
-        internal void Accept(DiceBatch batch)
+        internal void Cast(CastBatch batch)
         {
-            PendingBatch = batch;
             LastBatch = batch;
-        }
-
-        void Reveal()
-        {
-            var batch = PendingBatch;
-            PendingBatch = null;
-            batch.Revealed = true;
-            context.Stats.RecordReveal(batch);
-            context.Hand.Resolving = true;
-            try
+            context.Stats.RecordCast(batch);
+            foreach (var cast in batch.Casts)
             {
-                foreach (var cast in batch.Casts)
-                {
-                    Fire(cast);
-                    if (!cast.Complete) active.Add(cast);
-                }
+                Fire(cast);
+                if (!cast.Complete) active.Add(cast);
             }
-            finally { context.Hand.Resolving = false; }
-            BatchRevealed?.Invoke(batch);
+            BatchCast?.Invoke(batch);
         }
 
         void Fire(SkillCast cast)
@@ -66,16 +50,15 @@ namespace Pinball.Gameplay
         {
             get
             {
-                double next = PendingBatch != null ? PendingBatch.revealAt : double.PositiveInfinity;
+                double next = double.PositiveInfinity;
                 foreach (var cast in active) next = Math.Min(next, cast.NextWaveAt);
                 return next;
             }
         }
 
-        // Old order: the reveal first, then waves newest cast first when several are due at the same moment.
+        // Old order: newest cast first when several waves are due at the same moment.
         public void OnTime(double now)
         {
-            if (PendingBatch != null && PendingBatch.revealAt <= now + RuleMath.TimeEpsilon) Reveal();
             for (int i = active.Count - 1; i >= 0; i--)
             {
                 var cast = active[i];

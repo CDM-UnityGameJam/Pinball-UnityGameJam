@@ -366,7 +366,7 @@ namespace Pinball.Editor
             var element = AssetDatabase.LoadAssetAtPath<ElementDefinition>($"{Elements}/{elementName}.asset");
             if (!element) { Debug.LogWarning("Missing element " + elementName); return; }
             element.activeHitVfx = Cue(cueName, hit);
-            element.matchedHitVfx = Cue(matchedCueName, matched);
+            element.luckyHitVfx = Cue(matchedCueName, matched);
             element.ballAuraPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{BallPrefabs}/{auraName}.prefab");
             EditorUtility.SetDirty(element);
         }

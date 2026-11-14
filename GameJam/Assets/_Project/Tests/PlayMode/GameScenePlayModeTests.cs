@@ -50,10 +50,17 @@ namespace Pinball.Tests.PlayMode
         IEnumerator DrainTheBall()
         {
             var ball = OnlyBall;
-            ball.Body.linearVelocity = Vector3.zero;
-            ball.Body.position = context.Board.drain.transform.position;
-            // Drains no longer end play, so wait for the drain trigger itself (a few physics steps).
-            for (int i = 0; i < 20 && context.Balls.Count > 0; i++) yield return new WaitForFixedUpdate();
+            // Drains no longer end play, so wait for the drain trigger itself. Hold the ball on the drain every
+            // step: a single teleport could be undone by a flipper or wall contact in the same step.
+            for (int i = 0; i < 50 && context.Balls.Count > 0; i++)
+            {
+                if (ball)
+                {
+                    ball.Body.linearVelocity = Vector3.zero;
+                    ball.Body.position = context.Board.drain.transform.position;
+                }
+                yield return new WaitForFixedUpdate();
+            }
         }
 
         [UnityTest]

@@ -1,14 +1,12 @@
-using Pinball.Core;
-
 namespace Pinball.Gameplay
 {
-    // Run telemetry for balancing (port of the v0.6 RunTelemetry). Time is combat time; "low gear" is time
+    // Run telemetry for balancing (port of the v0.7 RunTelemetry). Time is combat time; "low gear" is time
     // spent holding 0-1 cards.
     public sealed class RunStats
     {
-        public int batches, cardsPlayed, skillCasts, matchingDice;
-        public int baseBatches, hitBatches, fullFieldBatches, jackpotBatches;
-        public int ballContacts, validBallHits, cooldownContacts, empoweredUsed;
+        public int batches, cardsPlayed, skillCasts, refills;
+        public int normalBatches, luckyBatches;
+        public int ballContacts, validBallHits, cooldownContacts;
         public int kills, batchKills, spawns, drains, breaches;
         public double elapsed, handTimeIntegral, lowEquipmentSeconds;
         public string deathCause = "Alive";
@@ -28,22 +26,15 @@ namespace Pinball.Gameplay
             cardsPlayed += cards;
         }
 
-        public void RecordReveal(DiceBatch batch)
+        public void RecordCast(CastBatch batch)
         {
             skillCasts += batch.Casts.Count;
-            matchingDice += batch.matches;
-            switch (batch.tier)
-            {
-                case CastTier.Base: baseBatches++; break;
-                case CastTier.Hit: hitBatches++; break;
-                case CastTier.FullField: fullFieldBatches++; break;
-                default: jackpotBatches++; break;
-            }
+            if (batch.Lucky) luckyBatches++; else normalBatches++;
         }
 
         public string Summary() =>
-            $"Time={elapsed:0.0}s, Batches={batches}, Cards={cardsPlayed}, Skills={skillCasts}, Matches={matchingDice}, " +
-            $"Base/Hit/Full/Jackpot={baseBatches}/{hitBatches}/{fullFieldBatches}/{jackpotBatches}, Average hand={AverageHand:0.00}, " +
+            $"Time={elapsed:0.0}s, Batches={batches}, Cards={cardsPlayed}, Skills={skillCasts}, Refills={refills}, " +
+            $"Normal/Lucky={normalBatches}/{luckyBatches}, Average hand={AverageHand:0.00}, " +
             $"Low gear (0-1)={lowEquipmentSeconds:0.0}s, Kills={kills}, Death cause={deathCause}, Breaches={breaches}, Drains={drains}";
     }
 }

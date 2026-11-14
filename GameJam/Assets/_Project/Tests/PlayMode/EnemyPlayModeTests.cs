@@ -88,7 +88,7 @@ namespace Pinball.Tests.PlayMode
             float expected = context.March.SpeedOf(grunt) * 1f;
             Assert.That(start - lone.BoardPosition.z, Is.EqualTo(expected).Within(0.02f), "one second of marching");
             float ramp = (float)context.config.spawnProfile.Sample(context.Clock.Now).moveMultiplier;
-            Assert.That(expected, Is.EqualTo((9.5f - -5f) / 35f * ramp).Within(0.001f), "v0.6 speed: 35 s descent × the difficulty's move multiplier");
+            Assert.That(expected, Is.EqualTo((9.5f - -5f) / 50f * ramp).Within(0.001f), "v0.7 speed: 50 s descent × the difficulty's move multiplier");
             Assert.That(ramp, Is.EqualTo(1f).Within(0.02f), "barely ramped a second into the run");
         }
 

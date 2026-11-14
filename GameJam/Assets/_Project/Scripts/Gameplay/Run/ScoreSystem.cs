@@ -63,7 +63,7 @@ namespace Pinball.Gameplay
             Killed?.Invoke(enemy, reward, source);
             if (source == null) return;
             source.Kills++;
-            if (source is DiceBatch) context.Stats.batchKills++;
+            if (source is CastBatch) context.Stats.batchKills++;
             if (source.Kills >= 2) MultiKill?.Invoke(source);
         }
 

@@ -30,12 +30,6 @@ namespace Pinball.Gameplay
         [Title("Combat")]
         [MinValue(0), Tooltip("Damage a ball hit deals to the enemy it touched, before any enchantment.")]
         public int ballHitDamage = 4;
-        [MinValue(0), Tooltip("Ball hit damage while an empowered hit is stocked (uses one).")]
-        public int empoweredHitDamage = 8;
-        [MinValue(0), Tooltip("Empowered hits stocked per card played.")]
-        public int empoweredHitsPerCard = 1;
-        [MinValue(0), SuffixLabel("s"), Tooltip("Combat time between playing a batch and its dice being revealed.")]
-        public float diceRevealDelay = 0.45f;
         public StatusRules status = new StatusRules();
 
         [Title("Scoring")]
@@ -54,7 +48,7 @@ namespace Pinball.Gameplay
     {
         [MinValue(1), MaxValue(3), Tooltip("Most balls on the table at once, counting balls waiting to enter.")]
         public int maxBalls = 3;
-        [Tooltip("One attack (a ball hit with its enchantments, or a whole played batch) killing two enemies earns an extra ball, once per attack.")]
+        [Tooltip("One attack (a ball hit with its enchantments, or a whole played group) killing two enemies earns an extra ball, once per attack.")]
         public bool ballOnMultiKill = true;
         [MinValue(0), SuffixLabel("s"), Tooltip("Gameplay seconds an extra ball is held at the entry before it drops in.")]
         public float entryHold = 1f;

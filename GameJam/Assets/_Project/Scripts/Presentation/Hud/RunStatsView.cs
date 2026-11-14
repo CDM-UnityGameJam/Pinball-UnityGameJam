@@ -11,9 +11,9 @@ namespace Pinball.Presentation
         {
             if (!Ready) return;
             var s = Context.Stats;
-            text.text = $"RUN STATS\nBatches: {s.batches} · Cards: {s.cardsPlayed} · Skills: {s.skillCasts} · Matches: {s.matchingDice}" +
+            text.text = $"RUN STATS\nBatches: {s.batches} · Cards: {s.cardsPlayed} · Skills: {s.skillCasts} · Refills: {s.refills}" +
                         $"\nMean hand: {s.AverageHand:0.00} · Low gear: {s.lowEquipmentSeconds:0.0}s" +
-                        $"\nBase / Hit / Full / Jackpot: {s.baseBatches} / {s.hitBatches} / {s.fullFieldBatches} / {s.jackpotBatches}";
+                        $"\nNormal / Lucky: {s.normalBatches} / {s.luckyBatches}";
         }
     }
 }

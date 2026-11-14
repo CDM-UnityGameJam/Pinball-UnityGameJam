@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Pinball.Gameplay::Pinball.Gameplay.SpawnProfile
   openingCount: 1
   openingColumnSpacing: 2
-  baseSpawnInterval: 5
+  baseSpawnInterval: 3
   spawnChance: 0.96
   placementAttempts: 30
   enemies:
@@ -28,7 +28,7 @@ MonoBehaviour:
     moveMultiplier: 1
     healthMultiplier: 1
   - time: 30
-    spawnMultiplier: 1.2
+    spawnMultiplier: 1.1
     moveMultiplier: 1.25
     healthMultiplier: 2
   - time: 90
@@ -36,14 +36,14 @@ MonoBehaviour:
     moveMultiplier: 1.3
     healthMultiplier: 4
   - time: 180
-    spawnMultiplier: 2
+    spawnMultiplier: 1.8
     moveMultiplier: 1.5
-    healthMultiplier: 6
+    healthMultiplier: 5
   - time: 300
-    spawnMultiplier: 5
+    spawnMultiplier: 3
     moveMultiplier: 1.7
-    healthMultiplier: 8
+    healthMultiplier: 7
   - time: 480
-    spawnMultiplier: 10
+    spawnMultiplier: 5
     moveMultiplier: 1.8
     healthMultiplier: 10

@@ -12,7 +12,7 @@ namespace Pinball.Presentation
         {
             var config = Context.config;
             var deck = config.deck;
-            if (ballDamage) ballDamage.text = $"Ball: {config.ballHitDamage} · Empowered total: {config.empoweredHitDamage}";
+            if (ballDamage) ballDamage.text = $"Ball hit: {config.ballHitDamage} damage";
             if (stacking)
             {
                 var parts = new System.Collections.Generic.List<string>();
@@ -25,7 +25,7 @@ namespace Pinball.Presentation
                 }
                 stacking.text = "Extra card: " + string.Join(" · ", parts);
             }
-            if (chargeCost) chargeCost.text = $"{deck.baseCost:0.##} base +{deck.perCardCost:0.##} required / card";
+            if (chargeCost) chargeCost.text = $"Refill by empty slots: {string.Join(" / ", System.Array.ConvertAll(deck.refillCosts, c => c.ToString("0.##")))}";
             if (chargeSources) chargeSources.text = $"Natural {deck.naturalPerSecond:0.##}/s · Ball contact +{deck.perContact:0.##}";
         }
     }

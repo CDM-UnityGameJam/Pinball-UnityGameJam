@@ -38,7 +38,7 @@ namespace Pinball.Presentation
         void Start()
         {
             context.Feedback.Raised += OnFeedback;
-            context.Casts.BatchRevealed += OnBatchRevealed;
+            context.Casts.BatchCast += OnBatchCast;
             context.Hand.BatchPlayed += OnBatchPlayed;
             context.Score.ScoreChanged += OnScoreChanged;
             context.Enemies.BallContact += OnBallContact;
@@ -51,7 +51,7 @@ namespace Pinball.Presentation
         {
             if (!context || !context.IsInitialized) return;
             context.Feedback.Raised -= OnFeedback;
-            context.Casts.BatchRevealed -= OnBatchRevealed;
+            context.Casts.BatchCast -= OnBatchCast;
             context.Hand.BatchPlayed -= OnBatchPlayed;
             context.Score.ScoreChanged -= OnScoreChanged;
             context.Enemies.BallContact -= OnBallContact;
@@ -72,7 +72,7 @@ namespace Pinball.Presentation
                     if (e.element.passiveHitSfx) e.element.passiveHitSfx.Play(e.position);
                     break;
                 case FeedbackKind.ActiveHit:
-                    var hit = e.strong && e.element.matchedHitVfx ? e.element.matchedHitVfx : e.element.activeHitVfx;
+                    var hit = e.strong && e.element.luckyHitVfx ? e.element.luckyHitVfx : e.element.activeHitVfx;
                     if (hit) hit.Play(request);
                     if (e.element.activeHitSfx) e.element.activeHitSfx.Play(e.position);
                     break;
@@ -85,14 +85,14 @@ namespace Pinball.Presentation
             }
         }
 
-        // Every element in the batch casts on the reveal.
-        void OnBatchRevealed(DiceBatch batch)
+        // Every element in the group casts at once.
+        void OnBatchCast(CastBatch batch)
         {
             foreach (var cast in batch.Casts)
                 if (cast.element && cast.element.castSfx) cast.element.castSfx.Play(Listener);
         }
 
-        void OnBatchPlayed(DiceBatch batch)
+        void OnBatchPlayed(CastBatch batch)
         {
             if (cardsPlayedSfx) cardsPlayedSfx.Play(Listener);
         }

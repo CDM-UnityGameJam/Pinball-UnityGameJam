@@ -63,7 +63,7 @@ namespace Pinball.Gameplay
             Relaunch = new BallRelaunch(this);
 
             // When several deadlines fall on the same moment they fire in this order (old TickGameplay):
-            // enemy statuses (front first), dice reveal and skill waves, then a replacement ball.
+            // enemy statuses (front first), skill waves, then a replacement ball.
             Clock.Register(Enemies);
             Clock.Register(Casts);
             Clock.Register(Relaunch);

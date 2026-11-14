@@ -8,8 +8,8 @@ using UnityEngine;
 namespace Pinball.Tests.EditMode
 {
     // The data assets hold exactly the values the integration/v05-multiball-side-kickers branch plays with
-    // (Luck Number v0.6): its Pinball.unity scene, Settings/DefaultCardBalance.asset and
-    // Settings/DefaultDifficulty.asset. "scene" marks values serialized on the old GameManager.
+    // (Luck Number v0.7 "lucky groups", up to 001ed3b): its Pinball.unity scene, Settings/DefaultCardBalance.asset
+    // and Settings/DefaultDifficulty.asset. "scene" marks values serialized on the old GameManager.
     public class DataAssetTests
     {
         const string Data = "Assets/_Project/Data/";
@@ -25,7 +25,7 @@ namespace Pinball.Tests.EditMode
         static ElementDefinition Element(string name) => Load<ElementDefinition>($"Elements/{name}.asset");
 
         [Test]
-        public void GameConfigMatchesV06()
+        public void GameConfigMatchesV07()
         {
             var g = Game;
             Assert.That(g.lives, Is.EqualTo(3));
@@ -33,10 +33,7 @@ namespace Pinball.Tests.EditMode
             Assert.That(g.launchCountdown, Is.EqualTo(3f), "scene launchWait");
             Assert.That(g.launchSpeed, Is.EqualTo(32f), "scene");
             Assert.That(g.launchSpreadDegrees, Is.EqualTo(8f));
-            Assert.That(g.ballHitDamage, Is.EqualTo(4));
-            Assert.That(g.empoweredHitDamage, Is.EqualTo(8));
-            Assert.That(g.empoweredHitsPerCard, Is.EqualTo(1));
-            Assert.That(g.diceRevealDelay, Is.EqualTo(0.45f).Within(1e-6f));
+            Assert.That(g.ballHitDamage, Is.EqualTo(4), "collisionDamage; empowered hits are gone");
             Assert.That(g.status.burnTickInterval, Is.EqualTo(0.5f));
             Assert.That(g.status.passiveStunImmunity, Is.EqualTo(1f));
             Assert.That(g.deck, Is.Not.Null);
@@ -45,7 +42,7 @@ namespace Pinball.Tests.EditMode
         }
 
         [Test]
-        public void MultiballMatchesV06()
+        public void MultiballMatchesV07()
         {
             var m = Game.multiball;
             Assert.That(m.maxBalls, Is.EqualTo(3), "scene");
@@ -55,7 +52,7 @@ namespace Pinball.Tests.EditMode
         }
 
         [Test]
-        public void ScoringMatchesV06()
+        public void ScoringMatchesV07()
         {
             var s = Game.scoring;
             Assert.That(s.timeInterval, Is.EqualTo(5f));
@@ -67,36 +64,35 @@ namespace Pinball.Tests.EditMode
         }
 
         [Test]
-        public void DeckMatchesV06()
+        public void DeckMatchesV07()
         {
             var deck = Game.deck;
             Assert.That(deck.handSize, Is.EqualTo(5));
-            Assert.That(deck.startingHand, Is.Empty, "a run starts with five empty slots");
-            Assert.That(deck.baseCost, Is.EqualTo(100f));
-            Assert.That(deck.perCardCost, Is.EqualTo(0f));
-            Assert.That(deck.naturalPerSecond, Is.EqualTo(2f));
-            Assert.That(deck.perContact, Is.EqualTo(13f));
-            Assert.That(deck.elementWeights.Select(w => w.element.displayName), Is.EquivalentTo(new[] { "Arc", "Spark", "Shockwave" }));
+            Assert.That(deck.refillCosts, Is.EqualTo(new[] { 100f, 250f, 450f, 700f, 1000f }));
+            Assert.That(deck.naturalPerSecond, Is.EqualTo(3f));
+            Assert.That(deck.perContact, Is.EqualTo(10f));
+            Assert.That(deck.luckyProbability, Is.EqualTo(0.2f).Within(1e-6f));
+            Assert.That(deck.elementWeights.Select(w => w.element.displayName), Is.EqualTo(new[] { "Arc", "Spark", "Shockwave" }));
             Assert.That(deck.elementWeights.All(w => w.weight == 1f));
-            Assert.That(deck.numberWeights.Select(w => w.number), Is.EqualTo(Enumerable.Range(1, 6)));
+            Assert.That(deck.numberWeights.Select(w => w.number), Is.EqualTo(new[] { 1, 2, 3 }), "card numbers are 1-3");
             Assert.That(deck.numberWeights.All(w => w.weight == 1f));
         }
 
         [Test]
-        public void SpawnProfileMatchesV06()
+        public void SpawnProfileMatchesV07()
         {
             var profile = Game.spawnProfile;
             Assert.That(profile.openingCount, Is.EqualTo(1), "scene");
             Assert.That(profile.openingColumnSpacing, Is.EqualTo(2f));
-            Assert.That(profile.baseSpawnInterval, Is.EqualTo(5f));
+            Assert.That(profile.baseSpawnInterval, Is.EqualTo(3f));
             Assert.That(profile.spawnChance, Is.EqualTo(0.96f).Within(1e-6f));
             Assert.That(profile.placementAttempts, Is.EqualTo(30));
             Assert.That(profile.spawnSpeedMultiplier, Is.EqualTo(1f));
             Assert.That(profile.moveSpeedMultiplier, Is.EqualTo(1f));
             Assert.That(profile.stages.Select(s => (s.time, s.spawnMultiplier, s.moveMultiplier, s.healthMultiplier)), Is.EqualTo(new[]
             {
-                (0f, 1f, 1f, 1f), (30f, 1.2f, 1.25f, 2f), (90f, 1.5f, 1.3f, 4f),
-                (180f, 2f, 1.5f, 6f), (300f, 5f, 1.7f, 8f), (480f, 10f, 1.8f, 10f),
+                (0f, 1f, 1f, 1f), (30f, 1.1f, 1.25f, 2f), (90f, 1.5f, 1.3f, 4f),
+                (180f, 1.8f, 1.5f, 5f), (300f, 3f, 1.7f, 7f), (480f, 5f, 1.8f, 10f),
             }));
             Assert.That(DifficultyCurve.Check(profile.stages), Is.Null);
             Assert.That(profile.enemies.Count, Is.EqualTo(1));
@@ -104,11 +100,11 @@ namespace Pinball.Tests.EditMode
         }
 
         [Test]
-        public void GruntMatchesV06()
+        public void GruntMatchesV07()
         {
             var grunt = Load<EnemyDefinition>("Enemies/Grunt.asset");
-            Assert.That(grunt.health, Is.EqualTo(9), "difficulty base enemy health");
-            Assert.That(grunt.descendSeconds, Is.EqualTo(35f), "difficulty base descent time");
+            Assert.That(grunt.health, Is.EqualTo(20), "difficulty base enemy health");
+            Assert.That(grunt.descendSeconds, Is.EqualTo(50f), "difficulty base descent time");
             Assert.That(grunt.elementRule, Is.EqualTo(EnemyDefinition.ElementRule.RandomFromGame));
             Assert.That(grunt.radius, Is.EqualTo(0.75f));
             Assert.That(grunt.hitCooldown, Is.EqualTo(0.2f).Within(1e-6f));
@@ -120,24 +116,25 @@ namespace Pinball.Tests.EditMode
         }
 
         [Test]
-        public void ArcMatchesV06()
+        public void ArcMatchesV07()
         {
             var arc = Element("Arc");
             Assert.That(arc.skillName, Is.EqualTo("Thunderstorm"));
             var passive = (ChainDamagePassive)arc.passive;
             Assert.That(passive.radius, Is.EqualTo(5f));
             Assert.That(passive.damage, Is.EqualTo(4));
+            Assert.That(passive.luckyDamageBonus, Is.EqualTo(2));
             Assert.That(passive.damageHitEnemy, "held Arc also strikes the enemy the ball hit");
-            Assert.That(Enumerable.Range(1, 6).Select(passive.nearbyTargets.Evaluate), Is.EqualTo(new[] { 3, 4, 6, 8, 13, 13 }));
-            var active = (WaveDamageSkill)arc.active;
-            Assert.That(active.damagePerWave, Is.EqualTo(20));
-            Assert.That(active.waveInterval, Is.EqualTo(0.25f));
-            AssertTiers(arc, (false, 4, 1), (false, 6, 2), (true, 4, 3), (true, 4, 4));
+            Assert.That(Enumerable.Range(1, 6).Select(passive.nearbyTargets.Evaluate), Is.EqualTo(new[] { 5, 7, 10, 15, 25, 25 }));
+            Assert.That(((WaveDamageSkill)arc.active).waveInterval, Is.EqualTo(0.25f));
+            AssertRow(arc.normal, true, 4, waves: 2, damage: 40);
+            AssertRow(arc.lucky, true, 4, waves: 3, damage: 45);
             Assert.That(arc.extraWavesPerCopy, Is.EqualTo(1));
+            Assert.That(arc.extraBurnSecondsPerCopy, Is.EqualTo(0f));
         }
 
         [Test]
-        public void SparkMatchesV06()
+        public void SparkMatchesV07()
         {
             var spark = Element("Spark");
             Assert.That(spark.skillName, Is.EqualTo("Inferno"));
@@ -145,48 +142,46 @@ namespace Pinball.Tests.EditMode
             Assert.That(passive.igniteHitEnemy);
             Assert.That(passive.radius, Is.EqualTo(5f));
             Assert.That(passive.burnSeconds, Is.EqualTo(6f));
-            Assert.That(Enumerable.Range(1, 5).Select(passive.extraTargets.Evaluate), Is.EqualTo(new[] { 2, 3, 4, 5, 6 }));
-            // 0.5 DPS × multipliers 1 / 1.5 / 3 / 8 / 20.
-            Assert.That(Enumerable.Range(1, 5).Select(passive.burnDps.Evaluate), Is.EqualTo(new[] { 0.5f, 0.75f, 1.5f, 4f, 10f }));
-            Assert.That(((BurnSkill)spark.active).burnDps, Is.EqualTo(4f));
-            AssertTiers(spark, (false, 3, 1), (false, 5, 1), (true, 4, 1), (true, 4, 1));
-            Assert.That(spark.tiers.Select(t => t.burnSeconds), Is.All.EqualTo(6f));
+            Assert.That(Enumerable.Range(1, 5).Select(passive.extraTargets.Evaluate), Is.EqualTo(new[] { 5, 7, 10, 15, 25 }));
+            // 0.5 DPS × multipliers 1 / 1.5 / 3 / 8 / 10.
+            Assert.That(Enumerable.Range(1, 5).Select(passive.burnDps.Evaluate), Is.EqualTo(new[] { 0.5f, 0.75f, 1.5f, 4f, 5f }));
+            Assert.That(passive.luckyDpsBonus, Is.EqualTo(1f));
+            AssertRow(spark.normal, true, 4, waves: 1, damage: 12, burnSeconds: 6f, burnDps: 15f);
+            AssertRow(spark.lucky, true, 4, waves: 1, damage: 12, burnSeconds: 15f, burnDps: 15f);
             Assert.That(spark.extraBurnSecondsPerCopy, Is.EqualTo(2f));
+            Assert.That(spark.extraWavesPerCopy, Is.EqualTo(0));
         }
 
         [Test]
-        public void ShockwaveMatchesV06()
+        public void ShockwaveMatchesV07()
         {
             var shock = Element("Shockwave");
             Assert.That(shock.skillName, Is.EqualTo("Impact"));
             var passive = (StunPulsePassive)shock.passive;
-            Assert.That(passive.stunSeconds, Is.EqualTo(0.8f).Within(1e-6f));
-            Assert.That(Enumerable.Range(1, 5).Select(passive.radius.Evaluate), Is.EqualTo(new[] { 3f, 4f, 6f, 8f, 10f }));
-            var active = (StunWaveSkill)shock.active;
-            Assert.That(active.damagePerWave, Is.EqualTo(15));
-            Assert.That(active.stunOnFirstWave);
-            AssertTiers(shock, (false, 5, 1), (false, 7, 1), (true, 4, 1), (true, 4, 1));
-            Assert.That(shock.tiers.Select(t => t.stunSeconds), Is.EqualTo(new[] { 5f, 10f, 15f, 20f }));
+            Assert.That(passive.stunSeconds, Is.EqualTo(1f));
+            Assert.That(passive.luckyStunBonus, Is.EqualTo(0.25f));
+            Assert.That(Enumerable.Range(1, 5).Select(passive.radius.Evaluate), Is.EqualTo(new[] { 4f, 5f, 5.5f, 6f, 7f }));
+            Assert.That(((StunWaveSkill)shock.active).stunOnFirstWave);
+            AssertRow(shock.normal, true, 4, waves: 1, damage: 15, stunSeconds: 15f);
+            AssertRow(shock.lucky, true, 4, waves: 1, damage: 15, stunSeconds: 30f);
             Assert.That(shock.extraWavesPerCopy, Is.EqualTo(0), "Shockwave always resolves one impact");
         }
 
         [Test]
         public void ExtraCopiesAddWavesAndBurn()
         {
-            Assert.That(Element("Arc").Plan(CastTier.Base, 3).waves, Is.EqualTo(3));
-            Assert.That(Element("Arc").Plan(CastTier.Jackpot, 2).waves, Is.EqualTo(5));
-            Assert.That(Element("Spark").Plan(CastTier.FullField, 2).burnSeconds, Is.EqualTo(8f));
-            Assert.That(Element("Shockwave").Plan(CastTier.Jackpot, 5).waves, Is.EqualTo(1));
+            Assert.That(Element("Arc").Plan(CastTier.Normal, 3).waves, Is.EqualTo(4));
+            Assert.That(Element("Arc").Plan(CastTier.Lucky, 2).waves, Is.EqualTo(4));
+            Assert.That(Element("Spark").Plan(CastTier.Normal, 2).burnSeconds, Is.EqualTo(8f));
+            Assert.That(Element("Spark").Plan(CastTier.Lucky, 3).burnSeconds, Is.EqualTo(19f));
+            Assert.That(Element("Shockwave").Plan(CastTier.Lucky, 5).waves, Is.EqualTo(1));
         }
 
-        static void AssertTiers(ElementDefinition element, params (bool all, int targets, int waves)[] expected)
+        static void AssertRow(ActiveTier row, bool all, int targets, int waves, int damage,
+            float burnSeconds = 0f, float burnDps = 6f, float stunSeconds = 0f)
         {
-            Assert.That(element.tiers.Length, Is.EqualTo(SkillPlanner.TierCount), element.name);
-            for (int i = 0; i < expected.Length; i++)
-            {
-                var t = element.tiers[i];
-                Assert.That((t.allTargets, t.targetCount, t.waves), Is.EqualTo(expected[i]), $"{element.name} {(CastTier)i}");
-            }
+            Assert.That((row.allTargets, row.targetCount, row.waves, row.damage), Is.EqualTo((all, targets, waves, damage)));
+            Assert.That((row.burnSeconds, row.burnDps, row.stunSeconds), Is.EqualTo((burnSeconds, burnDps, stunSeconds)));
         }
     }
 }

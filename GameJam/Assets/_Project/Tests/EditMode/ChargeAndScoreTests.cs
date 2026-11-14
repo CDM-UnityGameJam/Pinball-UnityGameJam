@@ -4,62 +4,44 @@ using Pinball.Core;
 
 namespace Pinball.Tests.EditMode
 {
-    // Charge, difficulty and scoring rules (port of the v0.6 RechargeAccountChecks, DifficultyRuleChecks and
+    // Charge, difficulty and scoring rules (port of the v0.7 RechargeAccount, v0.6 DifficultyRuleChecks and
     // ScoreChecks).
     public class ChargeAndScoreTests
     {
         [Test]
-        public void ChargeCostsBasePlusPerCardAndCarriesOverflow()
+        public void ChargeIsReadyWhenProgressCoversTheRequirement()
         {
             var a = new ChargeAccount();
-            a.PlayBatch(handWasFull: true, count: 2, baseCost: 100, perCardCost: 50);
-            Assert.That(a.Required, Is.EqualTo(200));
-            a.Earn(150);
-            Assert.That(a.TryConsume(100), Is.False);
-            a.Earn(70);
-            Assert.That(a.TryConsume(100), "220 covers 200");
-            Assert.That(a.Progress, Is.EqualTo(20).Within(1e-9), "overflow carries over");
-            Assert.That(a.Required, Is.EqualTo(100), "the next card costs base again");
-
-            a.PlayBatch(handWasFull: false, count: 1, baseCost: 100, perCardCost: 50);
-            Assert.That(a.Required, Is.EqualTo(150), "a partial hand keeps progress and adds the card cost");
-            Assert.That(a.Progress, Is.EqualTo(20).Within(1e-9));
-        }
-
-        [Test]
-        public void ChargeThresholdsMatchV05()
-        {
-            // v0.5 shared thresholds: from a full hand, one card then two more cards: 150 / 250 / 350.
-            var a = new ChargeAccount();
-            a.PlayBatch(true, 1, 100, 50);
-            Assert.That(a.Required, Is.EqualTo(150));
-            a.PlayBatch(false, 2, 100, 50);
-            Assert.That(a.Required, Is.EqualTo(250));
-            a.PlayBatch(false, 2, 100, 50);
-            Assert.That(a.Required, Is.EqualTo(350));
-            Assert.That(a.RequiredAfterBatch(false, 1, 100, 50), Is.EqualTo(400));
-            Assert.That(a.RequiredAfterBatch(true, 1, 100, 50), Is.EqualTo(150));
+            a.SetRequirement(250);
+            a.Earn(200);
+            Assert.That(a.Ready, Is.False);
+            a.SetRequirement(100);
+            Assert.That(a.Ready, "a smaller requirement keeps the progress");
+            a.SetRequirement(450);
+            Assert.That((a.Ready, a.Progress), Is.EqualTo((false, 200.0)), "casting more cards keeps progress, replaces the requirement");
+            a.Earn(250);
+            Assert.That(a.Ready);
         }
 
         [Test]
         public void FullHandClearsChargeAndIgnoresEarnings()
         {
             var a = new ChargeAccount();
-            a.StartMissing(100);
-            a.Earn(60);
+            a.SetRequirement(100);
+            a.Earn(160);
             a.FullHand();
-            Assert.That((a.Progress, a.Required), Is.EqualTo((0.0, 0.0)));
+            Assert.That((a.Progress, a.Required), Is.EqualTo((0.0, 0.0)), "overflow is cleared too");
             Assert.That(a.Earn(50), Is.EqualTo(0), "nothing is missing");
-            Assert.That(a.TryConsume(100), Is.False);
+            Assert.That(a.Ready, Is.False);
         }
 
         [Test]
         public void ContactChargeIsUncapped()
         {
             var a = new ChargeAccount();
-            a.StartMissing(1e9);
-            for (int i = 0; i < 30000; i++) Assert.That(a.Earn(13), Is.EqualTo(13));
-            Assert.That(a.Progress, Is.EqualTo(390000).Within(1e-6));
+            a.SetRequirement(1e9);
+            for (int i = 0; i < 30000; i++) Assert.That(a.Earn(10), Is.EqualTo(10));
+            Assert.That(a.Progress, Is.EqualTo(300000).Within(1e-6));
         }
 
         static readonly List<DifficultyStage> Stages = new List<DifficultyStage>

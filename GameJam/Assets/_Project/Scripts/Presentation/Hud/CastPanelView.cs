@@ -7,36 +7,37 @@ using UnityEngine.Serialization;
 
 namespace Pinball.Presentation
 {
-    // Bottom bar: what is being cast, the last batch's result, and the charge toward the next card.
+    // Bottom bar: the lucky number and what is selected, the last group's result, and the charge toward the refill.
     public sealed class CastPanelView : HudPresenter
     {
         [Required] public HandView hand;
         [FormerlySerializedAs("lucky")] public TMP_Text status;
         public TMP_Text lastCast;
         [FormerlySerializedAs("refill")] public TMP_Text charge;
-        [Tooltip("Second charge line (cost per card).")] public TMP_Text chargeHint;
+        [Tooltip("Second charge line (how many cards the refill draws).")] public TMP_Text chargeHint;
         [FormerlySerializedAs("refillFill"), Tooltip("Fill whose right anchor tracks charge progress.")]
         public RectTransform chargeFill;
 
         void Update()
         {
             if (!Ready) return;
-            var casts = Context.Casts;
             var cards = Context.Hand;
-            status.text = casts.PendingBatch != null ? $"Rolling {casts.PendingBatch.Dice.Count} dice"
-                : hand.Selection.Count == 0 ? "Select cards"
-                : $"Match #{hand.SelectedNumber} · {hand.Selection.Count} selected";
+            string lucky = cards.LuckyNumber != 0 ? $"Lucky #{cards.LuckyNumber}" : "No lucky number";
+            status.text = hand.Selection.Count == 0 ? $"{lucky} · Drag a group out to cast"
+                : $"{lucky} · Group #{hand.SelectedNumber} ({hand.Selection.Count})";
 
-            var batch = casts.LastBatch;
-            lastCast.text = batch == null ? "No cast yet"
-                : !batch.Revealed ? "Revealing dice..."
-                : $"{DiceRules.Label(batch.tier)} · {batch.Coverage} targets · {batch.Kills} kills";
-            lastCast.color = batch != null && batch.Revealed && batch.tier == CastTier.Jackpot ? Theme.gold : Theme.blue;
+            var batch = Context.Casts.LastBatch;
+            if (lastCast)
+            {
+                lastCast.text = batch == null ? "No cast yet"
+                    : $"{GroupRules.Label(batch.tier)} #{batch.number} · {batch.Coverage} targets · {batch.Kills} kills";
+                lastCast.color = batch != null && batch.Lucky ? Theme.gold : Theme.blue;
+            }
 
             charge.text = cards.IsFull ? "Equipment full" : $"Recharge: {cards.ChargeProgress:0.#} / {cards.ChargeRequired:0.#}";
-            if (chargeHint) chargeHint.text = $"Per card cast: required charge +{Context.config.deck.perCardCost:0.#}";
+            if (chargeHint) chargeHint.text = cards.IsFull ? "" : $"Refill draws {cards.Missing} card{(cards.Missing == 1 ? "" : "s")}";
             float progress = cards.IsFull || cards.ChargeRequired <= 0 ? 0f : Mathf.Clamp01((float)(cards.ChargeProgress / cards.ChargeRequired));
-            chargeFill.anchorMax = new Vector2(progress, chargeFill.anchorMax.y);
+            if (chargeFill) chargeFill.anchorMax = new Vector2(progress, chargeFill.anchorMax.y);
         }
     }
 }

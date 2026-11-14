@@ -51,7 +51,7 @@ namespace Pinball.Presentation
             Context.Enemies.Added += Watch;
             Context.Score.Killed += (enemy, reward, source) => Show(enemy.transform.position, "+" + reward, Theme.green);
             Context.Score.MultiKill += OnMultiKill;
-            Context.Casts.BatchRevealed += OnBatchRevealed;
+            Context.Casts.BatchCast += OnBatchCast;
             Context.Hand.ContactCharged += (point, amount) => Show(point - Context.Board.Forward * chargeBackOffset, "+" + amount.ToString("G6"), Theme.blue);
             Context.Score.ComboPaid += points => Show(Context.Board.ToWorld(multiKillAt), "COMBO +" + points, Theme.gold);
             Context.Multiball.BallEarned += ball => Show(ball.transform.position, extraBallText, Theme.gold);
@@ -63,17 +63,17 @@ namespace Pinball.Presentation
             enemy.Health.Damaged += (amount, source) => Show(enemy.transform.position, "-" + amount, hitColor);
         }
 
-        void OnBatchRevealed(DiceBatch batch)
+        void OnBatchCast(CastBatch batch)
         {
             if (castToast != null) { Remove(castToast); castToast = null; }
-            var color = batch.tier == CastTier.Base ? Theme.dim : batch.tier == CastTier.Jackpot ? Theme.gold : Theme.blue;
-            castToast = Show(Context.Board.ToWorld(castResultAt), $"{DiceRules.Label(batch.tier)} · {batch.Coverage} targets", color);
+            var color = batch.Lucky ? Theme.gold : Theme.blue;
+            castToast = Show(Context.Board.ToWorld(castResultAt), $"{GroupRules.Label(batch.tier)} #{batch.number} · {batch.Coverage} targets", color);
         }
 
         void OnMultiKill(AttackRecord source)
         {
             string label = $"{source.label} ×{source.Kills} MULTIKILL";
-            // Batches report kills as their skills land; the label keeps updating in place.
+            // Groups report kills as their skills land; the label keeps updating in place.
             foreach (var p in active)
                 if (ReferenceEquals(p.source, source)) { p.text.text = label; p.age = 0f; return; }
             Show(Context.Board.ToWorld(multiKillAt), label, Theme.gold).source = source;
